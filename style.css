@@ -72,3 +72,14 @@ nav {
   text-shadow: 2px 2px red, -2px -2px cyan;
 }
 
+.post {
+  border: 1px solid #0f0;
+  margin: 8px;
+  padding: 8px;
+  animation: glow 1s infinite alternate;
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 2px #0f0; }
+  to { box-shadow: 0 0 12px #0f0; }
+}
