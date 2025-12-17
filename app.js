@@ -34,3 +34,12 @@ onAuthStateChanged(auth, async user => {
     appScreen.classList.remove("hidden");
 
     const userRef = doc
+    window.signup = signup;
+window.login = login;
+window.logout = logout;
+window.show = show;
+window.postWorkout = postWorkout;
+window.toggleLike = toggleLike;
+window.addComment = addComment;
+window.savePR = savePR;
+window.createPresetPlan = createPresetPlan;
