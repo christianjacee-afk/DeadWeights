@@ -2,103 +2,125 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DEADWEIGHTS // MASSGRAVE_RECRUIT</title>
+  <title>DEADWEIGHTS // THE_GRAVE</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div id="username-screen" class="overlay" style="display: none;">
-  <div class="terminal-box">
-    <div class="terminal-header">IDENT_STATION</div>
-    <div class="terminal-body">
-      <p>CHOOSE CALLSIGN:</p>
-      <input id="usernameInput" placeholder="RECRUIT_NAME">
-      <p>SELECT INITIAL CALLING CARD:</p>
-      <div id="card-picker"></div>
-      <button id="saveUserBtn" class="terminal-btn">INITIALIZE</button>
+<div id="registration-screen" class="screen hidden">
+  <div class="morbid-title pulse">DEADWEIGHTS</div>
+  <div class="grave-box auth-box anim-slide-up">
+    <div class="grave-header">RECRUIT_INDUCTION</div>
+    <div class="grave-body">
+      <div id="reg-step-1">
+        <input id="reg-email" type="email" placeholder="EMAIL_ADDRESS">
+        <input id="reg-pass" type="password" placeholder="CREATE_PASSCODE">
+        <input id="reg-confirm" type="password" placeholder="CONFIRM_PASSCODE">
+        <button id="nextStepBtn" class="grave-btn">CONTINUE_INDUCTION</button>
+      </div>
+      <div id="reg-step-2" class="hidden">
+        <input id="reg-username" placeholder="ASSIGN_CALLSIGN">
+        <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
+        <div id="initial-tag-picker"></div>
+        <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
+      </div>
+      <button onclick="window.showAuth()" class="grave-btn-alt">RETURN_TO_LOGIN</button>
     </div>
   </div>
 </div>
 
 <div id="auth-screen" class="screen">
-  <div class="glitch-title">DEADWEIGHTS</div>
-  <div class="terminal-box auth-box">
-    <div class="terminal-header">ACCESS_REQUIRED</div>
-    <div class="terminal-body">
+  <div class="morbid-title pulse">DEADWEIGHTS</div>
+  <div class="grave-box auth-box">
+    <div class="grave-header">EXISTING_ENTITY_ACCESS</div>
+    <div class="grave-body">
       <input id="email" type="email" placeholder="USER_ID">
       <input id="password" type="password" placeholder="PASS_CODE">
-      <button id="loginBtn" class="terminal-btn">LOGIN</button>
-      <button id="signupBtn" class="terminal-btn-alt">REGISTER</button>
-      <p id="auth-msg"></p>
+      <button id="loginBtn" class="grave-btn">RESURRECT</button>
+      <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
+      <p id="auth-msg" class="flicker"></p>
     </div>
   </div>
 </div>
 
 <div id="app" class="screen hidden">
-  <header class="main-header">
+  <header class="grave-nav">
     <div class="logo">DEADWEIGHTS // <span id="header-callsign"></span></div>
-    <button id="logoutBtn" class="mini-btn">DISCONNECT</button>
+    <div class="nav-controls">
+        <button onclick="window.showTab('settings')" class="mini-btn">SETTINGS</button>
+        <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
+    </div>
   </header>
 
-  <div class="dashboard">
-    <aside class="col-left">
-      <div class="terminal-box profile-card">
-        <div id="user-calling-card" class="calling-card anim-card">
-          <span id="pfp-text">RECRUIT</span>
+  <div class="grave-grid">
+    <aside class="col">
+      <div class="grave-box">
+        <div id="user-grave-tag" class="grave-tag">
+          <span id="pfp-text">CADAVER</span>
         </div>
-        <div class="terminal-body">
-          <h2 id="profileUsername">USER</h2>
-          <div class="stats-grid">
-            <div class="stat"><small>LIFTS</small><b id="stat-count">0</b></div>
-            <div class="stat"><small>RANK</small><b>PVT</b></div>
+        <div class="grave-body">
+          <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
+          <div class="stats-line">
+            <div class="stat"><small>CARVINGS</small><b id="stat-count">0</b></div>
+            <div class="stat"><small>RANK</small><b id="user-rank">NEWBORN</b></div>
           </div>
         </div>
       </div>
 
-      <div class="terminal-box">
-        <div class="terminal-header">NETWORK_INTEL</div>
-        <div id="friends-list" class="terminal-body"></div>
-        <div id="req-box" class="terminal-body hidden" style="border-top: 1px solid #333;">
-            <p class="blink">!! RECRUIT_PENDING !!</p>
-            <div id="request-list"></div>
-        </div>
+      <div class="grave-box">
+        <div class="grave-header">THE_BURN_LIST (LEADERBOARD)</div>
+        <div id="leaderboard" class="grave-body small-text"></div>
       </div>
     </aside>
 
-    <main class="col-center">
-      <div class="terminal-box">
-        <div class="terminal-header">BROADCAST_STATION</div>
-        <div class="terminal-body">
-          <textarea id="statusText" placeholder="TRANSMIT TO THE GRAVE..."></textarea>
-          <button id="postStatusBtn" class="terminal-btn">SEND_BULLETIN</button>
+    <main class="col-main">
+      <section id="feed-panel">
+        <div class="grave-box">
+          <div class="grave-header">BROADCAST_CARVING</div>
+          <div class="grave-body">
+            <textarea id="statusText" placeholder="CARVE YOUR THOUGHTS..."></textarea>
+            <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
+          </div>
         </div>
-      </div>
-      <div id="feed-content"></div>
+        <div id="feed-content"></div>
+      </section>
+
+      <section id="settings-panel" class="hidden">
+        <div class="grave-box">
+          <div class="grave-header">USER_PARAMETERS</div>
+          <div class="grave-body">
+            <button class="grave-btn-alt" onclick="window.showTab('feed-panel')">BACK_TO_FEED</button>
+            <div class="divider"></div>
+            <p>UPDATE_CALLSIGN:</p>
+            <input id="update-name" placeholder="NEW_NAME">
+            <button class="grave-btn" onclick="window.updateProfile()">UPDATE_ENTITY</button>
+          </div>
+        </div>
+        <div id="admin-panel" class="grave-box hidden">
+          <div class="grave-header">ADMIN_TERMINAL</div>
+          <div class="grave-body">
+            <p>BROADCAST_SYSTEM_ALERTS:</p>
+            <textarea id="admin-msg" placeholder="SYSTEM_MESSAGE"></textarea>
+            <button class="grave-btn" style="background:var(--blood)">PURGE_SYSTEM</button>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <aside class="col-right">
-      <div class="terminal-box active-log">
-        <div class="terminal-header">MISSION_LOG</div>
-        <div id="active-session-ui" class="terminal-body">
-          <p>NO PROTOCOL LOADED.</p>
-          <button onclick="window.showVault()" class="terminal-btn">LOAD_PROTOCOL</button>
-        </div>
+    <aside class="col">
+      <div class="grave-box">
+        <div class="grave-header">LOGGING_STATION</div>
+        <div id="logging-ui" class="grave-body">
+          </div>
       </div>
 
-      <div class="terminal-box">
-        <div class="terminal-header">MAX_EFFORT_DATA</div>
-        <div id="prList" class="terminal-body"></div>
+      <div class="grave-box">
+        <div class="grave-header">PEAK_EXHAUSTION</div>
+        <div id="prList" class="grave-body"></div>
       </div>
     </aside>
   </div>
-</div>
-
-<div id="vault-modal" class="overlay hidden">
-    <div class="terminal-box" style="width: 400px;">
-        <div class="terminal-header">VAULT_ACCESS <button onclick="window.closeVault()" class="mini-btn" style="float:right">X</button></div>
-        <div id="premade-list" class="terminal-body"></div>
-    </div>
 </div>
 
 <script type="module" src="app.js"></script>
