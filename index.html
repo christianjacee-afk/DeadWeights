@@ -5,69 +5,70 @@
   <title>MassGraves</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 
-  <!-- Firebase & App -->
   <script type="module" src="app.js"></script>
 </head>
 <body>
 
 <div id="crt"></div>
 
-<!-- Authentication -->
 <div id="auth-screen" class="screen">
   <h1 class="glitch">MASSGRAVES</h1>
 
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <input id="invite" placeholder="Invite Code">
+  <div id="login-fields">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    
+    <div style="margin-top: 15px;">
+      <button onclick="window.login()">LOGIN</button>
+      <p style="margin: 10px 0; font-size: 0.8em; color: #0f0; opacity: 0.7;">— NEW RECRUIT? —</p>
+      <button id="signupBtn" style="width: 80%; font-weight: bold; border-width: 2px;">ENTER THE GRAVE</button>
+    </div>
+  </div>
 
-  <button id="signupBtn">ENTER THE GRAVE</button>
-  <button onclick="login()">LOGIN</button>
-
-  <p id="auth-msg"></p>
+  <p id="auth-msg" style="margin-top: 20px; min-height: 1.2em;"></p>
 </div>
 
-<!-- App -->
 <div id="app" class="screen hidden">
-  <header>
-    <h2>MassGraves</h2>
-    <button onclick="logout()">LOGOUT</button>
+  <header style="border-bottom: 1px solid #0f0; padding-bottom: 10px; margin-bottom: 10px;">
+    <h2>MassGraves // <span id="user-display" style="font-size: 0.7em;"></span></h2>
+    <button onclick="window.logout()">DISCONNECT</button>
   </header>
 
   <nav>
-    <button onclick="show('feed')">FEED</button>
-    <button onclick="show('log')">LOG WORKOUT</button>
-    <button onclick="show('prs')">PRs</button>
-    <button onclick="show('profile')">PROFILE</button>
-    <button onclick="show('admin-panel')">ADMIN</button>
+    <button onclick="window.show('feed')">FEED</button>
+    <button onclick="window.show('log')">LOG</button>
+    <button onclick="window.show('prs')">PRs</button>
+    <button onclick="window.show('profile')">PROFILE</button>
+    <button id="nav-admin" class="hidden" onclick="window.show('admin-panel')">ADMIN</button>
   </nav>
 
   <section id="feed" class="panel"></section>
 
   <section id="log" class="panel hidden">
-    <textarea id="workoutText" placeholder="Workout log..."></textarea>
-    <button onclick="postWorkout()">POST</button>
+    <textarea id="workoutText" rows="5" placeholder="Input workout data..."></textarea>
+    <button onclick="window.postWorkout()">UPLOAD TO FEED</button>
   </section>
 
   <section id="prs" class="panel hidden">
-    <input id="prName" placeholder="Lift">
-    <input id="prValue" placeholder="Weight">
-    <button onclick="savePR()">SAVE PR</button>
-    <div id="prList"></div>
+    <input id="prName" placeholder="Movement">
+    <input id="prValue" placeholder="Max Weight">
+    <button onclick="window.savePR()">RECORD PR</button>
+    <div id="prList" style="margin-top: 20px; border-top: 1px dashed #0f0;"></div>
   </section>
 
   <section id="profile" class="panel hidden">
     <h3 id="profileEmail"></h3>
+    <p style="color: #0f0;">RANK: ELITE</p>
   </section>
 
   <section id="admin-panel" class="panel hidden">
-    <h3>Admin: Preset Workout Plans</h3>
-    <input id="planName" placeholder="Plan Name">
-    <button onclick="createPresetPlan()">Create Preset Plan</button>
-    <div id="plans"></div>
+    <h3 style="color: red;">ADMIN OVERRIDE</h3>
+    <input id="planName" placeholder="Preset Plan Name">
+    <button onclick="window.createPresetPlan()">GENERATE PLAN</button>
+    <div id="plans" style="margin-top: 10px;"></div>
   </section>
 </div>
 
