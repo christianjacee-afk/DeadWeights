@@ -2,12 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MassGraves</title>
+  <title>MASSGRAVES // UNDERGROUND</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -16,59 +13,57 @@
 
 <div id="auth-screen" class="screen">
   <h1 class="glitch">MASSGRAVES</h1>
-
-  <div id="login-fields">
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    
-    <div style="margin-top: 15px;">
-      <button onclick="window.login()">LOGIN</button>
-      <p style="margin: 10px 0; font-size: 0.8em; color: #0f0; opacity: 0.7;">— NEW RECRUIT? —</p>
-      <button id="signupBtn" style="width: 80%; font-weight: bold; border-width: 2px;">ENTER THE GRAVE</button>
-    </div>
+  <div class="panel">
+    <p style="text-align:center; color: #ff00ea;">[ ACCESS RESTRICTED ]</p>
+    <input id="email" placeholder="USER_ID (EMAIL)">
+    <input id="password" type="password" placeholder="PASS_CODE">
+    <button onclick="window.login()">LOGIN</button>
+    <button id="signupBtn">ENTER THE GRAVE</button>
   </div>
-
-  <p id="auth-msg" style="margin-top: 20px; min-height: 1.2em;"></p>
+  <p id="auth-msg"></p>
 </div>
 
 <div id="app" class="screen hidden">
-  <header style="border-bottom: 1px solid #0f0; padding-bottom: 10px; margin-bottom: 10px;">
-    <h2>MassGraves // <span id="user-display" style="font-size: 0.7em;"></span></h2>
-    <button onclick="window.logout()">DISCONNECT</button>
-  </header>
-
+  <h1 class="glitch" style="font-size: 32px;">MASSGRAVES</h1>
+  
   <nav>
-    <button onclick="window.show('feed')">FEED</button>
-    <button onclick="window.show('log')">LOG</button>
-    <button onclick="window.show('prs')">PRs</button>
-    <button onclick="window.show('profile')">PROFILE</button>
-    <button id="nav-admin" class="hidden" onclick="window.show('admin-panel')">ADMIN</button>
+    <button onclick="window.show('feed')">THE_FEED</button>
+    <button onclick="window.show('log')">LOG_WORK</button>
+    <button onclick="window.show('prs')">VITAL_STATS</button>
+    <button onclick="window.show('profile')">MY_ID</button>
+    <button id="nav-admin" class="hidden" onclick="window.show('admin-panel')">SYSTEM_ROOT</button>
+    <button onclick="window.logout()" style="background: #ff00ea;">DISCONNECT</button>
   </nav>
 
   <section id="feed" class="panel"></section>
 
   <section id="log" class="panel hidden">
-    <textarea id="workoutText" rows="5" placeholder="Input workout data..."></textarea>
-    <button onclick="window.postWorkout()">UPLOAD TO FEED</button>
+    <h3>REPORT PROGRESS</h3>
+    <textarea id="workoutText" placeholder="What did you kill today?"></textarea>
+    <button onclick="window.postWorkout()">TRANSMIT</button>
   </section>
 
   <section id="prs" class="panel hidden">
-    <input id="prName" placeholder="Movement">
-    <input id="prValue" placeholder="Max Weight">
-    <button onclick="window.savePR()">RECORD PR</button>
-    <div id="prList" style="margin-top: 20px; border-top: 1px dashed #0f0;"></div>
+    <h3>MAX_EFFORT_LOG</h3>
+    <input id="prName" placeholder="LIFT_TYPE">
+    <input id="prValue" placeholder="WEIGHT_KG/LBS">
+    <button onclick="window.savePR()">SAVE_STAT</button>
+    <div id="prList"></div>
   </section>
 
   <section id="profile" class="panel hidden">
     <h3 id="profileEmail"></h3>
-    <p style="color: #0f0;">RANK: ELITE</p>
+    <p style="color: #ff00ea;">MEMBERSHIP: PERMANENT</p>
+    <div style="border: 1px dashed #444; padding: 10px; margin-top: 10px;">
+      <p>"Pain is temporary. The Grave is forever."</p>
+    </div>
   </section>
 
   <section id="admin-panel" class="panel hidden">
-    <h3 style="color: red;">ADMIN OVERRIDE</h3>
-    <input id="planName" placeholder="Preset Plan Name">
-    <button onclick="window.createPresetPlan()">GENERATE PLAN</button>
-    <div id="plans" style="margin-top: 10px;"></div>
+    <h3 style="color: red;">ADMIN_OVERRIDE</h3>
+    <input id="planName" placeholder="NEW_PLAN_NAME">
+    <button onclick="window.createPresetPlan()">PUSH_TO_USERS</button>
+    <div id="plans"></div>
   </section>
 </div>
 
