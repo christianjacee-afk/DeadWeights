@@ -2,119 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MassGraves | MySpace</title>
+  <title>xX_MASSGRAVES_Xx | SCENE</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="username-screen" class="overlay" style="display: none;">
-  <div class="ms-box">
-    <div class="ms-header">Setup Your Profile</div>
-    <div class="ms-body">
-      <p>Enter your Name / Grave Tag:</p>
-      <input id="usernameInput" placeholder="Name">
-      <button id="saveUserBtn" class="ms-btn">Create Profile</button>
+  <div class="scene-box">
+    <div class="scene-header">ENTER THE VOID</div>
+    <div class="scene-body">
+      <p>CHOOSE YOUR TAG:</p>
+      <input id="usernameInput" placeholder="xX_NAME_Xx">
+      <button id="saveUserBtn" class="scene-btn">INITIALIZE</button>
     </div>
   </div>
 </div>
 
 <div id="auth-screen" class="screen">
-  <div class="ms-top-nav">MassGraves.com</div>
-  <div class="ms-box" style="max-width: 400px; margin: 50px auto;">
-    <div class="ms-header">Member Login</div>
-    <div class="ms-body">
-      <input id="email" type="email" placeholder="Email">
-      <input id="password" type="password" placeholder="Password">
-      <button id="loginBtn" class="ms-btn">Login</button>
-      <button id="signupBtn" class="ms-btn-alt">Sign Up</button>
-      <p id="auth-msg" style="color:red; font-size:11px;"></p>
+  <h1 class="scene-glitch">MASSGRAVES</h1>
+  <div class="scene-box" style="max-width: 350px; margin: 50px auto;">
+    <div class="scene-header">LOGIN // ACCESS</div>
+    <div class="scene-body">
+      <input id="email" type="email" placeholder="EMAIL">
+      <input id="password" type="password" placeholder="PASSWORD">
+      <button id="loginBtn" class="scene-btn">ENTER</button>
+      <button id="signupBtn" class="scene-btn-alt">SIGN UP</button>
+      <p id="auth-msg"></p>
     </div>
   </div>
 </div>
 
 <div id="app" class="screen hidden">
-  <div class="ms-top-nav">
-    <span>MassGraves.com</span>
-    <button id="logoutBtn">Logout</button>
+  <div class="scene-nav">
+    <span class="logo">MASSGRAVES // UNDERGROUND</span>
+    <div class="nav-links">
+        <a href="#" data-show="feed">HOME</a>
+        <a href="#" data-show="log">LOGS</a>
+        <a href="#" data-show="vault">VAULT</a>
+        <a href="#" data-show="prs">STATS</a>
+        <button id="logoutBtn">EXIT</button>
+    </div>
   </div>
 
-  <div class="ms-container">
-    <div class="ms-left">
-      <div class="ms-box">
-        <div id="profileUsername" class="ms-header">Username</div>
-        <div class="ms-body center">
-          <img src="https://placehold.co/150x150/003399/white?text=PHOTO" class="ms-profile-pic">
-          <p>"Status: Killing it in the gym"</p>
+  <div class="scene-container">
+    <div class="scene-left">
+      <div class="scene-box">
+        <div id="profileUsername" class="scene-header">USER</div>
+        <div class="scene-body center">
+          <img src="https://placehold.co/150x150/111/ff00ea?text=RAWWR" class="profile-pic">
+          <p class="status-msg">"The gym is my escape."</p>
         </div>
       </div>
 
-      <div class="ms-box">
-        <div class="ms-header">My Links</div>
-        <div class="ms-body">
-          <ul class="ms-nav-list">
-            <li><a href="#" data-show="feed">Home (Feed)</a></li>
-            <li><a href="#" data-show="log">Workout Log</a></li>
-            <li><a href="#" data-show="vault">Plan Vault</a></li>
-            <li><a href="#" data-show="prs">My Stats</a></li>
-          </ul>
+      <div class="scene-box">
+        <div class="scene-header">FOLLOWERS</div>
+        <div id="friends-list" class="scene-body">
+            <p style="font-size:10px; color:#666;">No followers yet...</p>
         </div>
       </div>
     </div>
 
-    <div class="ms-right">
+    <div class="scene-right">
       
       <section id="feed" class="panel">
-        <div class="ms-box">
-          <div class="ms-header">Post a Bulletin / Status</div>
-          <div class="ms-body">
-            <textarea id="statusText" placeholder="What's on your mind?"></textarea>
-            <button id="postStatusBtn" class="ms-btn">Post</button>
+        <div class="scene-box">
+          <div class="scene-header">POST A BULLETIN</div>
+          <div class="scene-body">
+            <textarea id="statusText" placeholder="Space for your thoughts..."></textarea>
+            <button id="postStatusBtn" class="scene-btn">POST BULLETIN</button>
           </div>
         </div>
         <div id="feed-content"></div>
       </section>
 
       <section id="log" class="panel hidden">
-        <div class="ms-box">
-          <div class="ms-header">Today's Protocol</div>
-          <div class="ms-body">
+        <div class="scene-box">
+          <div class="scene-header">TRACK PROGRESS</div>
+          <div class="scene-body">
             <div id="plan-integration-tip"></div>
-            <select id="exerciseSelect">
-              <option value="Bench Press">Bench Press</option>
-              <option value="Squat">Squat</option>
-              <option value="Deadlift">Deadlift</option>
-              <option value="OHP">OHP</option>
-              <option value="CUSTOM">-- Custom --</option>
-            </select>
-            <input id="customExercise" class="hidden" placeholder="Exercise Name">
+            <select id="exerciseSelect"></select> <input id="customExercise" class="hidden" placeholder="MOVEMENT NAME">
             <div class="row">
-              <input id="weightInput" type="number" placeholder="Lbs">
-              <input id="repsInput" type="number" placeholder="Reps">
+              <input id="weightInput" type="number" placeholder="LBS">
+              <input id="repsInput" type="number" placeholder="REPS">
             </div>
-            <button id="postBtn" class="ms-btn">Log Workout</button>
+            <button id="postBtn" class="scene-btn">SAVE LOG</button>
           </div>
         </div>
-        <div id="workout-history" class="ms-box" style="margin-top:10px;">
-           <div class="ms-header">My Workout Logs</div>
-           <div id="my-logs-list" class="ms-body"></div>
+        <div class="scene-box">
+           <div class="scene-header">MY RECENT REPS</div>
+           <div id="my-logs-list" class="scene-body"></div>
         </div>
       </section>
 
       <section id="vault" class="panel hidden">
-        <div class="ms-box">
-          <div class="ms-header">Training Vault</div>
-          <div id="premade-list" class="ms-body"></div>
+        <div class="scene-box">
+          <div class="scene-header">WORKOUT PROTOCOLS</div>
+          <div id="premade-list" class="scene-body"></div>
         </div>
       </section>
 
       <section id="prs" class="panel hidden">
-        <div class="ms-box">
-          <div class="ms-header">Personal Records</div>
-          <div id="prList" class="ms-body"></div>
+        <div class="scene-box">
+          <div class="scene-header">LIFTING STATS</div>
+          <div id="prList" class="scene-body"></div>
         </div>
       </section>
-
     </div>
   </div>
 </div>
