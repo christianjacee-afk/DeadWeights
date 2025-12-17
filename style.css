@@ -1,366 +1,719 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>DEADWEIGHTS // THE_GRAVE</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="style.css">
-</head>
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
 
-<body class="crt">
-  <!-- ====== REGISTRATION ====== -->
-  <div id="registration-screen" class="screen hidden">
-    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
+/* =========================================================
+   DEADWEIGHTS // THE_GRAVE — Morbid-Classy CRT UI Skin
+   - Less eye-searing than neon green
+   - Softer “obsidian + blood” palette
+   - Animated calling cards + avatars hooks
+   - Better form controls (selects, dropdowns)
+   ========================================================= */
 
-    <div class="grave-box auth-box">
-      <div class="grave-header">RECRUIT_INDUCTION</div>
-      <div class="grave-body">
-        <div id="reg-step-1">
-          <input id="reg-email" type="email" placeholder="EMAIL_ADDRESS" autocomplete="email">
-          <input id="reg-pass" type="password" placeholder="CREATE_PASSCODE" autocomplete="new-password">
-          <input id="reg-confirm" type="password" placeholder="CONFIRM_PASSCODE" autocomplete="new-password">
-          <button id="nextStepBtn" class="grave-btn">CONTINUE_INDUCTION</button>
-          <div class="small-text dim" id="reg-step-1-hint">
-            TIP: Use a real email/pass. You will log in with this.
-          </div>
-        </div>
+:root{
+  --bg: #050506;
+  --bg2:#07070a;
+  --panel:#0b0b10;
+  --panel2:#0f0f16;
+  --void:#020203;
 
-        <div id="reg-step-2" class="hidden">
-          <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="20">
-          <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
-          <div id="initial-tag-picker" class="tag-grid"></div>
+  --blood:#b30000;
+  --blood2:#ff2a2a;
+  --rust:#4d2600;
 
-          <p class="small-label">SELECT INITIAL AVATAR:</p>
-          <div id="initial-avatar-picker" class="avatar-grid"></div>
+  --text:#9a9aa3;
+  --muted:#6b6b76;
+  --ink:#d9d9e3;
 
-          <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
-          <div class="small-text dim">
-            You can change tag/avatar/calling-card later.
-          </div>
-        </div>
+  /* toned CRT highlight (less bright) */
+  --crt:#33d17a;
+  --crt2:#7cf2b3;
 
-        <button id="returnToLoginBtn" class="grave-btn-alt">RETURN_TO_LOGIN</button>
-      </div>
-    </div>
-  </div>
+  --border:#1a1a22;
+  --border2:#252532;
 
-  <!-- ====== AUTH ====== -->
-  <div id="auth-screen" class="screen">
-    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
-    <div class="grave-box auth-box">
-      <div class="grave-header">EXISTING_ENTITY_ACCESS</div>
-      <div class="grave-body">
-        <input id="email" type="email" placeholder="USER_ID" autocomplete="email">
-        <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
-        <button id="loginBtn" class="grave-btn">RESURRECT</button>
-        <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
-        <div class="small-text dim" id="auth-error"></div>
-      </div>
-    </div>
-  </div>
+  --shadow: rgba(0,0,0,.65);
+  --shadow2: rgba(0,0,0,.85);
 
-  <!-- ====== APP ====== -->
-  <div id="app" class="screen hidden">
-    <header class="grave-nav">
-      <div class="logo pulse">
-        DEADWEIGHTS // <span id="header-callsign"></span>
-        <span class="chip" id="header-rank"></span>
-      </div>
+  --radius: 14px;
+  --radius2: 22px;
 
-      <div class="nav-controls">
-        <button id="navFeed" class="mini-btn">FEED</button>
-        <button id="navPlans" class="mini-btn">PLANS</button>
-        <button id="navFriends" class="mini-btn">FRIENDS</button>
-        <button id="navProfile" class="mini-btn">PROFILE</button>
-        <button id="navSettings" class="mini-btn">SETTINGS</button>
-        <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
-      </div>
-    </header>
+  --scanA: rgba(0,0,0,.16);
+  --scanB: rgba(255,0,0,.04);
+  --scanC: rgba(0,255,0,.02);
+  --scanD: rgba(0,0,255,.05);
 
-    <!-- Top status bar -->
-    <div class="top-strip">
-      <div class="strip-box">
-        <div class="strip-title">MASSGRAVE // TODAY</div>
-        <div class="strip-value">
-          GLOBAL: <span id="massgrave-global">0</span> LBS • YOU: <span id="massgrave-you">0</span> LBS
-        </div>
-      </div>
-      <div class="strip-box">
-        <div class="strip-title">UNLOCKS</div>
-        <div class="strip-value" id="unlock-line">...</div>
-      </div>
-    </div>
+  --focus: 0 0 0 2px rgba(51,209,122,.25), 0 0 24px rgba(51,209,122,.15);
 
-    <div class="grave-grid">
-      <!-- LEFT COL -->
-      <aside class="col">
-        <div class="grave-box">
-          <div id="user-grave-tag" class="grave-tag">
-            <span class="tag-text">CADAVER</span>
-          </div>
+  --gridMax: 1650px;
+}
 
-          <div class="grave-body">
-            <div class="profile-top">
-              <div id="profile-avatar" class="avatar avatar-wraith"></div>
-              <div class="profile-meta">
-                <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
-                <div class="dim small-text" id="profile-cardline">CALLING_CARD: NONE</div>
-                <div class="stats-line">
-                  <div class="stat">
-                    <small>CARVINGS</small>
-                    <b id="stat-count">0</b>
-                  </div>
-                  <div class="stat">
-                    <small>RANK</small>
-                    <b id="user-rank">NEWBORN</b>
-                  </div>
-                  <div class="stat">
-                    <small>TROPHIES</small>
-                    <b id="user-trophies">0</b>
-                  </div>
-                </div>
-              </div>
-            </div>
+/* ====== Base / Reset-ish ====== */
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family:'Courier Prime', monospace;
+  background: radial-gradient(1200px 900px at 50% 0%, #0b0b13 0%, var(--bg) 55%, #040405 100%);
+  color: var(--text);
+  overflow-x:hidden;
+}
 
-            <div class="divider"></div>
+/* CRT vibe (subtle, not blinding) */
+body.crt{
+  background-image:
+    linear-gradient(rgba(18,16,16,0) 50%, var(--scanA) 50%),
+    linear-gradient(90deg, var(--scanB), var(--scanC), var(--scanD));
+  background-size: 100% 4px, 3px 100%;
+  background-blend-mode: overlay;
+}
 
-            <div class="mini-grid">
-              <button id="quickLogTodayBtn" class="grave-btn-alt">LOG TODAY'S SPLIT</button>
-              <button id="quickViewPRBtn" class="grave-btn-alt">VIEW PR VAULT</button>
-            </div>
-          </div>
-        </div>
+/* Subtle film grain */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,.03) 0 2px, transparent 2px),
+    radial-gradient(circle at 80% 60%, rgba(255,255,255,.02) 0 1px, transparent 1px);
+  background-size: 120px 120px, 160px 160px;
+  mix-blend-mode: overlay;
+  opacity:.35;
+  z-index:0;
+}
 
-        <div class="grave-box">
-          <div class="grave-header">LEADERBOARD // CARVINGS</div>
-          <div id="leaderboard" class="grave-body small-text"></div>
-        </div>
+/* vignette */
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background: radial-gradient(1200px 900px at 50% 40%, rgba(0,0,0,0) 40%, rgba(0,0,0,.35) 75%, rgba(0,0,0,.55) 100%);
+  z-index:0;
+}
 
-        <div class="grave-box">
-          <div class="grave-header">TROPHY_CASE</div>
-          <div id="trophyCase" class="grave-body"></div>
-        </div>
-      </aside>
+/* Ensure app sits above overlays */
+.screen, #app, #auth-screen, #registration-screen { position:relative; z-index:2; }
 
-      <!-- CENTER COL -->
-      <main class="col-main">
-        <!-- FEED -->
-        <section id="feed-panel">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>BROADCAST_CARVING</span>
-              <span class="dim small-text">YOU CAN DELETE YOUR OWN POSTS</span>
-            </div>
-            <div class="grave-body">
-              <textarea id="statusText" placeholder="SHARE INTEL..."></textarea>
-              <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
-              <div class="small-text dim" id="postHint"></div>
-            </div>
-          </div>
-          <div id="feed-content"></div>
-        </section>
+/* ====== Utility ====== */
+.hidden{ display:none !important; }
+.small-text{ font-size:12px; color: var(--muted); }
+.small-label{ margin: 8px 0 0; font-size: 12px; color: var(--muted); letter-spacing:1px; }
+.divider{
+  height:2px;
+  background: linear-gradient(90deg, transparent, rgba(179,0,0,.75), transparent);
+  margin: 18px 0;
+  opacity:.8;
+}
 
-        <!-- PLANS -->
-        <section id="plans-panel" class="hidden">
-          <div class="grave-box">
-            <div class="grave-header">WORKOUT_SPLITS // SELECTION</div>
-            <div class="grave-body">
-              <div class="plan-row">
-                <div class="plan-col">
-                  <label class="small-label">CHOOSE SPLIT:</label>
-                  <select id="planSelect"></select>
-                </div>
+/* ====== Title ====== */
+.morbid-title-main{
+  font-size: clamp(44px, 6vw, 92px);
+  text-align:center;
+  color: var(--blood);
+  letter-spacing: clamp(10px, 2vw, 26px);
+  margin: 54px 10px 22px;
+  text-transform:uppercase;
+  font-weight:700;
+  text-shadow: 0 0 18px rgba(179,0,0,.6), 0 0 40px rgba(0,0,0,1);
+  filter: blur(.35px);
+}
 
-                <div class="plan-col">
-                  <label class="small-label">START MODE:</label>
-                  <select id="startMode">
-                    <option value="today">START TODAY</option>
-                    <option value="pickday">PICK DAY OF WEEK</option>
-                    <option value="date">CUSTOM START DATE</option>
-                  </select>
-                </div>
+/* pulse but “classy” */
+.pulse{ animation:pulse 4.2s infinite ease-in-out; }
+@keyframes pulse{
+  0%{ transform:translateZ(0) scale(1); filter:brightness(1) drop-shadow(0 0 6px rgba(179,0,0,.45)); }
+  50%{ transform:translateZ(0) scale(1.03); filter:brightness(1.22) drop-shadow(0 0 24px rgba(179,0,0,.55)); }
+  100%{ transform:translateZ(0) scale(1); filter:brightness(1) drop-shadow(0 0 6px rgba(179,0,0,.45)); }
+}
 
-                <div class="plan-col" id="startDayWrap" class="hidden">
-                  <label class="small-label">START DAY:</label>
-                  <select id="startDaySelect">
-                    <option value="1">MONDAY</option>
-                    <option value="2">TUESDAY</option>
-                    <option value="3">WEDNESDAY</option>
-                    <option value="4">THURSDAY</option>
-                    <option value="5">FRIDAY</option>
-                    <option value="6">SATURDAY</option>
-                    <option value="0">SUNDAY</option>
-                  </select>
-                </div>
+/* ====== Nav ====== */
+.grave-nav{
+  background: linear-gradient(180deg, #050507 0%, #020203 100%);
+  border-bottom: 1px solid rgba(179,0,0,.7);
+  padding: 14px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow: 0 14px 35px rgba(0,0,0,.85);
+  backdrop-filter: blur(6px);
+}
+.logo{
+  color: var(--crt2);
+  font-weight:700;
+  font-size: 18px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(124,242,179,.35);
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
 
-                <div class="plan-col hidden" id="startDateWrap">
-                  <label class="small-label">START DATE:</label>
-                  <input id="startDateInput" type="date">
-                </div>
-              </div>
+/* optional avatar chip in header (if you add it) */
+.logo .header-avatar{
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border:1px solid rgba(124,242,179,.35);
+  box-shadow: 0 0 14px rgba(124,242,179,.18);
+  overflow:hidden;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.06), rgba(0,0,0,.6));
+}
 
-              <div class="divider"></div>
+/* ====== Buttons ====== */
+button{ font-family:inherit; }
+.grave-btn,
+.grave-btn-alt,
+.mini-btn{
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-              <div class="mini-grid">
-                <button id="activatePlanBtn" class="grave-btn">ACTIVATE_SPLIT</button>
-                <button id="openBuilderBtn" class="grave-btn-alt">BUILD_CUSTOM_SPLIT</button>
-              </div>
+/* primary */
+.grave-btn{
+  background: linear-gradient(180deg, #b30000 0%, #7c0000 100%);
+  color:#fff;
+  border:1px solid rgba(255,255,255,.06);
+  padding: 16px 14px;
+  width:100%;
+  cursor:pointer;
+  font-weight:700;
+  letter-spacing: 2.4px;
+  text-transform:uppercase;
+  border-radius: 14px;
+  transition: transform .14s ease, filter .25s ease, box-shadow .25s ease, letter-spacing .25s ease;
+  box-shadow: 0 14px 26px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.grave-btn:hover{
+  filter:brightness(1.08);
+  box-shadow: 0 18px 34px rgba(0,0,0,.72), 0 0 18px rgba(179,0,0,.22);
+  letter-spacing: 3px;
+  transform: translateY(-1px);
+}
+.grave-btn:active{ transform: translateY(0px) scale(.99); }
+.grave-btn:focus{ outline:none; box-shadow: var(--focus), 0 18px 34px rgba(0,0,0,.72); }
 
-              <div class="small-text dim" id="planStatusLine"></div>
-            </div>
-          </div>
+/* alt */
+.grave-btn-alt{
+  background: linear-gradient(180deg, rgba(255,255,255,.02) 0%, rgba(255,255,255,.00) 100%);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 12px 12px;
+  width:100%;
+  cursor:pointer;
+  border-radius: 14px;
+  transition: transform .14s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease;
+  box-shadow: 0 10px 22px rgba(0,0,0,.55);
+}
+.grave-btn-alt:hover{
+  border-color: rgba(124,242,179,.25);
+  box-shadow: 0 14px 28px rgba(0,0,0,.65), 0 0 14px rgba(124,242,179,.10);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.grave-btn-alt:focus{ outline:none; box-shadow: var(--focus), 0 14px 28px rgba(0,0,0,.65); }
 
-          <div class="grave-box">
-            <div class="grave-header">ACTIVE_SPLIT // TODAY'S RITUAL</div>
-            <div class="grave-body">
-              <div class="plan-row">
-                <div class="plan-col">
-                  <div class="small-label">ACTIVE SPLIT:</div>
-                  <div id="activePlanName" class="big-glow">NONE</div>
-                </div>
-                <div class="plan-col">
-                  <div class="small-label">TODAY IN SPLIT:</div>
-                  <div id="activePlanDay" class="big-glow">—</div>
-                </div>
-                <div class="plan-col">
-                  <div class="small-label">LOG FOR DAY:</div>
-                  <select id="logDayOverride"></select>
-                </div>
-              </div>
+/* mini buttons */
+.nav-controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.mini-btn{
+  background: linear-gradient(180deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.25) 100%);
+  color: rgba(124,242,179,.92);
+  border: 1px solid rgba(124,242,179,.35);
+  padding: 7px 10px;
+  cursor:pointer;
+  font-size: 10px;
+  letter-spacing: 2px;
+  border-radius: 12px;
+  transition: transform .14s ease, filter .2s ease, box-shadow .2s ease;
+  box-shadow: 0 10px 18px rgba(0,0,0,.55);
+}
+.mini-btn:hover{
+  filter:brightness(1.08);
+  box-shadow: 0 12px 22px rgba(0,0,0,.65), 0 0 14px rgba(124,242,179,.12);
+  transform: translateY(-1px);
+}
+.mini-btn:active{ transform: translateY(0px) scale(.99); }
+.mini-btn.danger{
+  color: rgba(255,70,70,.95);
+  border-color: rgba(255,70,70,.55);
+  box-shadow: 0 10px 18px rgba(0,0,0,.55);
+}
+.mini-btn.danger:hover{
+  box-shadow: 0 12px 22px rgba(0,0,0,.65), 0 0 14px rgba(255,70,70,.12);
+}
 
-              <div class="divider"></div>
+/* ====== Inputs / Textareas / Selects ====== */
+input, textarea, select{
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(217,217,227,.92);
+  padding: 13px 14px;
+  width:100%;
+  margin-bottom: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02), 0 10px 18px rgba(0,0,0,.55);
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+textarea{ min-height: 92px; resize: vertical; }
+input::placeholder, textarea::placeholder{ color: rgba(154,154,163,.55); letter-spacing: 1px; }
+input:focus, textarea:focus, select:focus{
+  outline:none;
+  border-color: rgba(124,242,179,.35);
+  box-shadow: var(--focus), inset 0 0 0 1px rgba(255,255,255,.02), 0 12px 22px rgba(0,0,0,.65);
+  background: rgba(0,0,0,.68);
+}
 
-              <div id="todayLogger"></div>
+/* Custom select arrow */
+select{
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(124,242,179,.55) 50%),
+    linear-gradient(135deg, rgba(124,242,179,.55) 50%, transparent 50%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%,
+    0 0;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+select option{
+  background: #0a0a10;
+  color: rgba(217,217,227,.92);
+}
 
-              <div class="divider"></div>
+/* ====== Layout Grid ====== */
+.grave-grid{
+  display:grid;
+  grid-template-columns: 320px 1fr 360px;
+  gap: 26px;
+  max-width: var(--gridMax);
+  margin: 26px auto;
+  padding: 0 18px 28px;
+}
 
-              <button id="submitDayLogBtn" class="grave-btn">SEAL_THE_DAY</button>
-              <div class="small-text dim" id="logResultLine"></div>
-            </div>
-          </div>
+/* ====== Boxes ====== */
+.grave-box{
+  background: linear-gradient(180deg, rgba(15,15,22,.92) 0%, rgba(10,10,16,.92) 100%);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius2);
+  box-shadow: 0 20px 45px rgba(0,0,0,.72);
+  overflow:hidden;
+  position:relative;
+  transition: transform .18s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.grave-box:hover{
+  border-color: rgba(255,255,255,.10);
+  box-shadow: 0 24px 55px rgba(0,0,0,.78), 0 0 22px rgba(179,0,0,.06);
+  transform: translateY(-1px);
+}
 
-          <div class="grave-box hidden" id="builderBox">
-            <div class="grave-header">SPLIT_FORGE // CUSTOM BUILDER</div>
-            <div class="grave-body">
-              <input id="builderName" placeholder="SPLIT_NAME (e.g. 'CRYPT_ENGINE V')" maxlength="32">
-              <div class="small-text dim">
-                Builder is intentionally “simple but lethal”: choose days, then add slots with exercise options.
-              </div>
+.grave-header{
+  background: linear-gradient(180deg, rgba(0,0,0,.86) 0%, rgba(0,0,0,.62) 100%);
+  color: rgba(255,70,70,.88);
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(179,0,0,.55);
+  font-size: 12px;
+  font-weight:700;
+  letter-spacing: 2px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.grave-body{
+  padding: 16px;
+  color: rgba(154,154,163,.92);
+}
 
-              <div class="divider"></div>
+/* Auth boxes */
+.auth-box{
+  max-width: 540px;
+  margin: 0 auto 40px;
+}
+.auth-box .grave-body{ padding: 18px; }
 
-              <div id="builderDays"></div>
+/* ====== Calling Cards / Grave Tags ====== */
+.grave-tag{
+  height: 110px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  isolation:isolate;
+}
+.grave-tag::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(900px 220px at 10% 40%, rgba(255,255,255,.05), transparent 55%),
+    radial-gradient(700px 200px at 80% 60%, rgba(255,255,255,.03), transparent 55%);
+  opacity:.65;
+  z-index:0;
+}
+.grave-tag::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.0) 0%, rgba(255,255,255,.05) 50%, rgba(0,0,0,.0) 100%);
+  transform: translateX(-120%) skewX(-18deg);
+  opacity:.25;
+  z-index:0;
+  animation: cardSheen 6.5s ease-in-out infinite;
+}
+@keyframes cardSheen{
+  0%,55%{ transform: translateX(-140%) skewX(-18deg); }
+  70%{ transform: translateX(140%) skewX(-18deg); }
+  100%{ transform: translateX(140%) skewX(-18deg); }
+}
+.tag-text{
+  position:relative;
+  z-index:2;
+  font-size: 18px;
+  font-weight:700;
+  color: rgba(255,255,255,.92);
+  letter-spacing: 3px;
+  text-shadow: 0 10px 20px rgba(0,0,0,.85);
+}
 
-              <div class="divider"></div>
+/* Built-in tag skins (you can add more later) */
+.tag-rust{
+  background: radial-gradient(900px 160px at 30% 30%, rgba(255,180,90,.10), transparent 55%),
+              linear-gradient(135deg, #140a03 0%, #3a1c06 48%, #0b0704 100%);
+}
+.tag-blood{
+  background: radial-gradient(900px 160px at 30% 30%, rgba(255,70,70,.10), transparent 55%),
+              linear-gradient(135deg, #120000 0%, #3b0000 55%, #090000 100%);
+}
+.tag-void{
+  background: radial-gradient(900px 200px at 50% 35%, rgba(255,255,255,.05), transparent 55%),
+              linear-gradient(135deg, #000 0%, #050507 55%, #000 100%);
+  border: 1px dashed rgba(255,255,255,.16);
+}
+.tag-crt{
+  background: radial-gradient(900px 180px at 30% 30%, rgba(124,242,179,.10), transparent 55%),
+              linear-gradient(135deg, #001006 0%, #001b0a 55%, #000705 100%);
+  border: 1px solid rgba(124,242,179,.22);
+  box-shadow: inset 0 0 18px rgba(124,242,179,.12);
+}
 
-              <button id="saveCustomSplitBtn" class="grave-btn">SAVE_CUSTOM_SPLIT</button>
-              <button id="closeBuilderBtn" class="grave-btn-alt">CLOSE_FORGE</button>
+/* Extra animated card variants (for rank unlocks) */
+.card-wraith{
+  background: radial-gradient(1000px 200px at 30% 30%, rgba(180,120,255,.10), transparent 55%),
+              linear-gradient(135deg, #08050f 0%, #1b0f2b 50%, #040308 100%);
+}
+.card-wraith::after{ opacity:.35; animation-duration: 5.5s; }
+.card-reaper{
+  background: radial-gradient(1000px 200px at 30% 30%, rgba(255,70,70,.10), transparent 55%),
+              linear-gradient(135deg, #040405 0%, #17090b 45%, #040405 100%);
+}
+.card-reaper::after{ opacity:.32; animation-duration: 4.8s; }
+.card-lich{
+  background: radial-gradient(1000px 240px at 50% 40%, rgba(124,242,179,.10), transparent 55%),
+              linear-gradient(135deg, #030806 0%, #071410 50%, #020403 100%);
+}
+.card-lich::after{ opacity:.30; animation-duration: 6.2s; }
 
-              <div class="small-text dim" id="builderStatus"></div>
-            </div>
-          </div>
-        </section>
+/* ====== Tag picker grid ====== */
+.tag-grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 14px 0 8px;
+}
+.tag-opt{
+  height: 56px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  cursor:pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, filter .16s ease;
+  box-shadow: 0 12px 22px rgba(0,0,0,.55);
+  position:relative;
+  overflow:hidden;
+}
+.tag-opt::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.06) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-120%) skewX(-18deg);
+  opacity:.25;
+  animation: cardSheen 6.5s ease-in-out infinite;
+}
+.tag-opt:hover{
+  transform: translateY(-1px) scale(1.02);
+  filter: brightness(1.05);
+}
+.tag-opt.active{
+  border-color: rgba(124,242,179,.35);
+  box-shadow: 0 14px 26px rgba(0,0,0,.65), 0 0 20px rgba(124,242,179,.12);
+}
 
-        <!-- FRIENDS -->
-        <section id="friends-panel" class="hidden">
-          <div class="grave-box">
-            <div class="grave-header">SEARCH_ENTITIES</div>
-            <div class="grave-body">
-              <input id="userSearch" placeholder="SEARCH CALLSIGN...">
-              <div id="search-results"></div>
-            </div>
-          </div>
+/* ====== Profile panel bits ====== */
+.cadaver-name{
+  margin: 10px 0 4px;
+  color: rgba(217,217,227,.95);
+  letter-spacing: 2px;
+  font-size: 18px;
+}
+.stats-line{
+  display:flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+.stat{
+  flex:1;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+}
+.stat small{
+  display:block;
+  color: rgba(154,154,163,.7);
+  letter-spacing: 2px;
+  font-size: 10px;
+}
+.stat b{
+  display:block;
+  margin-top: 4px;
+  color: rgba(124,242,179,.9);
+  letter-spacing: 2px;
+  font-size: 14px;
+}
 
-          <div class="grave-box">
-            <div class="grave-header">THE_COVEN (FRIENDS)</div>
-            <div id="friends-list" class="grave-body"></div>
-          </div>
-        </section>
+/* ====== Feed posts ====== */
+#feed-content{ display:flex; flex-direction:column; gap: 14px; }
+.post{ overflow:hidden; }
+.grave-header-sub{
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg, rgba(0,0,0,.80), rgba(0,0,0,.55));
+  color: rgba(154,154,163,.75);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.post .grave-body p{
+  margin: 0;
+  color: rgba(217,217,227,.92);
+  line-height: 1.4;
+}
 
-        <!-- PROFILE -->
-        <section id="profile-panel" class="hidden">
-          <div class="grave-box">
-            <div class="grave-header">PROFILE_PAGE</div>
-            <div class="grave-body">
-              <div class="profile-page-top">
-                <div id="profilePageAvatar" class="avatar avatar-wraith big"></div>
-                <div>
-                  <div class="big-glow" id="profilePageName">YOU</div>
-                  <div class="dim small-text" id="profilePageCard">CALLING_CARD: —</div>
-                  <div class="dim small-text" id="profilePageTag">GRAVE_TAG: —</div>
-                  <div class="dim small-text" id="profilePageRank">RANK: —</div>
-                </div>
-              </div>
+/* comments (hooks for when you style them more) */
+.comment-section{ padding: 0 16px 8px; }
+.comment{
+  font-size: 12px;
+  color: rgba(217,217,227,.85);
+  padding: 8px 10px;
+  border-left: 2px solid rgba(179,0,0,.35);
+  margin: 8px 0 0;
+  background: rgba(0,0,0,.25);
+  border-radius: 12px;
+}
+.comment b{ color: rgba(124,242,179,.88); }
 
-              <div class="divider"></div>
+.comment-input-wrap{
+  display:flex;
+  gap: 10px;
+  padding: 0 16px 16px;
+  align-items:flex-start;
+}
+.comment-input-wrap input{ margin-bottom:0; }
+.comment-input-wrap .mini-btn{
+  width: 92px;
+  height: 44px;
+  margin-top: 0;
+}
 
-              <div class="grave-box inner">
-                <div class="grave-header">RECENT_CARVINGS</div>
-                <div class="grave-body index-container" id="profileRecentLogs"></div>
-              </div>
+/* ====== Index list / Leaderboard rows ====== */
+.index-container{
+  max-height: 520px;
+  overflow:auto;
+  background: rgba(0,0,0,.25);
+  border-radius: 16px;
+  padding: 6px;
+}
+.index-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  margin: 8px 6px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0,0,0,.40), rgba(0,0,0,.18));
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.index-row:hover{
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.10);
+  box-shadow: 0 12px 22px rgba(0,0,0,.55);
+}
+.index-row span{ color: rgba(217,217,227,.88); font-size: 12px; letter-spacing:1px; }
 
-              <div class="grave-box inner">
-                <div class="grave-header">POSTS</div>
-                <div class="grave-body" id="profilePosts"></div>
-              </div>
-            </div>
-          </div>
-        </section>
+.lb-row{
+  font-size: 12px;
+  padding: 10px 10px;
+  margin: 8px 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15));
+  color: rgba(217,217,227,.88);
+}
 
-        <!-- SETTINGS -->
-        <section id="settings-panel" class="hidden">
-          <div class="grave-box">
-            <div class="grave-header">USER_PARAMETERS</div>
-            <div class="grave-body">
-              <p class="small-label">CHANGE CALLSIGN:</p>
-              <input id="new-username" placeholder="NEW_CALLSIGN">
-              <button id="renameBtn" class="grave-btn">RENAME_ENTITY</button>
+/* ====== Workout Logger (hooks for “swap beside workout” UI) ======
+   If you add logger rows like:
+   <div class="log-row">
+     <div class="log-left">
+       <select class="log-ex"></select>
+       <button class="swap-btn mini-btn">SWAP</button>
+     </div>
+     <div class="log-right">
+       <input class="log-sets" ...>
+       <input class="log-reps" ...>
+       <input class="log-weight" ...>
+     </div>
+   </div>
+*/
+.log-row{
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 18px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15));
+  margin: 10px 0;
+  box-shadow: 0 12px 22px rgba(0,0,0,.45);
+}
+.log-row .log-left{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+}
+.log-row .swap-btn{
+  min-width: 88px;
+  white-space: nowrap;
+}
+.log-row .log-right{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.log-row .log-right input{ margin-bottom:0; }
 
-              <div class="divider"></div>
+/* ====== MassGrave daily total widget (hook) ====== */
+.massgrave{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: radial-gradient(900px 220px at 30% 40%, rgba(179,0,0,.10), transparent 55%),
+              linear-gradient(180deg, rgba(0,0,0,.40), rgba(0,0,0,.18));
+  box-shadow: 0 14px 28px rgba(0,0,0,.55);
+}
+.massgrave .mg-title{
+  color: rgba(255,70,70,.88);
+  letter-spacing: 2px;
+  font-weight:700;
+  font-size: 11px;
+}
+.massgrave .mg-value{
+  color: rgba(217,217,227,.92);
+  letter-spacing: 2px;
+  font-weight:700;
+  font-size: 14px;
+}
+.massgrave .mg-value b{
+  color: rgba(124,242,179,.9);
+}
 
-              <p class="small-label">GRAVE_TAG_VISUALS:</p>
-              <div id="settings-tag-picker" class="tag-grid"></div>
-              <button id="updateTagBtn" class="grave-btn">UPDATE_TAG</button>
+/* ====== Avatars (scary + animated hooks) ======
+   If you render an avatar like:
+   <div class="avatar avatar-wraith"><span class="avatar-glyph">☠</span></div>
+*/
+.avatar{
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.07), rgba(0,0,0,.55));
+  box-shadow: 0 18px 34px rgba(0,0,0,.70), inset 0 0 0 1px rgba(255,255,255,.02);
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+}
+.avatar::before{
+  content:"";
+  position:absolute;
+  inset:-30%;
+  background: conic-gradient(from 180deg, rgba(179,0,0,.18), rgba(124,242,179,.12), rgba(180,120,255,.14), rgba(179,0,0,.18));
+  filter: blur(18px);
+  opacity:.55;
+  animation: avatarAura 7.5s linear infinite;
+}
+@keyframes avatarAura{
+  0%{ transform: rotate(0deg); }
+  100%{ transform: rotate(360deg); }
+}
+.avatar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.06) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-140%) skewX(-18deg);
+  opacity:.22;
+  animation: cardSheen 5.8s ease-in-out infinite;
+}
+.avatar .avatar-glyph{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  font-size: 34px;
+  letter-spacing: 2px;
+  color: rgba(217,217,227,.92);
+  text-shadow: 0 12px 22px rgba(0,0,0,.8);
+  z-index:2;
+}
 
-              <div class="divider"></div>
+/* avatar variants */
+.avatar-wraith::before{ opacity:.62; }
+.avatar-reaper::before{ background: conic-gradient(from 180deg, rgba(255,70,70,.22), rgba(0,0,0,.0), rgba(255,70,70,.18)); opacity:.72; }
+.avatar-lich::before{ background: conic-gradient(from 180deg, rgba(124,242,179,.22), rgba(0,0,0,.0), rgba(124,242,179,.18)); opacity:.62; }
 
-              <p class="small-label">AVATAR:</p>
-              <div id="settings-avatar-picker" class="avatar-grid"></div>
-              <button id="updateAvatarBtn" class="grave-btn">UPDATE_AVATAR</button>
+/* ====== Scrollbar ====== */
+::-webkit-scrollbar{ width: 8px; height: 8px; }
+::-webkit-scrollbar-track{ background: rgba(0,0,0,.55); border-radius: 10px; }
+::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, rgba(179,0,0,.85), rgba(90,0,0,.85));
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.06);
+}
 
-              <div class="divider"></div>
-
-              <p class="small-label">CALLING_CARD (UNLOCKED BY RANK/TROPHIES):</p>
-              <div id="settings-card-picker" class="card-grid"></div>
-              <button id="updateCardBtn" class="grave-btn">UPDATE_CALLING_CARD</button>
-
-              <div class="divider"></div>
-
-              <p class="small-label">DANGER_ZONE:</p>
-              <button id="resetPlanBtn" class="mini-btn danger">RESET ACTIVE SPLIT (YOU ONLY)</button>
-              <div class="small-text dim">
-                This does not delete logs/posts. It only clears which split is active.
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <!-- RIGHT COL -->
-      <aside class="col">
-        <div class="grave-box">
-          <div class="grave-header">PR_VAULT // PERSONAL_RECORDS</div>
-          <div id="prList" class="grave-body index-container"></div>
-        </div>
-
-        <div class="grave-box">
-          <div class="grave-header">CARVING_INDEX // LAST 30</div>
-          <div id="logIndex" class="grave-body index-container"></div>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <script type="module" src="app.js"></script>
-</body>
-</html>
+/* ====== Responsive ====== */
+@media (max-width: 1180px){
+  .grave-grid{ grid-template-columns: 1fr; }
+  .nav-controls{ gap: 8px; }
+}
+@media (max-width: 520px){
+  .grave-nav{ padding: 12px 14px; }
+  .logo{ font-size: 14px; }
+  .mini-btn{ padding: 7px 9px; }
+  .morbid-title-main{ letter-spacing: 10px; }
+}
