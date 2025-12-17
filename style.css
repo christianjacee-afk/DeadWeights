@@ -3,7 +3,7 @@ body {
   background: black;
   color: #0f0;
   font-family: 'VT323', monospace;
-}
+} 
 
 #crt {
   pointer-events: none;
