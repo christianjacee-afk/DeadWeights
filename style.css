@@ -1,735 +1,366 @@
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DEADWEIGHTS // THE_GRAVE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css">
+</head>
 
-:root{
-  --blood:#b30000;
-  --glow:#ff3333;
+<body class="crt">
+  <!-- ====== REGISTRATION ====== -->
+  <div id="registration-screen" class="screen hidden">
+    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
 
-  /* Morbid but readable (less “crushed blacks”) */
-  --bg:#0a0a0c;
-  --bg2:#0f0f12;
-  --panel:#101014;
-  --panel2:#14141a;
+    <div class="grave-box auth-box">
+      <div class="grave-header">RECRUIT_INDUCTION</div>
+      <div class="grave-body">
+        <div id="reg-step-1">
+          <input id="reg-email" type="email" placeholder="EMAIL_ADDRESS" autocomplete="email">
+          <input id="reg-pass" type="password" placeholder="CREATE_PASSCODE" autocomplete="new-password">
+          <input id="reg-confirm" type="password" placeholder="CONFIRM_PASSCODE" autocomplete="new-password">
+          <button id="nextStepBtn" class="grave-btn">CONTINUE_INDUCTION</button>
+          <div class="small-text dim" id="reg-step-1-hint">
+            TIP: Use a real email/pass. You will log in with this.
+          </div>
+        </div>
 
-  --border:#24242b;
-  --border2:#2f2f38;
+        <div id="reg-step-2" class="hidden">
+          <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="20">
+          <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
+          <div id="initial-tag-picker" class="tag-grid"></div>
 
-  --text:#a6a6b3;
-  --muted:#7a7a86;
+          <p class="small-label">SELECT INITIAL AVATAR:</p>
+          <div id="initial-avatar-picker" class="avatar-grid"></div>
 
-  /* CRT green highlight */
-  --highlight:#00ff41;
+          <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
+          <div class="small-text dim">
+            You can change tag/avatar/calling-card later.
+          </div>
+        </div>
 
-  --void:#07070a;
-  --shadow: 14px 14px 0px rgba(0,0,0,0.95);
-}
+        <button id="returnToLoginBtn" class="grave-btn-alt">RETURN_TO_LOGIN</button>
+      </div>
+    </div>
+  </div>
 
-/* ===== BASE ===== */
-*{ box-sizing:border-box; }
-body{
-  margin:0;
-  font-family:'Courier Prime', monospace;
-  color:var(--text);
-  background:
-    radial-gradient(1200px 700px at 15% 10%, rgba(179,0,0,0.10), transparent 55%),
-    radial-gradient(900px 600px at 85% 20%, rgba(0,255,65,0.06), transparent 60%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
-  overflow-x:hidden;
-}
+  <!-- ====== AUTH ====== -->
+  <div id="auth-screen" class="screen">
+    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
+    <div class="grave-box auth-box">
+      <div class="grave-header">EXISTING_ENTITY_ACCESS</div>
+      <div class="grave-body">
+        <input id="email" type="email" placeholder="USER_ID" autocomplete="email">
+        <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
+        <button id="loginBtn" class="grave-btn">RESURRECT</button>
+        <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
+        <div class="small-text dim" id="auth-error"></div>
+      </div>
+    </div>
+  </div>
 
-/* scanlines */
-body.crt{
-  background-image:
-    linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.22) 50%),
-    linear-gradient(90deg, rgba(255,0,0,0.05), rgba(0,255,0,0.02), rgba(0,0,255,0.05)),
-    radial-gradient(1200px 700px at 15% 10%, rgba(179,0,0,0.10), transparent 55%),
-    radial-gradient(900px 600px at 85% 20%, rgba(0,255,65,0.06), transparent 60%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
-  background-size: 100% 4px, 3px 100%, auto, auto, auto;
-}
+  <!-- ====== APP ====== -->
+  <div id="app" class="screen hidden">
+    <header class="grave-nav">
+      <div class="logo pulse">
+        DEADWEIGHTS // <span id="header-callsign"></span>
+        <span class="chip" id="header-rank"></span>
+      </div>
 
-/* ===== TITLE ===== */
-.morbid-title-main{
-  font-size: clamp(44px, 5vw, 86px);
-  text-align:center;
-  color:var(--blood);
-  letter-spacing: clamp(6px, 1.8vw, 22px);
-  margin-top: 56px;
-  text-transform:uppercase;
-  font-weight:700;
-  text-shadow:0 0 18px rgba(179,0,0,0.55), 0 0 28px rgba(0,0,0,0.9);
-  filter: blur(0.2px);
-}
+      <div class="nav-controls">
+        <button id="navFeed" class="mini-btn">FEED</button>
+        <button id="navPlans" class="mini-btn">PLANS</button>
+        <button id="navFriends" class="mini-btn">FRIENDS</button>
+        <button id="navProfile" class="mini-btn">PROFILE</button>
+        <button id="navSettings" class="mini-btn">SETTINGS</button>
+        <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
+      </div>
+    </header>
 
-.pulse{ animation:pulse 4s infinite ease-in-out; }
-@keyframes pulse{
-  0%{ transform:scale(1); filter:brightness(1) drop-shadow(0 0 5px rgba(179,0,0,0.35)); }
-  50%{ transform:scale(1.03); filter:brightness(1.25) drop-shadow(0 0 18px rgba(179,0,0,0.45)); }
-  100%{ transform:scale(1); filter:brightness(1) drop-shadow(0 0 5px rgba(179,0,0,0.35)); }
-}
+    <!-- Top status bar -->
+    <div class="top-strip">
+      <div class="strip-box">
+        <div class="strip-title">MASSGRAVE // TODAY</div>
+        <div class="strip-value">
+          GLOBAL: <span id="massgrave-global">0</span> LBS • YOU: <span id="massgrave-you">0</span> LBS
+        </div>
+      </div>
+      <div class="strip-box">
+        <div class="strip-title">UNLOCKS</div>
+        <div class="strip-value" id="unlock-line">...</div>
+      </div>
+    </div>
 
-/* ===== LAYOUT ===== */
-.screen{ min-height:100vh; padding-bottom: 60px; }
-.hidden{ display:none !important; }
+    <div class="grave-grid">
+      <!-- LEFT COL -->
+      <aside class="col">
+        <div class="grave-box">
+          <div id="user-grave-tag" class="grave-tag">
+            <span class="tag-text">CADAVER</span>
+          </div>
 
-.grave-grid{
-  display:grid;
-  grid-template-columns: 320px 1fr 360px;
-  gap: 28px;
-  max-width: 1650px;
-  margin: 26px auto;
-  padding: 0 22px;
-}
+          <div class="grave-body">
+            <div class="profile-top">
+              <div id="profile-avatar" class="avatar avatar-wraith"></div>
+              <div class="profile-meta">
+                <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
+                <div class="dim small-text" id="profile-cardline">CALLING_CARD: NONE</div>
+                <div class="stats-line">
+                  <div class="stat">
+                    <small>CARVINGS</small>
+                    <b id="stat-count">0</b>
+                  </div>
+                  <div class="stat">
+                    <small>RANK</small>
+                    <b id="user-rank">NEWBORN</b>
+                  </div>
+                  <div class="stat">
+                    <small>TROPHIES</small>
+                    <b id="user-trophies">0</b>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-.col-main{ min-width: 0; }
-.col, .col-main{ }
+            <div class="divider"></div>
 
-@media (max-width: 1100px){
-  .grave-grid{ grid-template-columns: 1fr; }
-  .grave-nav{ position: sticky; top:0; }
-}
+            <div class="mini-grid">
+              <button id="quickLogTodayBtn" class="grave-btn-alt">LOG TODAY'S SPLIT</button>
+              <button id="quickViewPRBtn" class="grave-btn-alt">VIEW PR VAULT</button>
+            </div>
+          </div>
+        </div>
 
-/* ===== NAV ===== */
-.grave-nav{
-  background: linear-gradient(180deg, rgba(7,7,10,0.94), rgba(7,7,10,0.86));
-  border-bottom: 2px solid rgba(179,0,0,0.8);
-  padding: 14px 22px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  position:sticky;
-  top:0;
-  z-index: 100;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 12px 34px rgba(0,0,0,0.85);
-}
+        <div class="grave-box">
+          <div class="grave-header">LEADERBOARD // CARVINGS</div>
+          <div id="leaderboard" class="grave-body small-text"></div>
+        </div>
 
-.logo{
-  color: var(--highlight);
-  font-weight:700;
-  font-size: 18px;
-  letter-spacing: 2px;
-  text-shadow:0 0 10px rgba(0,255,65,0.35);
-  display:flex;
-  align-items: baseline;
-  gap:10px;
-}
-.logo .subtle{
-  color: rgba(166,166,179,0.8);
-  font-weight: 400;
-  font-size: 12px;
-  letter-spacing: 1px;
-}
+        <div class="grave-box">
+          <div class="grave-header">TROPHY_CASE</div>
+          <div id="trophyCase" class="grave-body"></div>
+        </div>
+      </aside>
 
-/* ===== BOXES ===== */
-.grave-box{
-  background: linear-gradient(180deg, rgba(16,16,20,0.95), rgba(12,12,16,0.95));
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  position:relative;
-  border-radius: 14px;
-  overflow: hidden;
-}
-.grave-box:hover{
-  border-color: rgba(0,255,65,0.22);
-}
+      <!-- CENTER COL -->
+      <main class="col-main">
+        <!-- FEED -->
+        <section id="feed-panel">
+          <div class="grave-box">
+            <div class="grave-header">
+              <span>BROADCAST_CARVING</span>
+              <span class="dim small-text">YOU CAN DELETE YOUR OWN POSTS</span>
+            </div>
+            <div class="grave-body">
+              <textarea id="statusText" placeholder="SHARE INTEL..."></textarea>
+              <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
+              <div class="small-text dim" id="postHint"></div>
+            </div>
+          </div>
+          <div id="feed-content"></div>
+        </section>
 
-.grave-header{
-  background: linear-gradient(90deg, rgba(0,0,0,0.85), rgba(0,0,0,0.45));
-  color: var(--blood);
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(179,0,0,0.55);
-  font-size: 12px;
-  font-weight:700;
-  letter-spacing: 1.8px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  text-transform: uppercase;
-}
-.grave-body{
-  padding: 16px;
-  color: var(--text);
-}
+        <!-- PLANS -->
+        <section id="plans-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">WORKOUT_SPLITS // SELECTION</div>
+            <div class="grave-body">
+              <div class="plan-row">
+                <div class="plan-col">
+                  <label class="small-label">CHOOSE SPLIT:</label>
+                  <select id="planSelect"></select>
+                </div>
 
-.header-chip{
-  font-size: 10px;
-  color: rgba(0,255,65,0.85);
-  border: 1px solid rgba(0,255,65,0.35);
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(0,255,65,0.06);
-}
+                <div class="plan-col">
+                  <label class="small-label">START MODE:</label>
+                  <select id="startMode">
+                    <option value="today">START TODAY</option>
+                    <option value="pickday">PICK DAY OF WEEK</option>
+                    <option value="date">CUSTOM START DATE</option>
+                  </select>
+                </div>
 
-/* ===== INPUTS / SELECTS ===== */
-input, textarea, select{
-  width:100%;
-  margin-bottom: 14px;
-  padding: 12px 12px;
-  font-family: inherit;
-  color: var(--highlight);
-  background: radial-gradient(800px 200px at 30% 0%, rgba(0,255,65,0.07), transparent 55%),
-              rgba(0,0,0,0.55);
-  border: 1px solid var(--border2);
-  border-radius: 12px;
-  outline: none;
-  transition: border .2s, box-shadow .2s, transform .08s;
-}
-textarea{ min-height: 110px; resize: vertical; }
+                <div class="plan-col" id="startDayWrap" class="hidden">
+                  <label class="small-label">START DAY:</label>
+                  <select id="startDaySelect">
+                    <option value="1">MONDAY</option>
+                    <option value="2">TUESDAY</option>
+                    <option value="3">WEDNESDAY</option>
+                    <option value="4">THURSDAY</option>
+                    <option value="5">FRIDAY</option>
+                    <option value="6">SATURDAY</option>
+                    <option value="0">SUNDAY</option>
+                  </select>
+                </div>
 
-input:focus, textarea:focus, select:focus{
-  border-color: rgba(0,255,65,0.55);
-  box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
-}
+                <div class="plan-col hidden" id="startDateWrap">
+                  <label class="small-label">START DATE:</label>
+                  <input id="startDateInput" type="date">
+                </div>
+              </div>
 
-select{
-  appearance:none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(0,255,65,0.55) 50%),
-    linear-gradient(135deg, rgba(0,255,65,0.55) 50%, transparent 50%),
-    radial-gradient(800px 200px at 30% 0%, rgba(0,255,65,0.07), transparent 55%),
-    linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.35));
-  background-position:
-    calc(100% - 18px) calc(50% - 3px),
-    calc(100% - 12px) calc(50% - 3px),
-    0 0,
-    0 0;
-  background-size: 6px 6px, 6px 6px, auto, auto;
-  background-repeat:no-repeat;
-}
+              <div class="divider"></div>
 
-/* ===== BUTTONS ===== */
-.btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
-.grave-btn{
-  background: linear-gradient(180deg, rgba(179,0,0,1), rgba(110,0,0,1));
-  color:#fff;
-  border:none;
-  padding: 14px 14px;
-  width:100%;
-  cursor:pointer;
-  font-weight:700;
-  letter-spacing: 3px;
-  border-radius: 12px;
-  transition: transform .08s, filter .2s, box-shadow .2s;
-  text-transform: uppercase;
-}
-.grave-btn:hover{
-  filter: brightness(1.1);
-  box-shadow: 0 0 18px rgba(179,0,0,0.35);
-}
-.grave-btn:active{ transform: translateY(1px); }
+              <div class="mini-grid">
+                <button id="activatePlanBtn" class="grave-btn">ACTIVATE_SPLIT</button>
+                <button id="openBuilderBtn" class="grave-btn-alt">BUILD_CUSTOM_SPLIT</button>
+              </div>
 
-.grave-btn-alt{
-  background: rgba(0,0,0,0.18);
-  color: var(--text);
-  border: 1px solid rgba(166,166,179,0.22);
-  padding: 12px 14px;
-  width:100%;
-  cursor:pointer;
-  border-radius: 12px;
-  transition: transform .08s, border .2s, background .2s;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-.grave-btn-alt:hover{
-  border-color: rgba(0,255,65,0.25);
-  background: rgba(0,255,65,0.05);
-}
-.grave-btn-alt:active{ transform: translateY(1px); }
+              <div class="small-text dim" id="planStatusLine"></div>
+            </div>
+          </div>
 
-.mini-btn{
-  background: rgba(0,0,0,0.35);
-  color: var(--highlight);
-  border: 1px solid rgba(0,255,65,0.55);
-  padding: 7px 10px;
-  cursor:pointer;
-  font-size: 10px;
-  border-radius: 999px;
-  letter-spacing: 1.8px;
-  text-transform: uppercase;
-  transition: transform .08s, background .2s;
-}
-.mini-btn:hover{
-  background: rgba(0,255,65,0.12);
-}
-.mini-btn:active{ transform: translateY(1px); }
-.mini-btn.danger{
-  color: var(--blood);
-  border-color: rgba(179,0,0,0.75);
-}
-.mini-btn.danger:hover{
-  background: rgba(179,0,0,0.12);
-}
+          <div class="grave-box">
+            <div class="grave-header">ACTIVE_SPLIT // TODAY'S RITUAL</div>
+            <div class="grave-body">
+              <div class="plan-row">
+                <div class="plan-col">
+                  <div class="small-label">ACTIVE SPLIT:</div>
+                  <div id="activePlanName" class="big-glow">NONE</div>
+                </div>
+                <div class="plan-col">
+                  <div class="small-label">TODAY IN SPLIT:</div>
+                  <div id="activePlanDay" class="big-glow">—</div>
+                </div>
+                <div class="plan-col">
+                  <div class="small-label">LOG FOR DAY:</div>
+                  <select id="logDayOverride"></select>
+                </div>
+              </div>
 
-/* ===== TAGS ===== */
-.grave-tag{
-  height: 96px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  position:relative;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  overflow:hidden;
-}
-.tag-text{
-  font-size: 16px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 2px;
-  z-index: 3;
-  text-shadow: 0 3px 14px rgba(0,0,0,0.95);
-}
+              <div class="divider"></div>
 
-.tag-fog{
-  position:absolute;
-  inset:-60%;
-  background:
-    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.06), transparent 55%),
-    radial-gradient(circle at 70% 60%, rgba(0,255,65,0.05), transparent 60%),
-    radial-gradient(circle at 50% 50%, rgba(179,0,0,0.07), transparent 60%);
-  animation: fogMove 8s infinite linear;
-  z-index: 1;
-}
-@keyframes fogMove{
-  0%{ transform: translate3d(-2%, -2%, 0) rotate(0deg); }
-  50%{ transform: translate3d(2%, 2%, 0) rotate(8deg); }
-  100%{ transform: translate3d(-2%, -2%, 0) rotate(0deg); }
-}
+              <div id="todayLogger"></div>
 
-.tag-rust{ background: linear-gradient(135deg, #130800, #3a1d00, #0f0700); }
-.tag-crt{
-  background: linear-gradient(135deg, #001a0a, #001104, #000a02);
-  box-shadow: inset 0 0 22px rgba(0,255,65,0.14);
-}
-.tag-blood{
-  background: linear-gradient(135deg, #240000, #3a0000, #140000);
-  box-shadow: inset 0 0 34px rgba(0,0,0,0.8);
-}
-.tag-void{
-  background: linear-gradient(135deg, #000, #050507, #000);
-  border-bottom: 1px dashed rgba(255,255,255,0.08);
-}
+              <div class="divider"></div>
 
-.tag-grid{
-  display:grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin: 10px 0 18px;
-}
-.tag-opt{
-  height: 52px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  cursor:pointer;
-  transition: transform .12s, box-shadow .2s, border .2s;
-  position:relative;
-  overflow:hidden;
-}
-.tag-opt:hover{ transform: translateY(-1px); }
-.tag-opt.active{
-  border-color: rgba(0,255,65,0.55);
-  box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
-}
+              <button id="submitDayLogBtn" class="grave-btn">SEAL_THE_DAY</button>
+              <div class="small-text dim" id="logResultLine"></div>
+            </div>
+          </div>
 
-/* ===== AVATARS ===== */
-.avatar-grid{
-  display:grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin: 10px 0 18px;
-}
-.avatar-opt{
-  height: 66px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.35);
-  cursor:pointer;
-  position:relative;
-  overflow:hidden;
-  transition: transform .12s, border .2s, box-shadow .2s;
-}
-.avatar-opt:hover{ transform: translateY(-1px); }
-.avatar-opt.active{
-  border-color: rgba(0,255,65,0.55);
-  box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
-}
+          <div class="grave-box hidden" id="builderBox">
+            <div class="grave-header">SPLIT_FORGE // CUSTOM BUILDER</div>
+            <div class="grave-body">
+              <input id="builderName" placeholder="SPLIT_NAME (e.g. 'CRYPT_ENGINE V')" maxlength="32">
+              <div class="small-text dim">
+                Builder is intentionally “simple but lethal”: choose days, then add slots with exercise options.
+              </div>
 
-.avatar-frame{
-  width: 74px;
-  height: 74px;
-  border-radius: 16px;
-  border: 1px solid rgba(0,255,65,0.25);
-  background: rgba(0,0,0,0.35);
-  box-shadow: inset 0 0 20px rgba(0,255,65,0.06);
-  position:relative;
-  overflow:hidden;
-}
-.avatar-frame.big{
-  width: 96px;
-  height: 96px;
-  border-radius: 18px;
-}
-.avatar-sigil{
-  position:absolute;
-  inset:-30%;
-  animation: sigilSpin 10s linear infinite;
-  opacity: 0.85;
-}
-@keyframes sigilSpin{
-  from{ transform: rotate(0deg) scale(1.02); }
-  to{ transform: rotate(360deg) scale(1.02); }
-}
+              <div class="divider"></div>
 
-/* ===== PROFILE LEFT ===== */
-.profile-top{ display:flex; gap:14px; align-items:center; }
-.profile-meta{ min-width:0; }
-.cadaver-name{
-  margin: 0 0 6px;
-  font-size: 18px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #e7e7ef;
-}
-.stats-line{ display:flex; gap:12px; margin-top: 8px; flex-wrap:wrap; }
-.stat{
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 8px 10px;
-  min-width: 120px;
-}
-.stat small{ color: rgba(166,166,179,0.7); display:block; font-size: 10px; letter-spacing:1.6px; }
-.stat b{ color: rgba(0,255,65,0.85); font-size: 14px; }
+              <div id="builderDays"></div>
 
-/* ===== MASSGRAVE ===== */
-.massgrave{
-  background: radial-gradient(900px 200px at 30% 0%, rgba(179,0,0,0.12), transparent 55%),
-              rgba(0,0,0,0.25);
-  border: 1px solid rgba(179,0,0,0.25);
-  border-radius: 14px;
-  padding: 12px;
-}
-.massgrave-title{
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: rgba(255,255,255,0.75);
-  text-transform: uppercase;
-}
-.massgrave-value{
-  font-size: 28px;
-  letter-spacing: 2px;
-  margin-top: 8px;
-  color: rgba(255,255,255,0.92);
-  text-shadow: 0 0 14px rgba(179,0,0,0.25);
-}
-.massgrave-sub{
-  margin-top: 6px;
-  font-size: 11px;
-  color: rgba(166,166,179,0.75);
-}
+              <div class="divider"></div>
 
-/* ===== POSTS ===== */
-.post{ margin-bottom: 14px; }
-.post-top{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:center;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.28);
-}
-.post-top .who{
-  font-weight: 700;
-  color: rgba(0,255,65,0.85);
-  cursor:pointer;
-}
-.post-top .meta{
-  font-size: 10px;
-  color: rgba(166,166,179,0.7);
-  display:flex;
-  gap:10px;
-  align-items:center;
-  text-transform: uppercase;
-}
-.post-body{ padding: 14px; color: rgba(231,231,239,0.9); line-height: 1.35; }
-.comment{
-  padding: 10px 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px;
-  color: rgba(231,231,239,0.86);
-}
-.comment b{ color: rgba(0,255,65,0.85); }
-.comment-input-wrap{
-  display:flex;
-  gap: 10px;
-  padding: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.comment-input-wrap input{ margin:0; }
+              <button id="saveCustomSplitBtn" class="grave-btn">SAVE_CUSTOM_SPLIT</button>
+              <button id="closeBuilderBtn" class="grave-btn-alt">CLOSE_FORGE</button>
 
-.hint{
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-  font-size: 11px;
-  color: rgba(166,166,179,0.75);
-  margin-top: 10px;
-  line-height: 1.3;
-}
-.hint-dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(0,255,65,0.35);
-  border: 1px solid rgba(0,255,65,0.55);
-  margin-top: 2px;
-}
+              <div class="small-text dim" id="builderStatus"></div>
+            </div>
+          </div>
+        </section>
 
-/* ===== PLANS ===== */
-.plan-index{
-  display:grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-.plan-card{
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.12));
-  padding: 12px;
-  cursor:pointer;
-  transition: transform .12s, border .2s, box-shadow .2s;
-  position:relative;
-  overflow:hidden;
-}
-.plan-card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(0,255,65,0.25);
-}
-.plan-card.active{
-  border-color: rgba(0,255,65,0.55);
-  box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
-}
-.plan-name{
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: rgba(231,231,239,0.92);
-  text-transform: uppercase;
-}
-.plan-sub{
-  margin-top: 6px;
-  font-size: 11px;
-  color: rgba(166,166,179,0.75);
-}
-.start-controls{ display:flex; gap:10px; align-items:center; }
-.start-controls select{ margin:0; }
+        <!-- FRIENDS -->
+        <section id="friends-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">SEARCH_ENTITIES</div>
+            <div class="grave-body">
+              <input id="userSearch" placeholder="SEARCH CALLSIGN...">
+              <div id="search-results"></div>
+            </div>
+          </div>
 
-.active-plan-readout{
-  display:grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.day-badge{
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
-  border-radius: 14px;
-  padding: 12px;
-}
-.day-badge .dname{
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: rgba(0,255,65,0.85);
-  text-transform: uppercase;
-}
-.day-badge .dlist{
-  margin-top: 8px;
-  font-size: 12px;
-  color: rgba(231,231,239,0.86);
-  line-height: 1.35;
-}
+          <div class="grave-box">
+            <div class="grave-header">THE_COVEN (FRIENDS)</div>
+            <div id="friends-list" class="grave-body"></div>
+          </div>
+        </section>
 
-/* ===== LOGGER ===== */
-.logger-top{ margin-bottom: 10px; }
-.logger-title{
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: rgba(231,231,239,0.92);
-  text-transform: uppercase;
-}
-.logger-sub{
-  font-size: 11px;
-  color: rgba(166,166,179,0.75);
-  margin-top: 6px;
-}
-.today-workout-list{
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-}
-.workline{
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
-  padding: 10px;
-}
-.workline-top{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  justify-content:space-between;
-}
-.workline-title{
-  font-size: 12px;
-  letter-spacing: 1.6px;
-  color: rgba(231,231,239,0.9);
-  text-transform: uppercase;
-}
-.workline-controls{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-}
-.workline-controls select{ margin:0; max-width: 220px; }
-.workline-controls .mini-btn{ white-space: nowrap; }
+        <!-- PROFILE -->
+        <section id="profile-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">PROFILE_PAGE</div>
+            <div class="grave-body">
+              <div class="profile-page-top">
+                <div id="profilePageAvatar" class="avatar avatar-wraith big"></div>
+                <div>
+                  <div class="big-glow" id="profilePageName">YOU</div>
+                  <div class="dim small-text" id="profilePageCard">CALLING_CARD: —</div>
+                  <div class="dim small-text" id="profilePageTag">GRAVE_TAG: —</div>
+                  <div class="dim small-text" id="profilePageRank">RANK: —</div>
+                </div>
+              </div>
 
-.row3{
-  display:grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 10px;
-  align-items:center;
-}
-.row3 input{ margin:0; }
+              <div class="divider"></div>
 
-.manual-log select{ margin-bottom: 10px; }
+              <div class="grave-box inner">
+                <div class="grave-header">RECENT_CARVINGS</div>
+                <div class="grave-body index-container" id="profileRecentLogs"></div>
+              </div>
 
-/* ===== PR INDEX ===== */
-.index-container{
-  max-height: 560px;
-  overflow-y:auto;
-  background: rgba(0,0,0,0.18);
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.06);
-  padding: 8px;
-}
-.index-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap: 10px;
-  padding: 10px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px;
-}
-.index-row:last-child{ border-bottom:none; }
-.index-row span{ color: rgba(231,231,239,0.86); }
-.index-row .dim{ color: rgba(166,166,179,0.7); font-size: 11px; }
+              <div class="grave-box inner">
+                <div class="grave-header">POSTS</div>
+                <div class="grave-body" id="profilePosts"></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-/* ===== MODALS ===== */
-.modal{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,0.72);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 20px;
-  z-index: 999;
-}
-.modal-inner{
-  width:min(900px, 96vw);
-  max-height: 90vh;
-  overflow:auto;
-}
-.profile-modal-top{
-  display:flex;
-  gap: 14px;
-  align-items:center;
-}
-.profile-modal-meta{ min-width:0; }
-.modal-name{
-  font-weight:700;
-  letter-spacing: 2px;
-  color: rgba(231,231,239,0.92);
-  text-transform: uppercase;
-  font-size: 18px;
-}
-.modal-sub{
-  margin-top: 8px;
-  font-size: 12px;
-  color: rgba(166,166,179,0.75);
-}
-.modal-section-title{
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: rgba(0,255,65,0.8);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-.modal-posts{ display:flex; flex-direction:column; gap: 10px; }
+        <!-- SETTINGS -->
+        <section id="settings-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">USER_PARAMETERS</div>
+            <div class="grave-body">
+              <p class="small-label">CHANGE CALLSIGN:</p>
+              <input id="new-username" placeholder="NEW_CALLSIGN">
+              <button id="renameBtn" class="grave-btn">RENAME_ENTITY</button>
 
-/* ===== BUILDER ===== */
-.builder-days-wrap{
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-  max-height: 60vh;
-  overflow:auto;
-  padding-right: 6px;
-}
-.builder-day{
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.22);
-  padding: 12px;
-}
-.builder-day-title{
-  font-weight:700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: rgba(231,231,239,0.9);
-  margin-bottom: 10px;
-}
-.builder-day textarea{
-  min-height: 90px;
-  margin-bottom: 0;
-  color: rgba(0,255,65,0.9);
-}
+              <div class="divider"></div>
 
-/* ===== SMALL HELPERS ===== */
-.small-label{
-  font-size: 11px;
-  color: rgba(166,166,179,0.8);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin: 6px 0 8px;
-}
-.tiny-warn{
-  margin-top: 10px;
-  font-size: 11px;
-  color: rgba(255,120,120,0.9);
-}
-.divider{
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(179,0,0,0.65), transparent);
-  margin: 18px 0;
-  opacity: 0.9;
-}
-.divider.thin{ height: 1px; opacity: 0.65; margin: 14px 0; }
+              <p class="small-label">GRAVE_TAG_VISUALS:</p>
+              <div id="settings-tag-picker" class="tag-grid"></div>
+              <button id="updateTagBtn" class="grave-btn">UPDATE_TAG</button>
 
-.row-split{
-  display:grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 18px;
-}
-@media (max-width: 900px){
-  .row-split{ grid-template-columns: 1fr; }
-}
+              <div class="divider"></div>
 
-/* scrollbars */
-::-webkit-scrollbar{ width: 8px; }
-::-webkit-scrollbar-track{ background: rgba(0,0,0,0.25); }
-::-webkit-scrollbar-thumb{
-  background: rgba(179,0,0,0.8);
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.08);
-}
+              <p class="small-label">AVATAR:</p>
+              <div id="settings-avatar-picker" class="avatar-grid"></div>
+              <button id="updateAvatarBtn" class="grave-btn">UPDATE_AVATAR</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">CALLING_CARD (UNLOCKED BY RANK/TROPHIES):</p>
+              <div id="settings-card-picker" class="card-grid"></div>
+              <button id="updateCardBtn" class="grave-btn">UPDATE_CALLING_CARD</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">DANGER_ZONE:</p>
+              <button id="resetPlanBtn" class="mini-btn danger">RESET ACTIVE SPLIT (YOU ONLY)</button>
+              <div class="small-text dim">
+                This does not delete logs/posts. It only clears which split is active.
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- RIGHT COL -->
+      <aside class="col">
+        <div class="grave-box">
+          <div class="grave-header">PR_VAULT // PERSONAL_RECORDS</div>
+          <div id="prList" class="grave-body index-container"></div>
+        </div>
+
+        <div class="grave-box">
+          <div class="grave-header">CARVING_INDEX // LAST 30</div>
+          <div id="logIndex" class="grave-body index-container"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
