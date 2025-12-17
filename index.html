@@ -15,7 +15,7 @@
   <h1 class="glitch">MASSGRAVES</h1>
   <div class="panel">
     <p style="text-align:center; color: #ff00ea;">[ ACCESS RESTRICTED ]</p>
-    <input id="email" placeholder="USER_ID (EMAIL)">
+    <input id="email" placeholder="USER_ID">
     <input id="password" type="password" placeholder="PASS_CODE">
     <button onclick="window.login()">LOGIN</button>
     <button id="signupBtn">ENTER THE GRAVE</button>
@@ -32,31 +32,44 @@
     <button onclick="window.show('prs')">VITAL_STATS</button>
     <button onclick="window.show('profile')">MY_ID</button>
     <button id="nav-admin" class="hidden" onclick="window.show('admin-panel')">SYSTEM_ROOT</button>
-    <button onclick="window.logout()" style="background: #ff00ea;">DISCONNECT</button>
+    <button onclick="window.logout()" style="background: #ff00ea; color: white;">DISCONNECT</button>
   </nav>
 
   <section id="feed" class="panel"></section>
 
   <section id="log" class="panel hidden">
     <h3>REPORT PROGRESS</h3>
-    <textarea id="workoutText" placeholder="What did you kill today?"></textarea>
-    <button onclick="window.postWorkout()">TRANSMIT</button>
+    <div class="input-group">
+      <label>SELECT MOVEMENT:</label>
+      <select id="exerciseSelect" onchange="window.toggleCustomExercise()">
+        <option value="Bench Press">Bench Press</option>
+        <option value="Squat">Squat</option>
+        <option value="Deadlift">Deadlift</option>
+        <option value="Overhead Press">Overhead Press</option>
+        <option value="Barbell Row">Barbell Row</option>
+        <option value="Pull Ups">Pull Ups</option>
+        <option value="CUSTOM">-- CUSTOM MOVEMENT --</option>
+      </select>
+      <input id="customExercise" class="hidden" placeholder="Enter custom exercise name...">
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <input id="weightInput" type="number" placeholder="WEIGHT (LBS)">
+      <input id="repsInput" type="number" placeholder="REPS">
+    </div>
+    
+    <textarea id="workoutNotes" placeholder="Additional notes (optional)..." style="margin-top:10px;"></textarea>
+    <button onclick="window.postWorkout()" style="width: 100%; margin-top: 10px;">TRANSMIT TO FEED</button>
   </section>
 
   <section id="prs" class="panel hidden">
     <h3>MAX_EFFORT_LOG</h3>
-    <input id="prName" placeholder="LIFT_TYPE">
-    <input id="prValue" placeholder="WEIGHT_KG/LBS">
-    <button onclick="window.savePR()">SAVE_STAT</button>
     <div id="prList"></div>
   </section>
 
   <section id="profile" class="panel hidden">
     <h3 id="profileEmail"></h3>
-    <p style="color: #ff00ea;">MEMBERSHIP: PERMANENT</p>
-    <div style="border: 1px dashed #444; padding: 10px; margin-top: 10px;">
-      <p>"Pain is temporary. The Grave is forever."</p>
-    </div>
+    <p style="color: #ff00ea;">RANK: PERMANENT RESIDENT</p>
   </section>
 
   <section id="admin-panel" class="panel hidden">
