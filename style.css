@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap');
-
 body { margin: 0; background: #050505; color: #00ff41; font-family: 'VT323', monospace; }
 #crt { pointer-events: none; position: fixed; inset: 0; z-index: 999; background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 3px); opacity: 0.3; }
 .glitch { font-family: 'Metal Mania', cursive; font-size: 48px; color: #fff; text-transform: uppercase; text-shadow: 3px 3px #ff00ea; text-align: center; }
@@ -14,4 +13,3 @@ button { width: 100%; padding: 12px; background: #00ff41; color: #000; border: n
 .post { border-bottom: 1px solid #222; padding: 10px 0; }
 .post pre { border-left: 3px solid #ff00ea; padding-left: 10px; white-space: pre-wrap; margin: 5px 0; }
 .plan-card { border: 1px solid #333; padding: 10px; margin-bottom: 10px; }
-.plan-card h4 { margin: 0 0 10px 0; color: #ff00ea; }
