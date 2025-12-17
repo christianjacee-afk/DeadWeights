@@ -6,27 +6,30 @@ import {
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
 import {
   getFirestore,
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
   collection,
   addDoc,
   query,
-  orderBy,
-  onSnapshot,
   where,
-  deleteDoc,
-  serverTimestamp,
+  orderBy,
   limit,
+  onSnapshot,
   getDocs,
-  updateDoc
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-/* =========================
+/* ==========================================
    FIREBASE CONFIG
-========================= */
+========================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
   authDomain: "deadweights-365c6.firebaseapp.com",
@@ -34,1229 +37,1431 @@ const firebaseConfig = {
   appId: "1:727970628768:web:3dfd719731f6632e88f5c5"
 };
 
-const fbApp = initializeApp(firebaseConfig);
-const auth = getAuth(fbApp);
-const db = getFirestore(fbApp);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-/* =========================
-   DATA: TAGS / AVATARS / RANKS
-========================= */
+/* ==========================================
+   DATA: TAGS, RANKS, CARD STYLES, TROPHIES
+========================================== */
 const TAGS = [
-  { id: "rust", css: "tag-rust", name: "RUST" },
-  { id: "crt", css: "tag-crt", name: "CRT" },
-  { id: "blood", css: "tag-blood", name: "BLOOD" },
-  { id: "void", css: "tag-void", name: "VOID" }
+  { id: "rust", css: "tag-rust", label: "RUST" },
+  { id: "crt", css: "tag-crt", label: "CRT" },
+  { id: "blood", css: "tag-blood", label: "BLOOD" },
+  { id: "void", css: "tag-void", label: "VOID" }
 ];
 
-const AVATARS = [
-  "a-sigil-1","a-sigil-2","a-sigil-3","a-sigil-4",
-  "a-sigil-5","a-sigil-6","a-sigil-7","a-sigil-8"
+const CARD_STYLES = [
+  { id: "crypt", css: "style-crypt", label: "CRYPT" },
+  { id: "inferno", css: "style-inferno", label: "INFERNO" },
+  { id: "arcade", css: "style-arcade", label: "ARCADE" },
+  { id: "null", css: "style-null", label: "NULL" }
 ];
 
-/** XP-based rank ladder (game-ish) */
 const RANKS = [
-  { minXP: 0,    id: "newborn",   name: "NEWBORN",    title: "FRESHLY_BURIED" },
-  { minXP: 40,   id: "stalker",   name: "STALKER",    title: "YOU_HEAR_IT_BREATHING" },
-  { minXP: 120,  id: "gravelord", name: "GRAVE_LORD", title: "CROWNED_IN_DUST" },
-  { minXP: 260,  id: "immortal",  name: "IMMORTAL",   title: "THE_GRAVE_REMEMBERS" }
+  { min: 0, name: "NEWBORN", avatar: "WISP" },
+  { min: 15, name: "STALKER", avatar: "SKULL" },
+  { min: 40, name: "CRYPT_WALKER", avatar: "REAPER" },
+  { min: 80, name: "GRAVE_LORD", avatar: "LICH" },
+  { min: 140, name: "IMMORTAL", avatar: "ARCHON" }
 ];
 
-function getRankByXP(xp){
-  const sorted = [...RANKS].sort((a,b)=>a.minXP-b.minXP);
-  let r = sorted[0];
-  for (const item of sorted) if ((xp||0) >= item.minXP) r = item;
-  return r;
-}
+/* Trophy rules (simple + satisfying; can expand easily) */
+const TROPHY_RULES = [
+  { id: "FIRST_BLOOD", label: "FIRST_BLOOD", type: "green", test: (s) => (s.totalLogs >= 1) },
+  { id: "CARVER_25", label: "CARVER_25", type: "green", test: (s) => (s.totalLogs >= 25) },
+  { id: "CARVER_100", label: "CARVER_100", type: "ice", test: (s) => (s.totalLogs >= 100) },
 
-/* =========================
-   DATA: EXERCISE LIBRARY (BIG)
-========================= */
+  { id: "BENCH_225", label: "BENCH_225", type: "blood", test: (s) => (s.bestBench >= 225) },
+  { id: "SQUAT_315", label: "SQUAT_315", type: "blood", test: (s) => (s.bestSquat >= 315) },
+  { id: "DEAD_405", label: "DEAD_405", type: "blood", test: (s) => (s.bestDead >= 405) }
+];
+
+/* ==========================================
+   EXERCISE LIBRARY (BIG)
+========================================== */
 const EXERCISE_LIBRARY = {
-  Push: [
-    "Bench Press","Incline Bench Press","Decline Bench Press","DB Bench Press",
-    "Incline DB Press","Overhead Press","Seated DB Shoulder Press","Arnold Press",
-    "Lateral Raises","Cable Lateral Raises","Front Raises","Rear Delt Fly",
-    "Dips","Tricep Pushdown","Overhead Tricep Extension","Skull Crushers",
-    "Close-Grip Bench Press","Machine Chest Press","Pec Deck","Cable Fly"
+  Chest: [
+    "Barbell Bench Press","Incline Barbell Bench","Dumbbell Bench Press","Incline Dumbbell Press",
+    "Machine Chest Press","Cable Fly","Pec Deck","Push-Ups","Dips (Chest Lean)"
   ],
-  Pull: [
-    "Deadlift","Rack Pull","Romanian Deadlift (Light)","Pull Ups","Chin Ups",
-    "Lat Pulldown","Single-Arm Lat Pulldown","Barbell Row","Pendlay Row",
-    "Seated Cable Row","Chest-Supported Row","T-Bar Row","Face Pulls",
-    "Straight-Arm Pulldown","DB Row","Shrugs","Hammer Curls","EZ Bar Curls",
-    "Incline DB Curls","Cable Curls","Preacher Curls","Reverse Curls"
+  Back: [
+    "Deadlift","Romanian Deadlift","Pull-Ups","Chin-Ups","Lat Pulldown","Chest-Supported Row",
+    "Barbell Row","Cable Row","T-Bar Row","One-Arm Dumbbell Row","Face Pull","Back Extension"
+  ],
+  Shoulders: [
+    "Overhead Press","Dumbbell Shoulder Press","Lateral Raise","Cable Lateral Raise",
+    "Rear Delt Fly","Arnold Press","Upright Row (Light)","Shrugs"
   ],
   Legs: [
-    "Back Squat","Front Squat","Hack Squat","Leg Press","Bulgarian Split Squat",
-    "Walking Lunges","Reverse Lunges","RDLs","Good Mornings","Leg Curl",
-    "Seated Leg Curl","Leg Extensions","Hip Thrust","Glute Bridge","Cable Kickbacks",
-    "Calf Raises","Seated Calf Raises","Adductors","Abductors","Step Ups"
+    "Back Squat","Front Squat","Hack Squat","Leg Press","Bulgarian Split Squat","Lunge",
+    "Leg Extension","Hamstring Curl","Glute Bridge","Hip Thrust","Calf Raise","Adduction Machine","Abduction Machine"
+  ],
+  Arms: [
+    "EZ-Bar Curl","Barbell Curl","Dumbbell Curl","Hammer Curl","Cable Curl",
+    "Triceps Pushdown","Overhead Triceps Extension","Skull Crushers","Close-Grip Bench Press","Dips (Triceps)"
   ],
   Core: [
-    "Hanging Leg Raises","Cable Crunch","Ab Wheel","Plank","Side Plank",
-    "Dead Bug","Pallof Press","Russian Twists"
-  ],
-  Conditioning: [
-    "Incline Treadmill Walk","Rowing Machine","Assault Bike","Jump Rope",
-    "Sled Push","Kettlebell Swings","Burpees"
+    "Hanging Leg Raise","Cable Crunch","Plank","Ab Wheel","Russian Twist","Back Extension (Core)"
   ]
 };
 
-/* =========================
-   DATA: PLAN INDEX (3–6 day, goals)
-   Each plan includes day templates, categories, and recommended exercise pools
-========================= */
-const PLAN_INDEX = [
+const FLAT_EXERCISES = Object.values(EXERCISE_LIBRARY).flat();
+
+/* ==========================================
+   WORKOUT SPLITS (3–6 DAYS) + YOUR M–F 2× PLAN
+   Each plan: id, name, daysPerWeek, goal, style, days: [{name, focus, exercises[]}]
+========================================== */
+const PLANS = [
+  /* Your PDF plan (Monday–Friday, every muscle 2×/week) */
   {
-    id: "ppl_5",
-    name: "PPL // 5-DAY (HYBRID)",
-    days: 5,
-    goal: ["balanced","hypertrophy","strength"],
-    tags: ["PUSH","PULL","LEGS","UPPER","LOWER"],
-    description:
-`A 5-day Push/Pull/Legs hybrid that hits everything 2x weekly without frying you.
-- Day1 PUSH (strength bias)
-- Day2 PULL (strength bias)
-- Day3 LEGS (strength bias)
-- Day4 UPPER (volume)
-- Day5 LOWER (volume)
-Rest: weekend or as needed.`,
-    splitDays: [
-      { label:"DAY_1 PUSH", blocks:[{cat:"Push", picks:["Bench Press","Overhead Press","Incline DB Press","Lateral Raises","Tricep Pushdown"]},{cat:"Core", picks:["Cable Crunch","Plank"]}] },
-      { label:"DAY_2 PULL", blocks:[{cat:"Pull", picks:["Deadlift","Barbell Row","Lat Pulldown","Face Pulls","EZ Bar Curls"]},{cat:"Core", picks:["Hanging Leg Raises"]}] },
-      { label:"DAY_3 LEGS", blocks:[{cat:"Legs", picks:["Back Squat","RDLs","Leg Press","Leg Curl","Calf Raises"]}] },
-      { label:"DAY_4 UPPER", blocks:[{cat:"Push", picks:["DB Bench Press","Cable Fly","Arnold Press","Lateral Raises","Skull Crushers"]},{cat:"Pull", picks:["Seated Cable Row","Pull Ups","Face Pulls","Hammer Curls"]}] },
-      { label:"DAY_5 LOWER", blocks:[{cat:"Legs", picks:["Front Squat","Hip Thrust","Leg Extensions","Seated Leg Curl","Calf Raises"]},{cat:"Conditioning", picks:["Incline Treadmill Walk"]}] }
+    id: "mf_2x_compound",
+    name: "M–F 2× FULL (COMPOUND+ACCESSORY)",
+    daysPerWeek: 5,
+    goal: "balanced",
+    style: "fullbody",
+    desc: "Your Monday–Friday 2×/week framework. Heavy compounds + targeted leg volume.",
+    days: [
+      { name: "MON – FULL BODY COMPOUND", focus: "Full Body", exercises: [
+        "Back Squat","Barbell Bench Press","Barbell Row","Overhead Press","Romanian Deadlift","Triceps Pushdown"
+      ]},
+      { name: "TUE – LOWER A (FULL LEGS)", focus: "Legs", exercises: [
+        "Hack Squat","Leg Press","Romanian Deadlift","Hamstring Curl","Hip Thrust","Leg Extension","Adduction Machine","Abduction Machine","Calf Raise"
+      ]},
+      { name: "WED – UPPER PUSH", focus: "Push", exercises: [
+        "Incline Dumbbell Press","Machine Chest Press","Overhead Press","Lateral Raise","Dips (Triceps)","Skull Crushers"
+      ]},
+      { name: "THU – LOWER B (HINGE+GLUTES)", focus: "Legs", exercises: [
+        "Deadlift","Hip Thrust","Bulgarian Split Squat","Leg Extension","Hamstring Curl","Adduction Machine","Abduction Machine","Calf Raise"
+      ]},
+      { name: "FRI – UPPER PULL + ARMS", focus: "Pull", exercises: [
+        "Pull-Ups","Lat Pulldown","Cable Row","Face Pull","EZ-Bar Curl","Hammer Curl","Close-Grip Bench Press"
+      ]}
     ]
   },
+
+  /* 3-day Full Body */
   {
-    id:"ul_4",
-    name:"UPPER/LOWER // 4-DAY (STRENGTH)",
-    days:4,
-    goal:["strength","balanced"],
-    tags:["UPPER","LOWER","COMPOUND"],
-    description:
-`Classic 4-day Upper/Lower built for strength progression.
-- Upper A / Lower A / Upper B / Lower B
-Use heavier compounds first, then accessories.`,
-    splitDays:[
-      { label:"UPPER_A", blocks:[{cat:"Push", picks:["Bench Press","Overhead Press","Dips"]},{cat:"Pull", picks:["Barbell Row","Lat Pulldown","Face Pulls"]},{cat:"Core", picks:["Pallof Press"]}] },
-      { label:"LOWER_A", blocks:[{cat:"Legs", picks:["Back Squat","RDLs","Leg Press","Calf Raises"]}] },
-      { label:"UPPER_B", blocks:[{cat:"Push", picks:["Incline Bench Press","Seated DB Shoulder Press","Tricep Pushdown"]},{cat:"Pull", picks:["Pull Ups","Seated Cable Row","EZ Bar Curls"]}] },
-      { label:"LOWER_B", blocks:[{cat:"Legs", picks:["Front Squat","Hip Thrust","Leg Curl","Leg Extensions"]},{cat:"Conditioning", picks:["Rowing Machine"]}] }
+    id: "fb_3_hyper",
+    name: "FULL BODY (3-DAY) // HYPER",
+    daysPerWeek: 3,
+    goal: "hypertrophy",
+    style: "fullbody",
+    desc: "Simple, brutal, repeatable. Great if you’re busy.",
+    days: [
+      { name: "DAY 1 – FULL", focus: "Full Body", exercises: ["Back Squat","Barbell Bench Press","Lat Pulldown","Lateral Raise","Triceps Pushdown","Dumbbell Curl"] },
+      { name: "DAY 2 – FULL", focus: "Full Body", exercises: ["Leg Press","Incline Dumbbell Press","Cable Row","Face Pull","Skull Crushers","Hammer Curl"] },
+      { name: "DAY 3 – FULL", focus: "Full Body", exercises: ["Romanian Deadlift","Machine Chest Press","Pull-Ups","Rear Delt Fly","Overhead Triceps Extension","EZ-Bar Curl"] }
     ]
   },
+
+  /* 4-day Upper/Lower */
   {
-    id:"fb_3",
-    name:"FULL BODY // 3-DAY (BUSY BUT DEADLY)",
-    days:3,
-    goal:["balanced","strength","hypertrophy"],
-    tags:["FULL_BODY","EFFICIENT"],
-    description:
-`3 days, full-body each day. Great if life is chaos.
-Each session: 1 push, 1 pull, 1 legs, 1 core/conditioning.`,
-    splitDays:[
-      { label:"FULL_BODY_A", blocks:[{cat:"Push", picks:["Bench Press"]},{cat:"Pull", picks:["Barbell Row"]},{cat:"Legs", picks:["Back Squat"]},{cat:"Core", picks:["Plank"]}] },
-      { label:"FULL_BODY_B", blocks:[{cat:"Push", picks:["Overhead Press"]},{cat:"Pull", picks:["Lat Pulldown"]},{cat:"Legs", picks:["Leg Press"]},{cat:"Core", picks:["Cable Crunch"]}] },
-      { label:"FULL_BODY_C", blocks:[{cat:"Push", picks:["Incline DB Press"]},{cat:"Pull", picks:["Deadlift"]},{cat:"Legs", picks:["RDLs"]},{cat:"Conditioning", picks:["Assault Bike"]}] }
+    id: "ul_4_strength",
+    name: "UPPER/LOWER (4-DAY) // STRENGTH",
+    daysPerWeek: 4,
+    goal: "strength",
+    style: "upperlower",
+    desc: "Heavy top sets + back-off volume. Strength-forward.",
+    days: [
+      { name: "UPPER A – HEAVY", focus: "Upper", exercises: ["Barbell Bench Press","Barbell Row","Overhead Press","Pull-Ups","Close-Grip Bench Press","Face Pull"] },
+      { name: "LOWER A – HEAVY", focus: "Lower", exercises: ["Back Squat","Romanian Deadlift","Leg Press","Hamstring Curl","Calf Raise","Plank"] },
+      { name: "UPPER B – VOLUME", focus: "Upper", exercises: ["Incline Barbell Bench","Cable Row","Dumbbell Shoulder Press","Lat Pulldown","Triceps Pushdown","Dumbbell Curl"] },
+      { name: "LOWER B – VOLUME", focus: "Lower", exercises: ["Deadlift","Hack Squat","Hip Thrust","Leg Extension","Hamstring Curl","Hanging Leg Raise"] }
     ]
   },
+
+  /* 5-day PPL+Arms (fits M–F) */
   {
-    id:"bro_5",
-    name:"BRO-SPLIT // 5-DAY (HYPERTROPHY)",
-    days:5,
-    goal:["hypertrophy"],
-    tags:["CHEST","BACK","LEGS","SHOULDERS","ARMS"],
-    description:
-`Old-school 5-day bro split for pure size.
-Not as “2x weekly” as PPL, but brutal volume and pump.`,
-    splitDays:[
-      { label:"CHEST", blocks:[{cat:"Push", picks:["Bench Press","Incline DB Press","Cable Fly","Pec Deck"]},{cat:"Core", picks:["Ab Wheel"]}] },
-      { label:"BACK", blocks:[{cat:"Pull", picks:["Deadlift","Pull Ups","Seated Cable Row","Face Pulls"]}] },
-      { label:"LEGS", blocks:[{cat:"Legs", picks:["Back Squat","Leg Press","Leg Curl","Calf Raises"]}] },
-      { label:"SHOULDERS", blocks:[{cat:"Push", picks:["Overhead Press","Arnold Press","Lateral Raises","Rear Delt Fly"]}] },
-      { label:"ARMS", blocks:[{cat:"Pull", picks:["EZ Bar Curls","Incline DB Curls","Hammer Curls"]},{cat:"Push", picks:["Tricep Pushdown","Skull Crushers","Overhead Tricep Extension"]}] }
+    id: "ppl_5_plus",
+    name: "PPL+ (5-DAY) // HYPER",
+    daysPerWeek: 5,
+    goal: "hypertrophy",
+    style: "ppl",
+    desc: "Push / Pull / Legs / Upper / Legs. High volume, high reward.",
+    days: [
+      { name: "PUSH", focus: "Push", exercises: ["Barbell Bench Press","Incline Dumbbell Press","Overhead Press","Lateral Raise","Triceps Pushdown"] },
+      { name: "PULL", focus: "Pull", exercises: ["Deadlift","Pull-Ups","Cable Row","Lat Pulldown","Face Pull","EZ-Bar Curl"] },
+      { name: "LEGS", focus: "Legs", exercises: ["Back Squat","Leg Press","Romanian Deadlift","Hamstring Curl","Calf Raise"] },
+      { name: "UPPER (PUMP)", focus: "Upper", exercises: ["Machine Chest Press","Chest-Supported Row","Rear Delt Fly","Cable Fly","Dumbbell Curl","Skull Crushers"] },
+      { name: "LEGS (GLUTES)", focus: "Legs", exercises: ["Hip Thrust","Hack Squat","Bulgarian Split Squat","Leg Extension","Adduction Machine","Abduction Machine"] }
     ]
   },
+
+  /* 6-day PPL */
   {
-    id:"cut_4",
-    name:"CUT_PROTOCOL // 4-DAY (CONDITIONING)",
-    days:4,
-    goal:["cut","balanced"],
-    tags:["LIFT","CONDITION","RECOVER"],
-    description:
-`4-day split with built-in conditioning finishers.
-Good if you want to lean out while keeping strength.`,
-    splitDays:[
-      { label:"UPPER+COND", blocks:[{cat:"Push", picks:["DB Bench Press","Overhead Press"]},{cat:"Pull", picks:["Lat Pulldown","Face Pulls"]},{cat:"Conditioning", picks:["Rowing Machine","Jump Rope"]}] },
-      { label:"LOWER+COND", blocks:[{cat:"Legs", picks:["Front Squat","RDLs","Leg Extensions"]},{cat:"Conditioning", picks:["Assault Bike"]}] },
-      { label:"UPPER+COND_B", blocks:[{cat:"Push", picks:["Incline DB Press","Lateral Raises"]},{cat:"Pull", picks:["Seated Cable Row","Hammer Curls"]},{cat:"Conditioning", picks:["Sled Push"]}] },
-      { label:"LOWER+COND_B", blocks:[{cat:"Legs", picks:["Leg Press","Hip Thrust","Leg Curl","Calf Raises"]},{cat:"Conditioning", picks:["Incline Treadmill Walk"]}] }
+    id: "ppl_6_classic",
+    name: "PPL (6-DAY) // CLASSIC",
+    daysPerWeek: 6,
+    goal: "balanced",
+    style: "ppl",
+    desc: "Classic Push/Pull/Legs repeated. For monsters.",
+    days: [
+      { name: "PUSH A", focus: "Push", exercises: ["Barbell Bench Press","Incline Barbell Bench","Overhead Press","Lateral Raise","Triceps Pushdown"] },
+      { name: "PULL A", focus: "Pull", exercises: ["Deadlift","Pull-Ups","Barbell Row","Face Pull","EZ-Bar Curl"] },
+      { name: "LEGS A", focus: "Legs", exercises: ["Back Squat","Leg Press","Hamstring Curl","Calf Raise","Hanging Leg Raise"] },
+      { name: "PUSH B", focus: "Push", exercises: ["Dumbbell Bench Press","Cable Fly","Dumbbell Shoulder Press","Lateral Raise","Skull Crushers"] },
+      { name: "PULL B", focus: "Pull", exercises: ["Romanian Deadlift","Lat Pulldown","Cable Row","Rear Delt Fly","Hammer Curl"] },
+      { name: "LEGS B", focus: "Legs", exercises: ["Hack Squat","Hip Thrust","Bulgarian Split Squat","Leg Extension","Adduction Machine","Abduction Machine"] }
+    ]
+  },
+
+  /* 5-day Bro split (because people ask for it) */
+  {
+    id: "bro_5",
+    name: "BRO_SPLIT (5-DAY) // PUMP",
+    daysPerWeek: 5,
+    goal: "hypertrophy",
+    style: "bro",
+    desc: "One focus per day. Simple. Savage.",
+    days: [
+      { name: "CHEST", focus: "Chest", exercises: EXERCISE_LIBRARY.Chest },
+      { name: "BACK", focus: "Back", exercises: EXERCISE_LIBRARY.Back },
+      { name: "SHOULDERS", focus: "Shoulders", exercises: EXERCISE_LIBRARY.Shoulders },
+      { name: "LEGS", focus: "Legs", exercises: EXERCISE_LIBRARY.Legs },
+      { name: "ARMS+CORE", focus: "Arms/Core", exercises: [...EXERCISE_LIBRARY.Arms, ...EXERCISE_LIBRARY.Core] }
     ]
   }
 ];
 
-/* =========================
+/* ==========================================
    STATE
-========================= */
-let currentUser = null;          // auth user
-let currentUserData = null;      // users/{uid}
+========================================== */
+let currentUser = null;
+let currentUserData = null;
 let selectedTagCss = "tag-rust";
-let selectedAvatarCss = "a-sigil-1";
-let selectedPlanId = null;       // active plan id
-let regDraft = { email:"", pass:"", username:"", tag:"tag-rust", avatar:"a-sigil-1", planId:null, isPrivate:false };
+let selectedCardStyle = "style-crypt";
+let selectedRegPlanId = "mf_2x_compound";
 
-let unsubFeed = null;
-let unsubLeaderboard = null;
-let unsubPRs = null;
-let unsubLogs = null;
+let activePlan = null;         // plan object
+let viewingProfileUid = null;  // whose profile panel is showing
 
-/* =========================
-   HELPERS
-========================= */
-function $(id){ return document.getElementById(id); }
-function safeText(s){ return String(s||"").replace(/[<>&"]/g, c=>({ "<":"&lt;", ">":"&gt;", "&":"&amp;", "\"":"&quot;" }[c])); }
+/* ==========================================
+   DOM HELPERS
+========================================== */
+const $ = (id) => document.getElementById(id);
 
-function setScreen(screen){
-  const screens = ["auth-screen","registration-screen","app"];
-  screens.forEach(s => $(s).classList.add("hidden"));
-  $(screen).classList.remove("hidden");
+function setVisible(el, show){
+  if(!el) return;
+  el.classList.toggle("hidden", !show);
 }
 
-function setActiveTab(panelId){
-  const panels = ["feed-panel","plans-panel","friends-panel","settings-panel"];
-  panels.forEach(p => $(p).classList.add("hidden"));
-  $(panelId).classList.remove("hidden");
+function toast(msg){
+  const box = $("system-feed");
+  if(!box) return;
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const line = document.createElement("div");
+  line.className = "lb-row";
+  line.textContent = `[${now}] ${msg}`;
+  box.prepend(line);
 }
 
-function deriveXPUpdate({didLog=false, didPost=false, didComment=false}){
-  // Game-ish: logs worth more, posts/comments smaller
-  let delta = 0;
-  if (didLog) delta += 5;
-  if (didPost) delta += 2;
-  if (didComment) delta += 1;
-  return delta;
+/* ==========================================
+   RANK / TROPHY / PR HELPERS
+========================================== */
+function getRankFromCount(count){
+  return RANKS.filter(r => (count || 0) >= r.min).pop() || RANKS[0];
 }
 
-function epley1RM(weight, reps){
-  const w = Number(weight||0);
-  const r = Number(reps||0);
-  if (!w || !r) return 0;
-  // Epley: 1RM = w * (1 + r/30)
-  return Math.round(w * (1 + r / 30));
+function e1rm(weight, reps){
+  const w = Number(weight || 0);
+  const r = Number(reps || 0);
+  if(!w || !r) return 0;
+  // Epley
+  return Math.round(w * (1 + r/30));
 }
 
-function getPlanById(id){
-  return PLAN_INDEX.find(p => p.id === id) || null;
+/* ==========================================
+   AVATARS (SCARY SVG, ANIMATED)
+   Seeded from UID so everyone looks consistent.
+========================================== */
+function hashStr(s){
+  let h = 2166136261;
+  for(let i=0;i<s.length;i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0);
 }
 
-function userIsAdmin(){
-  return !!(currentUserData && currentUserData.isAdmin === true);
+function makeAvatarSvg(seedStr, tierName){
+  const seed = hashStr(seedStr || "deadweights");
+  const a = (seed % 360);
+  const eye = (seed % 5) + 1;
+  const scars = (seed % 3);
+  const horn = (seed % 2);
+
+  // tiers influence intensity
+  const tierBoost = (tierName === "IMMORTAL") ? 1 : (tierName === "GRAVE_LORD" ? 0.75 : 0.5);
+  const glow = 0.35 + tierBoost * 0.35;
+
+  const eyePath = [
+    "M20 36 Q32 24 44 36 Q32 46 20 36 Z",
+    "M20 36 Q32 18 44 36 Q32 54 20 36 Z",
+    "M18 36 Q32 26 46 36 Q32 44 18 36 Z",
+    "M18 36 Q32 20 46 36 Q32 52 18 36 Z",
+    "M20 34 Q32 22 44 34 Q32 48 20 34 Z"
+  ][eye-1];
+
+  const scarLines = scars === 0 ? "" : (scars === 1
+    ? `<path d="M18 52 L46 44" stroke="rgba(179,0,0,0.55)" stroke-width="2" />`
+    : `<path d="M16 50 L44 42" stroke="rgba(179,0,0,0.55)" stroke-width="2" />
+       <path d="M22 56 L50 48" stroke="rgba(179,0,0,0.45)" stroke-width="2" />`
+  );
+
+  const horns = horn
+    ? `<path d="M18 18 Q14 6 24 10" fill="none" stroke="rgba(220,220,220,0.35)" stroke-width="3" />
+       <path d="M46 18 Q50 6 40 10" fill="none" stroke="rgba(220,220,220,0.35)" stroke-width="3" />`
+    : "";
+
+  return `
+  <svg viewBox="0 0 64 64" width="100%" height="100%" style="display:block">
+    <defs>
+      <radialGradient id="bg" cx="30%" cy="30%" r="80%">
+        <stop offset="0%" stop-color="rgba(0,255,65,${0.10+glow*0.15})"/>
+        <stop offset="55%" stop-color="rgba(0,0,0,0.9)"/>
+        <stop offset="100%" stop-color="rgba(0,0,0,1)"/>
+      </radialGradient>
+      <filter id="g">
+        <feGaussianBlur stdDeviation="0.6" result="b"/>
+        <feMerge>
+          <feMergeNode in="b"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#bg)"/>
+
+    <g filter="url(#g)" transform="rotate(${a} 32 32)">
+      <path d="M14 28 Q32 10 50 28 Q56 44 42 52 Q32 58 22 52 Q8 44 14 28Z"
+            fill="rgba(255,255,255,0.07)" stroke="rgba(0,255,65,0.22)" stroke-width="2"/>
+
+      ${horns}
+
+      <path d="${eyePath}" fill="rgba(0,255,65,${0.45+glow*0.25})" stroke="rgba(0,255,65,0.35)" stroke-width="2"/>
+      <circle cx="32" cy="36" r="5" fill="rgba(0,0,0,0.9)"/>
+      <circle cx="34" cy="34" r="2" fill="rgba(255,255,255,0.5)"/>
+
+      <path d="M22 46 Q32 52 42 46" fill="none" stroke="rgba(179,0,0,0.45)" stroke-width="2"/>
+
+      ${scarLines}
+    </g>
+
+    <g opacity="0.12">
+      <path d="M0 16 H64" stroke="rgba(0,255,65,0.55)" />
+      <path d="M0 32 H64" stroke="rgba(0,255,65,0.35)" />
+      <path d="M0 48 H64" stroke="rgba(0,255,65,0.25)" />
+    </g>
+  </svg>`;
 }
 
-/* =========================
-   AUTH + BOOT
-========================= */
+function mountAvatar(targetEl, seedStr, tierName){
+  if(!targetEl) return;
+  targetEl.innerHTML = makeAvatarSvg(seedStr, tierName);
+
+  // simple “alive” animation without external libs
+  const svg = targetEl.querySelector("svg");
+  if(svg){
+    svg.style.animation = "avatarFloat 3.2s ease-in-out infinite";
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes avatarFloat{
+        0%{ transform: translateY(0) scale(1); filter: drop-shadow(0 0 6px rgba(0,255,65,0.25)); }
+        50%{ transform: translateY(-2px) scale(1.01); filter: drop-shadow(0 0 12px rgba(0,255,65,0.35)); }
+        100%{ transform: translateY(0) scale(1); filter: drop-shadow(0 0 6px rgba(0,255,65,0.25)); }
+      }`;
+    document.head.appendChild(style);
+  }
+}
+
+/* ==========================================
+   AUTH FLOW
+========================================== */
 onAuthStateChanged(auth, async (user) => {
-  // cleanup listeners on user swap
-  if (!user){
-    currentUser = null;
-    currentUserData = null;
-    teardownLive();
-    setScreen("auth-screen");
-    return;
+  currentUser = user || null;
+
+  if(user){
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+
+    if(!snap.exists()){
+      // user exists in Auth but not in Firestore -> send to registration step 2
+      showRegistration();
+      return;
+    }
+
+    currentUserData = snap.data();
+
+    // If flagged/disabled, boot them (front-end hint; rules should enforce properly)
+    if(currentUserData.disabled){
+      await signOut(auth);
+      $("login-warn").textContent = "ACCESS_DENIED: ENTITY_DISABLED";
+      return;
+    }
+
+    // Show app
+    setVisible($("auth-screen"), false);
+    setVisible($("registration-screen"), false);
+    setVisible($("app"), true);
+
+    initApp();
+  } else {
+    // Logged out
+    setVisible($("app"), false);
+    setVisible($("registration-screen"), false);
+    setVisible($("auth-screen"), true);
   }
-
-  currentUser = user;
-  const uref = doc(db, "users", user.uid);
-  const snap = await getDoc(uref);
-
-  if (!snap.exists()){
-    // no profile doc => send to registration
-    setScreen("registration-screen");
-    showRegStep(1);
-    seedRegPickers();
-    return;
-  }
-
-  currentUserData = snap.data();
-  setScreen("app");
-  initAppUI();
-  initLive();
 });
 
-function teardownLive(){
-  if (unsubFeed) unsubFeed();
-  if (unsubLeaderboard) unsubLeaderboard();
-  if (unsubPRs) unsubPRs();
-  if (unsubLogs) unsubLogs();
-  unsubFeed = unsubLeaderboard = unsubPRs = unsubLogs = null;
+/* ==========================================
+   UI NAV (tabs)
+========================================== */
+function showTab(id){
+  const panels = ["feed-panel","plans-panel","profile-panel","friends-panel","settings-panel"];
+  panels.forEach(p => setVisible($(p), p === id));
 }
 
-/* =========================
-   REGISTRATION FLOW
-========================= */
-function showRegStep(n){
-  $("reg-step-1").classList.toggle("hidden", n !== 1);
-  $("reg-step-2").classList.toggle("hidden", n !== 2);
-  $("reg-step-3").classList.toggle("hidden", n !== 3);
-  $("reg-hint").innerText = `STEP_${n}/3`;
+function showAuth(){
+  setVisible($("registration-screen"), false);
+  setVisible($("auth-screen"), true);
 }
 
-function seedRegPickers(){
-  // tags
-  const tagWrap = $("initial-tag-picker");
-  tagWrap.innerHTML = TAGS.map(t => `
-    <div class="tag-opt ${t.css} ${t.css===selectedTagCss ? "active":""}"
-         data-tag="${t.css}"></div>
-  `).join("");
-
-  tagWrap.querySelectorAll(".tag-opt").forEach(el=>{
-    el.onclick = () => {
-      selectedTagCss = el.dataset.tag;
-      tagWrap.querySelectorAll(".tag-opt").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-      regDraft.tag = selectedTagCss;
-    };
-  });
-
-  // avatars
-  const avWrap = $("avatar-picker");
-  avWrap.innerHTML = AVATARS.map(a => `
-    <div class="avatar-opt ${a===selectedAvatarCss ? "active":""}" data-av="${a}">
-      <div class="avatar ${a}"></div>
-    </div>
-  `).join("");
-  avWrap.querySelectorAll(".avatar-opt").forEach(el=>{
-    el.onclick = () => {
-      selectedAvatarCss = el.dataset.av;
-      avWrap.querySelectorAll(".avatar-opt").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-      regDraft.avatar = selectedAvatarCss;
-    };
-  });
-
-  // plan picker (start plan)
-  const planWrap = $("plan-picker");
-  planWrap.innerHTML = PLAN_INDEX.map(p => `
-    <div class="plan-card" data-plan="${p.id}">
-      <h3>${safeText(p.name)}</h3>
-      <div class="meta">${p.days}_DAYS // GOALS: ${p.goal.map(g=>g.toUpperCase()).join(", ")}</div>
-      <div class="chips">${p.tags.slice(0,5).map(t=>`<span class="chip">${safeText(t)}</span>`).join("")}</div>
-    </div>
-  `).join("");
-
-  planWrap.querySelectorAll(".plan-card").forEach(el=>{
-    el.onclick = () => {
-      planWrap.querySelectorAll(".plan-card").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-      regDraft.planId = el.dataset.plan;
-    };
-  });
+function showRegistration(){
+  setVisible($("auth-screen"), false);
+  setVisible($("registration-screen"), true);
 }
 
-/* =========================
-   APP INIT
-========================= */
-function initAppUI(){
+/* ==========================================
+   INIT APP
+========================================== */
+function initApp(){
   // header
-  $("header-callsign").innerText = currentUserData.username || "SUBJECT";
-  $("profileUsername").innerText = currentUserData.username || "SUBJECT";
+  $("header-callsign").textContent = currentUserData.username || "SUBJECT";
+  const rank = getRankFromCount(currentUserData.carvingCount || 0);
+  $("header-rank").textContent = rank.name;
 
-  // tag + avatar + card
-  const tagCss = currentUserData.tag || "tag-rust";
-  $("user-grave-tag").className = `grave-tag mini-tag ${tagCss}`;
-  $("profile-avatar").className = `avatar ${currentUserData.avatar || "a-sigil-1"}`;
+  // role
+  const role = currentUserData.role || "user";
+  $("role-chip").textContent = role.toUpperCase();
+  setVisible($("admin-box"), role === "admin");
 
-  // admin UI
-  $("admin-badge").classList.toggle("hidden", !userIsAdmin());
-  $("admin-panel").classList.toggle("hidden", !userIsAdmin());
+  // tag + card style
+  const tagCss = currentUserData.tagCss || "tag-rust";
+  const cardStyle = currentUserData.cardStyle || "style-crypt";
 
-  // UI toggles
-  const ui = currentUserData.ui || { scanlines:true, glow:true, motion:true };
-  $("toggle-scanlines").checked = ui.scanlines !== false;
-  $("toggle-glow").checked = ui.glow !== false;
-  $("toggle-motion").checked = ui.motion !== false;
-  applyUiToggles(ui);
+  $("user-grave-tag").className = `grave-tag ${tagCss}`;
+  $("user-grave-tag").querySelector(".tag-text").textContent = (currentUserData.tagLabel || "CADAVER");
 
-  // privacy
-  $("toggle-private").checked = currentUserData.isPrivate === true;
+  // calling card styling
+  const cc = $("calling-card");
+  cc.classList.remove(...CARD_STYLES.map(s => s.css));
+  cc.classList.add(cardStyle);
 
-  // settings pickers
-  seedSettingsPickers();
+  // avatar
+  mountAvatar($("avatarWrap"), auth.currentUser.uid, rank.name);
 
   // active plan
-  selectedPlanId = currentUserData.activePlanId || null;
-  renderActivePlanUI();
+  const planId = currentUserData.activePlanId || null;
+  activePlan = planId ? PLANS.find(p => p.id === planId) : null;
+  $("active-plan-label").textContent = activePlan ? `ACTIVE_SPLIT: ${activePlan.name}` : "NO_ACTIVE_SPLIT";
 
-  // tabs
-  $("tabFeedBtn").onclick = () => setActiveTab("feed-panel");
-  $("tabPlansBtn").onclick = () => setActiveTab("plans-panel");
-  $("tabFriendsBtn").onclick = () => setActiveTab("friends-panel");
-  $("tabSettingsBtn").onclick = () => setActiveTab("settings-panel");
+  // trophies render (from cached user trophies)
+  renderTrophies(currentUserData.trophies || []);
 
-  // buttons
-  $("logoutBtn").onclick = () => signOut(auth);
+  // settings UI
+  buildTagPickers();
+  buildCardStylePicker();
+  hydrateSettings();
 
-  $("postStatusBtn").onclick = postStatus;
-  $("recordBtn").onclick = submitLog;
+  // plans panel
+  buildPlansList();       // based on current filters
+  hydrateLogUI();         // day+exercise dropdown from active plan
+  wireListeners();
 
-  $("filterPlansBtn").onclick = () => renderPlanIndexFiltered();
-  renderPlanIndexFiltered();
+  // social
+  liveFeed();
+  liveLeaderboard();
+  livePRStrip();
+  liveWorkoutHistory();
+  loadFriends();
+  wireSearch();
+  wireAdminSearch();
 
-  // friends search
-  $("userSearch").oninput = debounce(searchUsers, 250);
+  // profile (default to self)
+  openProfile(auth.currentUser.uid, true);
 
-  // settings actions
-  $("renameBtn").onclick = updateUsername;
-  $("updateTagBtn").onclick = updateGraveTag;
-  $("updateAvatarBtn").onclick = updateAvatar;
-  $("saveUiBtn").onclick = saveUiSettings;
-  $("savePrivacyBtn").onclick = savePrivacy;
+  toast("ENTITY_RESURRECTED");
+}
 
-  // admin actions
-  if (userIsAdmin()){
-    $("admin-post-announce").onclick = adminBroadcastAnnouncement;
-    $("admin-find-user").onclick = adminFindUser;
-    $("admin-reset-xp").onclick = adminResetXP;
-    $("admin-toggle-admin").onclick = adminToggleAdmin;
+/* ==========================================
+   SETTINGS UI
+========================================== */
+function buildTagPickers(){
+  // settings picker
+  const s = $("settings-tag-picker");
+  if(s){
+    s.innerHTML = TAGS.map(t =>
+      `<div class="tag-opt ${t.css}" data-tagcss="${t.css}" data-taglabel="${t.label}"></div>`
+    ).join("");
   }
 
-  // rank path display
-  renderRankPath();
+  // registration picker
+  const r = $("initial-tag-picker");
+  if(r){
+    r.innerHTML = TAGS.map(t =>
+      `<div class="tag-opt ${t.css}" data-tagcss="${t.css}" data-taglabel="${t.label}"></div>`
+    ).join("");
+  }
+
+  // activate current
+  const activeCss = currentUserData?.tagCss || "tag-rust";
+  document.querySelectorAll("[data-tagcss]").forEach(el => {
+    el.classList.toggle("active", el.getAttribute("data-tagcss") === activeCss);
+  });
 }
 
-function seedSettingsPickers(){
-  // tag picker
-  const sPicker = $("settings-tag-picker");
-  selectedTagCss = currentUserData.tag || "tag-rust";
-  sPicker.innerHTML = TAGS.map(t => `
-    <div class="tag-opt ${t.css} ${t.css===selectedTagCss ? "active":""}" data-tag="${t.css}"></div>
-  `).join("");
-  sPicker.querySelectorAll(".tag-opt").forEach(el=>{
-    el.onclick = () => {
-      selectedTagCss = el.dataset.tag;
-      sPicker.querySelectorAll(".tag-opt").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-    };
-  });
+function buildCardStylePicker(){
+  const wrap = $("card-style-picker");
+  if(!wrap) return;
+  wrap.innerHTML = CARD_STYLES.map(s => {
+    return `<div class="card-style ${s.css}" data-cardstyle="${s.css}" title="${s.label}"></div>`;
+  }).join("");
 
-  // avatar picker
-  const aPicker = $("settings-avatar-picker");
-  selectedAvatarCss = currentUserData.avatar || "a-sigil-1";
-  aPicker.innerHTML = AVATARS.map(a => `
-    <div class="avatar-opt ${a===selectedAvatarCss ? "active":""}" data-av="${a}">
-      <div class="avatar ${a}"></div>
+  const active = currentUserData?.cardStyle || "style-crypt";
+  wrap.querySelectorAll("[data-cardstyle]").forEach(el => {
+    el.classList.toggle("active", el.getAttribute("data-cardstyle") === active);
+  });
+}
+
+function hydrateSettings(){
+  $("privacy-hide-lifts").checked = !!currentUserData.hideLifts;
+}
+
+async function saveSettingsPatch(patch){
+  const userRef = doc(db, "users", auth.currentUser.uid);
+  await updateDoc(userRef, patch);
+  currentUserData = { ...currentUserData, ...patch };
+}
+
+/* ==========================================
+   PLANS: FILTER + RENDER + ACTIVATE
+========================================== */
+function planMatchesFilters(p){
+  const days = Number($("plan-days").value || 5);
+  const goal = $("plan-goal").value || "hypertrophy";
+  const style = $("plan-style").value || "any";
+
+  const daysOk = p.daysPerWeek === days;
+  const goalOk = (goal === "balanced") ? true : (p.goal === goal || p.goal === "balanced");
+  const styleOk = (style === "any") ? true : (p.style === style);
+
+  return daysOk && goalOk && styleOk;
+}
+
+function buildPlansList(){
+  const list = $("plans-list");
+  if(!list) return;
+
+  const filtered = PLANS.filter(planMatchesFilters);
+
+  list.innerHTML = filtered.map(p => {
+    const isActive = (currentUserData.activePlanId === p.id);
+    return `
+      <div class="plan-card">
+        <div class="plan-title">${p.name}</div>
+        <div class="plan-sub">
+          ${p.daysPerWeek} DAYS • ${p.goal.toUpperCase()} • ${p.style.toUpperCase()}
+          <span class="dot">•</span>${p.desc}
+        </div>
+        <div class="plan-actions">
+          <button class="mini-btn" data-preview="${p.id}">PREVIEW</button>
+          <button class="${isActive ? "mini-btn danger" : "mini-btn"}" data-activate="${p.id}">
+            ${isActive ? "ACTIVE" : "ACTIVATE"}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // if filter yields nothing, show fallback suggestions
+  if(filtered.length === 0){
+    list.innerHTML = `
+      <div class="plan-card">
+        <div class="plan-title">NO_SPLITS_FOUND</div>
+        <div class="plan-sub">Try DAYS/WEEK = 5 or STYLE = ANY.</div>
+      </div>
+    `;
+  }
+}
+
+function buildRegPlanPicker(){
+  const wrap = $("reg-plan-picker");
+  if(!wrap) return;
+
+  // show a couple starter options (5-day default + one 4-day)
+  const picks = [
+    "mf_2x_compound",
+    "ppl_5_plus",
+    "ul_4_strength",
+    "fb_3_hyper"
+  ].map(id => PLANS.find(p => p.id === id)).filter(Boolean);
+
+  wrap.innerHTML = picks.map(p => `
+    <div class="plan-mini ${p.id === selectedRegPlanId ? "active" : ""}" data-regplan="${p.id}">
+      <div class="t">${p.name}</div>
+      <div class="s">${p.daysPerWeek} DAYS • ${p.goal.toUpperCase()}</div>
     </div>
   `).join("");
-  aPicker.querySelectorAll(".avatar-opt").forEach(el=>{
-    el.onclick = () => {
-      selectedAvatarCss = el.dataset.av;
-      aPicker.querySelectorAll(".avatar-opt").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-    };
+}
+
+async function activatePlan(planId){
+  const plan = PLANS.find(p => p.id === planId);
+  if(!plan) return;
+
+  await saveSettingsPatch({
+    activePlanId: plan.id,
+    activePlanName: plan.name
   });
+
+  activePlan = plan;
+  $("active-plan-label").textContent = `ACTIVE_SPLIT: ${plan.name}`;
+
+  hydrateLogUI();
+  buildPlansList();
+
+  toast(`SPLIT_ACTIVATED: ${plan.name}`);
 }
 
-function applyUiToggles(ui){
-  document.body.classList.toggle("no-scanlines", ui.scanlines === false);
-  document.body.classList.toggle("no-glow", ui.glow === false);
-  document.body.classList.toggle("no-motion", ui.motion === false);
+function hydrateLogUI(){
+  const daySel = $("log-day");
+  const exSel = $("log-ex");
+  const chip = $("log-day-chip");
+
+  if(!daySel || !exSel) return;
+
+  if(!activePlan){
+    daySel.innerHTML = `<option value="">NO_ACTIVE_SPLIT</option>`;
+    exSel.innerHTML = `<option value="">ACTIVATE_SPLIT_FIRST</option>`;
+    chip.textContent = "DAY_NONE";
+    $("log-hint").textContent = "Activate a split to unlock day templates + dropdowns.";
+    return;
+  }
+
+  daySel.innerHTML = activePlan.days.map((d, idx) =>
+    `<option value="${idx}">${d.name}</option>`
+  ).join("");
+
+  const dayIdx = Number(daySel.value || 0);
+  const day = activePlan.days[dayIdx];
+  chip.textContent = (day?.focus || "DAY").toUpperCase();
+
+  // exercises: plan day list + fallback big library
+  const pool = [...new Set([...(day?.exercises || []), ...FLAT_EXERCISES])];
+  exSel.innerHTML = pool.map(e => `<option value="${e}">${e}</option>`).join("");
+
+  $("log-hint").textContent = `Logging for: ${activePlan.name} → ${day.name}`;
 }
 
-function renderRankPath(){
-  const el = $("rank-path");
-  const xp = Number(currentUserData.xp || 0);
-  const lines = RANKS
-    .slice()
-    .sort((a,b)=>a.minXP-b.minXP)
-    .map(r => {
-      const hit = xp >= r.minXP ? "✓" : "…";
-      return `<div class="lb-row">${hit} ${r.name} @ ${r.minXP}XP</div>`;
-    })
-    .join("");
-  el.innerHTML = lines;
-}
+/* ==========================================
+   LOGGING + PRs + TROPHIES
+========================================== */
+async function submitLog(){
+  if(!activePlan){
+    toast("NO_ACTIVE_SPLIT");
+    return;
+  }
+  const dayIdx = Number($("log-day").value || 0);
+  const day = activePlan.days[dayIdx];
 
-/* =========================
-   LIVE LISTENERS
-========================= */
-function initLive(){
-  // leaderboard
-  unsubLeaderboard = onSnapshot(
-    query(collection(db, "users"), orderBy("xp", "desc"), limit(7)),
-    (snap) => {
-      $("leaderboard").innerHTML = snap.docs.map((d,i)=>{
-        const u = d.data();
-        return `<div class="lb-row">#${i+1} ${safeText(u.username)} [XP:${Number(u.xp||0)}]</div>`;
-      }).join("");
-    }
-  );
+  const exercise = $("log-ex").value;
+  const weight = Number($("log-w").value);
+  const reps = Number($("log-r").value);
 
-  // feed
-  loadFeed();
+  if(!exercise || !weight || !reps){
+    toast("MISSING_FIELDS");
+    return;
+  }
 
-  // logs + prs
-  loadLogsAndPRs();
-
-  // stats/cc refresh (in case xp changed)
-  refreshCardAndStats();
-}
-
-function refreshCardAndStats(extra={}){
-  const xp = Number(currentUserData.xp || 0);
-  const carvings = Number(currentUserData.carvings || 0);
-  const prs = Number(currentUserData.prCount || 0);
-
-  $("stat-xp").innerText = String(xp);
-  $("stat-carvings").innerText = String(carvings);
-  $("stat-prs").innerText = String(prs);
-
-  const rank = getRankByXP(xp);
-  $("profile-rank-pill").innerText = rank.name;
-  $("profile-title").innerText = rank.title;
-
-  const cc = $("calling-card");
-  cc.classList.remove("cc-rank-newborn","cc-rank-stalker","cc-rank-gravelord","cc-rank-immortal");
-  cc.classList.add(`cc-rank-${rank.id}`);
-}
-
-/* =========================
-   FEED + COMMENTS + DELETE OWN POSTS
-========================= */
-function loadFeed(){
-  if (unsubFeed) unsubFeed();
-
-  unsubFeed = onSnapshot(
-    query(collection(db, "posts"), orderBy("timestamp", "desc"), limit(25)),
-    (snap) => {
-      const feed = $("feed-content");
-      feed.innerHTML = "";
-
-      snap.forEach(d => {
-        const p = d.data();
-        const isOwner = currentUser && p.uid === currentUser.uid;
-        const canDelete = isOwner || userIsAdmin();
-
-        const dateStr = p.timestamp?.toDate ? p.timestamp.toDate().toLocaleString() : "";
-        const badge = p.isAnnouncement ? `<span class="chip" style="border-color:var(--blood);color:#fff;">ANNOUNCEMENT</span>` : "";
-        const delBtn = canDelete ? `<button class="mini-btn danger" data-delpost="${d.id}">DELETE</button>` : "";
-
-        feed.innerHTML += `
-          <div class="grave-box post">
-            <div class="grave-header-sub">
-              <div class="post-meta">
-                <span>${safeText(p.username || "UNKNOWN")}</span>
-                ${badge}
-              </div>
-              <div class="post-actions">
-                <span class="post-meta">${safeText(dateStr)}</span>
-                ${delBtn}
-              </div>
-            </div>
-
-            <div class="post-body">
-              <p>${safeText(p.text)}</p>
-            </div>
-
-            <div class="comment-section" id="comments-${d.id}"></div>
-
-            <div class="comment-input-wrap">
-              <input id="in-${d.id}" placeholder="REPLY...">
-              <button class="mini-btn" data-comment="${d.id}">SEND</button>
-            </div>
-          </div>
-        `;
-
-        loadComments(d.id);
-      });
-
-      // wire delete/comment buttons (re-render safe)
-      feed.querySelectorAll("[data-delpost]").forEach(btn=>{
-        btn.onclick = () => deletePost(btn.getAttribute("data-delpost"));
-      });
-
-      feed.querySelectorAll("[data-comment]").forEach(btn=>{
-        btn.onclick = () => postComment(btn.getAttribute("data-comment"));
-      });
-    }
-  );
-}
-
-function loadComments(postId){
-  onSnapshot(
-    query(collection(db, `posts/${postId}/comments`), orderBy("timestamp", "asc"), limit(50)),
-    (snap) => {
-      const box = $(`comments-${postId}`);
-      if (!box) return;
-      box.innerHTML = "";
-      snap.forEach(c=>{
-        const cd = c.data();
-        box.innerHTML += `<div class="comment"><b>${safeText(cd.username || "???")}:</b> ${safeText(cd.text || "")}</div>`;
-      });
-    }
-  );
-}
-
-async function postStatus(){
-  const text = ($("statusText").value || "").trim();
-  if (!text) return;
-
-  await addDoc(collection(db, "posts"), {
-    uid: currentUser.uid,
+  const log = {
+    uid: auth.currentUser.uid,
     username: currentUserData.username,
-    text,
-    isAnnouncement: false,
+    planId: activePlan.id,
+    planName: activePlan.name,
+    dayName: day?.name || "DAY",
+    exercise,
+    weight,
+    reps,
+    e1rm: e1rm(weight, reps),
     timestamp: serverTimestamp()
+  };
+
+  await addDoc(collection(db, "logs"), log);
+
+  // increment carvingCount (rank progress)
+  const newCount = (currentUserData.carvingCount || 0) + 1;
+  await saveSettingsPatch({ carvingCount: newCount });
+
+  // update PRs
+  await upsertPR(exercise, weight, reps);
+
+  // trophies
+  await recomputeTrophies();
+
+  // refresh local UI
+  const rank = getRankFromCount(newCount);
+  $("user-rank").textContent = rank.name;
+  $("header-rank").textContent = rank.name;
+  mountAvatar($("avatarWrap"), auth.currentUser.uid, rank.name);
+
+  $("log-w").value = "";
+  $("log-r").value = "";
+
+  toast(`CARVING_RECORDED: ${exercise} ${weight}x${reps}`);
+}
+
+async function upsertPR(exercise, weight, reps){
+  const prRef = doc(db, "users", auth.currentUser.uid, "prs", sanitizeKey(exercise));
+  const snap = await getDoc(prRef);
+
+  const bestE = e1rm(weight, reps);
+  const entry = {
+    exercise,
+    bestWeight: weight,
+    bestReps: reps,
+    bestE1RM: bestE,
+    updatedAt: serverTimestamp()
+  };
+
+  if(!snap.exists()){
+    await setDoc(prRef, entry);
+    return;
+  }
+
+  const prev = snap.data();
+  const prevE = Number(prev.bestE1RM || 0);
+
+  // update if better e1rm or heavier weight
+  if(bestE > prevE || weight > Number(prev.bestWeight || 0)){
+    await setDoc(prRef, {
+      ...prev,
+      ...entry,
+      bestWeight: Math.max(Number(prev.bestWeight||0), weight),
+      bestE1RM: Math.max(prevE, bestE)
+    }, { merge: true });
+  }
+}
+
+function sanitizeKey(s){
+  // Firestore doc id safe-ish
+  return String(s).replace(/[\/#\?\[\]]/g, "_").slice(0, 120);
+}
+
+async function recomputeTrophies(){
+  // derive stats from PRs + total logs
+  const prsSnap = await getDocs(query(collection(db, "users", auth.currentUser.uid, "prs"), limit(200)));
+
+  let bestBench = 0, bestSquat = 0, bestDead = 0;
+  prsSnap.forEach(d => {
+    const pr = d.data();
+    const ex = (pr.exercise || "").toLowerCase();
+    const bw = Number(pr.bestWeight || 0);
+
+    if(ex.includes("bench")) bestBench = Math.max(bestBench, bw);
+    if(ex.includes("squat")) bestSquat = Math.max(bestSquat, bw);
+    if(ex.includes("deadlift")) bestDead = Math.max(bestDead, bw);
   });
 
-  $("statusText").value = "";
+  const totalLogs = Number(currentUserData.carvingCount || 0);
+  const stats = { bestBench, bestSquat, bestDead, totalLogs };
 
-  // xp bump
-  await bumpXP({ didPost:true });
+  const earned = TROPHY_RULES.filter(t => t.test(stats)).map(t => ({
+    id: t.id,
+    label: t.label,
+    type: t.type
+  }));
+
+  await saveSettingsPatch({ trophies: earned });
+  renderTrophies(earned);
+}
+
+function renderTrophies(list){
+  const strip = $("trophy-strip");
+  if(!strip) return;
+
+  if(!list || list.length === 0){
+    strip.innerHTML = `<span class="trophy">NO_TROPHIES_YET</span>`;
+    return;
+  }
+  strip.innerHTML = list.slice(0, 12).map(t =>
+    `<span class="trophy ${t.type || ""}">${t.label}</span>`
+  ).join("");
+}
+
+/* ==========================================
+   FEED + POSTS + DELETE OWN POSTS + COMMENTS
+========================================== */
+function liveFeed(){
+  const feed = $("feed-content");
+  if(!feed) return;
+
+  const q = query(collection(db, "posts"), orderBy("timestamp","desc"), limit(25));
+  onSnapshot(q, (snap) => {
+    feed.innerHTML = "";
+    snap.forEach((d) => {
+      const p = d.data();
+      const mine = p.uid === auth.currentUser.uid;
+      const admin = (currentUserData.role === "admin");
+      const canDelete = mine || admin;
+
+      const date = p.timestamp?.toDate ? p.timestamp.toDate() : null;
+      const dateStr = date ? date.toLocaleString() : "";
+
+      feed.innerHTML += `
+        <div class="grave-box post">
+          <div class="grave-header-sub">
+            <span>
+              <a class="userlink" data-user="${p.uid}">${escapeHtml(p.username || "UNKNOWN")}</a>
+              <span class="chip">${p.anon ? "ANON" : "LIVE"}</span>
+            </span>
+            <span class="post-tools">
+              <span class="chip">${escapeHtml(dateStr)}</span>
+              ${canDelete ? `<button class="mini-btn danger" data-delpost="${d.id}">DELETE</button>` : ""}
+            </span>
+          </div>
+
+          <div class="grave-body">
+            <p>${escapeHtml(p.text || "")}</p>
+          </div>
+
+          <div class="comment-section" id="comments-${d.id}"></div>
+
+          <div class="comment-input-wrap">
+            <input id="in-${d.id}" placeholder="REPLY...">
+            <button class="mini-btn" data-comment="${d.id}">SEND</button>
+          </div>
+        </div>
+      `;
+
+      liveComments(d.id);
+    });
+  });
+}
+
+function liveComments(postId){
+  const cbox = $(`comments-${postId}`);
+  if(!cbox) return;
+
+  const q = query(collection(db, `posts/${postId}/comments`), orderBy("timestamp","asc"), limit(50));
+  onSnapshot(q, (snap) => {
+    cbox.innerHTML = "";
+    snap.forEach((c) => {
+      const data = c.data();
+      cbox.innerHTML += `<div class="comment"><b>${escapeHtml(data.username || "???")}:</b> ${escapeHtml(data.text || "")}</div>`;
+    });
+  });
 }
 
 async function postComment(postId){
   const input = $(`in-${postId}`);
-  if (!input) return;
-  const text = (input.value || "").trim();
-  if (!text) return;
+  const text = (input?.value || "").trim();
+  if(!text) return;
 
   await addDoc(collection(db, `posts/${postId}/comments`), {
-    uid: currentUser.uid,
+    uid: auth.currentUser.uid,
     username: currentUserData.username,
     text,
     timestamp: serverTimestamp()
   });
 
   input.value = "";
-  await bumpXP({ didComment:true });
 }
 
 async function deletePost(postId){
-  // client-side check (real protection must be in Firestore rules)
-  const pref = doc(db, "posts", postId);
-  const snap = await getDoc(pref);
-  if (!snap.exists()) return;
-
-  const p = snap.data();
-  const isOwner = p.uid === currentUser.uid;
-  if (!isOwner && !userIsAdmin()){
-    alert("ACCESS_DENIED");
-    return;
-  }
-
-  await deleteDoc(pref);
-  // comments subcollection not auto-deleted; leave it or add a Cloud Function later.
+  // NOTE: rules must enforce ownership/admin
+  await deleteDoc(doc(db, "posts", postId));
+  toast("POST_DELETED");
 }
 
-/* =========================
-   WORKOUT PLANS (INDEX + ACTIVE)
-========================= */
-function renderPlanIndexFiltered(){
-  const goal = $("plan-goal").value;
-  const days = Number($("plan-days").value);
+async function createPost({ anon=false }){
+  const text = ($("statusText").value || "").trim();
+  if(!text) return;
 
-  const filtered = PLAN_INDEX.filter(p=>{
-    const goalOk = p.goal.includes(goal) || (goal === "balanced" && p.goal.includes("balanced"));
-    const daysOk = p.days === days;
-    return goalOk && daysOk;
-  });
-
-  const wrap = $("plans-index");
-  wrap.innerHTML = (filtered.length ? filtered : PLAN_INDEX).map(p => planCardHTML(p)).join("");
-
-  wrap.querySelectorAll(".plan-card").forEach(el=>{
-    el.onclick = async () => {
-      const id = el.getAttribute("data-plan");
-      await setActivePlan(id);
-      wrap.querySelectorAll(".plan-card").forEach(x=>x.classList.remove("active"));
-      el.classList.add("active");
-    };
-  });
-
-  // mark active
-  if (selectedPlanId){
-    const activeEl = wrap.querySelector(`[data-plan="${selectedPlanId}"]`);
-    if (activeEl) activeEl.classList.add("active");
-  }
-}
-
-function planCardHTML(p){
-  return `
-    <div class="plan-card" data-plan="${p.id}">
-      <h3>${safeText(p.name)}</h3>
-      <div class="meta">${p.days}_DAYS // GOALS: ${p.goal.map(g=>g.toUpperCase()).join(", ")}</div>
-      <div class="chips">${p.tags.slice(0,6).map(t=>`<span class="chip">${safeText(t)}</span>`).join("")}</div>
-    </div>
-  `;
-}
-
-async function setActivePlan(planId){
-  const plan = getPlanById(planId);
-  if (!plan) return;
-
-  selectedPlanId = planId;
-  await updateDoc(doc(db, "users", currentUser.uid), { activePlanId: planId });
-
-  // local state refresh
-  currentUserData.activePlanId = planId;
-  renderActivePlanUI();
-}
-
-function renderActivePlanUI(){
-  const plan = getPlanById(selectedPlanId);
-
-  $("active-plan-pill").innerText = `ACTIVE: ${plan ? plan.name : "NONE"}`;
-  $("log-context").innerText = `ACTIVE_SPLIT: ${plan ? plan.name : "NONE"}`;
-
-  // render details
-  $("active-plan-details").innerText = plan ? `${plan.description}\n\n${plan.splitDays.map(d=>{
-    const blocks = d.blocks.map(b=>`- ${b.cat}: ${b.picks.join(", ")}`).join("\n");
-    return `${d.label}\n${blocks}`;
-  }).join("\n\n")}` : "SELECT_A_SPLIT_FROM_THE_INDEX.";
-
-  // populate log day dropdown + categories/exercises
-  const daySel = $("log-day");
-  const catSel = $("log-category");
-  const exSel = $("log-ex");
-
-  if (!plan){
-    daySel.innerHTML = `<option value="">NO_ACTIVE_SPLIT</option>`;
-    catSel.innerHTML = `<option value="">SELECT_CATEGORY</option>`;
-    exSel.innerHTML = `<option value="">SELECT_EXERCISE</option>`;
-    return;
-  }
-
-  daySel.innerHTML = plan.splitDays.map((d, idx)=>`<option value="${idx}">${safeText(d.label)}</option>`).join("");
-  daySel.onchange = () => populateLogSelectorsFromDay(plan);
-  catSel.onchange = () => populateExercisesFromCategory();
-
-  populateLogSelectorsFromDay(plan);
-}
-
-function populateLogSelectorsFromDay(plan){
-  const dayIdx = Number($("log-day").value || 0);
-  const day = plan.splitDays[dayIdx];
-  const catSel = $("log-category");
-
-  // categories for that day (blocks)
-  const cats = day.blocks.map(b=>b.cat);
-  catSel.innerHTML = cats.map(c=>`<option value="${safeText(c)}">${safeText(c)}</option>`).join("");
-
-  // store day template picks for smarter exercise list
-  catSel.dataset.dayIdx = String(dayIdx);
-  populateExercisesFromCategory();
-}
-
-function populateExercisesFromCategory(){
-  const plan = getPlanById(selectedPlanId);
-  if (!plan) return;
-
-  const dayIdx = Number($("log-category").dataset.dayIdx || 0);
-  const day = plan.splitDays[dayIdx];
-  const cat = $("log-category").value;
-
-  const block = day.blocks.find(b=>b.cat === cat);
-  const recommended = block ? block.picks : [];
-  const library = EXERCISE_LIBRARY[cat] || [];
-  const combined = [...new Set([...recommended, ...library])];
-
-  $("log-ex").innerHTML = combined.map(e=>`<option value="${safeText(e)}">${safeText(e)}</option>`).join("");
-}
-
-/* =========================
-   LOGGING + AUTO PRS
-========================= */
-function loadLogsAndPRs(){
-  // recent logs
-  if (unsubLogs) unsubLogs();
-  unsubLogs = onSnapshot(
-    query(
-      collection(db, `users/${currentUser.uid}/logs`),
-      orderBy("timestamp", "desc"),
-      limit(20)
-    ),
-    (snap)=>{
-      const wrap = $("logList");
-      wrap.innerHTML = "";
-      snap.forEach(d=>{
-        const l = d.data();
-        const dateStr = l.timestamp?.toDate ? l.timestamp.toDate().toLocaleDateString() : "";
-        wrap.innerHTML += `
-          <div class="index-row">
-            <span>${safeText(l.exercise)} — ${safeText(l.weight)}LBS x ${safeText(l.reps)} (${safeText(dateStr)})</span>
-            <button class="mini-btn danger" data-dellog="${d.id}">X</button>
-          </div>
-        `;
-      });
-
-      wrap.querySelectorAll("[data-dellog]").forEach(btn=>{
-        btn.onclick = () => deleteLog(btn.getAttribute("data-dellog"));
-      });
-    }
-  );
-
-  // PRs
-  if (unsubPRs) unsubPRs();
-  unsubPRs = onSnapshot(
-    query(
-      collection(db, `users/${currentUser.uid}/prs`),
-      orderBy("est1rm", "desc"),
-      limit(40)
-    ),
-    (snap)=>{
-      const wrap = $("prList");
-      wrap.innerHTML = "";
-
-      let count = 0;
-      snap.forEach(d=>{
-        const pr = d.data();
-        count++;
-        wrap.innerHTML += `
-          <div class="index-row">
-            <span>
-              ${safeText(pr.exercise)} —
-              <small>${safeText(pr.weight)}x${safeText(pr.reps)} | 1RM≈${safeText(pr.est1rm)}</small>
-            </span>
-            <button class="mini-btn danger" data-delpr="${d.id}">X</button>
-          </div>
-        `;
-      });
-
-      // stat
-      currentUserData.prCount = count;
-      $("stat-prs").innerText = String(count);
-
-      wrap.querySelectorAll("[data-delpr]").forEach(btn=>{
-        btn.onclick = () => deletePR(btn.getAttribute("data-delpr"));
-      });
-    }
-  );
-}
-
-async function submitLog(){
-  const plan = getPlanById(selectedPlanId);
-  if (!plan){
-    alert("NO_ACTIVE_SPLIT_SELECTED");
-    return;
-  }
-
-  const dayIdx = Number($("log-day").value || 0);
-  const dayLabel = plan.splitDays[dayIdx]?.label || "UNKNOWN_DAY";
-  const category = $("log-category").value;
-  const exercise = $("log-ex").value;
-
-  const weight = Number(($("log-w").value || "").trim());
-  const reps = Number(($("log-r").value || "").trim());
-  const notes = ($("log-notes").value || "").trim();
-
-  if (!exercise || !weight || !reps){
-    alert("MISSING_FIELDS");
-    return;
-  }
-
-  const est1rm = epley1RM(weight, reps);
-
-  // write log
-  await addDoc(collection(db, `users/${currentUser.uid}/logs`), {
-    planId: selectedPlanId,
-    dayLabel,
-    category,
-    exercise,
-    weight,
-    reps,
-    est1rm,
-    notes,
+  await addDoc(collection(db, "posts"), {
+    uid: auth.currentUser.uid,
+    username: anon ? "ANON_ENTITY" : currentUserData.username,
+    anon,
+    text,
     timestamp: serverTimestamp()
   });
 
-  // bump user stats
-  currentUserData.carvings = Number(currentUserData.carvings || 0) + 1;
-
-  // auto PR check (per exercise)
-  await upsertPR({ exercise, weight, reps, est1rm });
-
-  await updateDoc(doc(db, "users", currentUser.uid), {
-    carvings: currentUserData.carvings
-  });
-
-  $("log-w").value = "";
-  $("log-r").value = "";
-  $("log-notes").value = "";
-
-  await bumpXP({ didLog:true });
-
-  refreshCardAndStats();
+  $("statusText").value = "";
+  toast("TRANSMITTED");
 }
 
-async function upsertPR({exercise, weight, reps, est1rm}){
-  const prRef = doc(db, `users/${currentUser.uid}/prs`, slug(exercise));
-  const snap = await getDoc(prRef);
+/* ==========================================
+   LEADERBOARD
+========================================== */
+function liveLeaderboard(){
+  const lb = $("leaderboard");
+  if(!lb) return;
 
-  if (!snap.exists()){
-    await setDoc(prRef, {
-      exercise,
-      weight,
-      reps,
-      est1rm,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+  const q = query(collection(db, "users"), orderBy("carvingCount","desc"), limit(5));
+  onSnapshot(q, (snap) => {
+    lb.innerHTML = "";
+    snap.forEach((d, i) => {
+      const u = d.data();
+      lb.innerHTML += `<div class="lb-row">#${i+1} ${escapeHtml(u.username || "???")} [${u.carvingCount || 0}]</div>`;
     });
-    return;
-  }
+  });
+}
 
-  const existing = snap.data();
-  const best = Number(existing.est1rm || 0);
-  if (est1rm > best){
-    await updateDoc(prRef, {
-      weight,
-      reps,
-      est1rm,
-      updatedAt: serverTimestamp()
+/* ==========================================
+   PR PANEL (right column)
+========================================== */
+function livePRStrip(){
+  const prList = $("prList");
+  if(!prList) return;
+
+  const q = query(collection(db, "users", auth.currentUser.uid, "prs"), orderBy("bestE1RM","desc"), limit(20));
+  onSnapshot(q, (snap) => {
+    if(snap.empty){
+      prList.innerHTML = `<div class="index-row"><span>NO_PRS_YET</span></div>`;
+      return;
+    }
+    prList.innerHTML = "";
+    snap.forEach((d) => {
+      const pr = d.data();
+      prList.innerHTML += `
+        <div class="index-row">
+          <span>${escapeHtml(pr.exercise)} — <b>${pr.bestWeight}lbs</b> • e1RM <b>${pr.bestE1RM}</b></span>
+        </div>
+      `;
     });
-  }
+  });
+}
+
+/* ==========================================
+   WORKOUT HISTORY (plans panel)
+========================================== */
+function liveWorkoutHistory(){
+  const box = $("workout-history");
+  if(!box) return;
+
+  const q = query(collection(db, "logs"),
+    where("uid","==",auth.currentUser.uid),
+    orderBy("timestamp","desc"),
+    limit(20)
+  );
+
+  onSnapshot(q, (snap) => {
+    if(snap.empty){
+      box.innerHTML = `<div class="index-row"><span>NO_LOGS_YET</span></div>`;
+      return;
+    }
+    box.innerHTML = "";
+    snap.forEach((d) => {
+      const l = d.data();
+      const date = l.timestamp?.toDate ? l.timestamp.toDate().toLocaleString() : "";
+      box.innerHTML += `
+        <div class="index-row">
+          <span>
+            <b>${escapeHtml(l.dayName || "DAY")}</b> • ${escapeHtml(l.exercise)} — ${l.weight}x${l.reps}
+            <span class="chip">e1RM ${l.e1rm || "?"}</span>
+            <span class="chip">${escapeHtml(date)}</span>
+          </span>
+          <button class="mini-btn danger" data-dellog="${d.id}">X</button>
+        </div>
+      `;
+    });
+  });
 }
 
 async function deleteLog(logId){
-  await deleteDoc(doc(db, `users/${currentUser.uid}/logs`, logId));
+  // NOTE: rules must enforce uid ownership
+  await deleteDoc(doc(db, "logs", logId));
+  toast("LOG_DELETED");
 }
 
-async function deletePR(prId){
-  await deleteDoc(doc(db, `users/${currentUser.uid}/prs`, prId));
-}
-
-function slug(s){
-  return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"_").slice(0,120);
-}
-
-/* =========================
-   FRIENDS + SEARCH + ADD/REMOVE
-========================= */
-async function searchUsers(){
-  const q = ($("userSearch").value || "").trim().toLowerCase();
-  const box = $("search-results");
-  box.innerHTML = "";
-  if (!q || q.length < 2) return;
-
-  // naive search: prefix match on usernameLower
-  const qs = query(
-    collection(db, "users"),
-    where("usernameLower", ">=", q),
-    where("usernameLower", "<=", q + "\uf8ff"),
-    limit(10)
-  );
-
-  const snap = await getDocs(qs);
-  const results = [];
-  snap.forEach(d=>{
-    const u = d.data();
-    if (u.isPrivate === true) return;
-    if (d.id === currentUser.uid) return;
-    results.push({ uid:d.id, ...u });
-  });
-
-  if (!results.length){
-    box.innerHTML = `<div class="tiny-muted">NO_MATCHES</div>`;
-    return;
-  }
-
-  const myFriends = new Set((currentUserData.friends || []));
-  box.innerHTML = results.map(u=>{
-    const isFriend = myFriends.has(u.uid);
-    const btn = isFriend
-      ? `<button class="mini-btn danger" data-rmf="${u.uid}">SEVER</button>`
-      : `<button class="mini-btn" data-addf="${u.uid}">BIND</button>`;
-    return `
-      <div class="index-row">
-        <span>${safeText(u.username)} <small>XP:${Number(u.xp||0)}</small></span>
-        ${btn}
-      </div>
-    `;
-  }).join("");
-
-  box.querySelectorAll("[data-addf]").forEach(b=> b.onclick = ()=> addFriend(b.getAttribute("data-addf")));
-  box.querySelectorAll("[data-rmf]").forEach(b=> b.onclick = ()=> removeFriend(b.getAttribute("data-rmf")));
-}
-
-function loadFriendsList(){
+/* ==========================================
+   FRIENDS + SEARCH
+========================================== */
+async function loadFriends(){
   const list = $("friends-list");
-  list.innerHTML = "";
+  if(!list) return;
 
   const ids = currentUserData.friends || [];
-  if (!ids.length){
-    list.innerHTML = `<div class="tiny-muted">NO_COVEN_MEMBERS</div>`;
+  if(ids.length === 0){
+    list.innerHTML = `<div class="tiny-note">NO_COVEN_MEMBERS_YET</div>`;
     return;
   }
 
-  ids.forEach(async uid=>{
-    const snap = await getDoc(doc(db,"users",uid));
-    if (!snap.exists()) return;
-    const u = snap.data();
-    list.innerHTML += `
-      <div class="index-row">
-        <span>${safeText(u.username)} <small>XP:${Number(u.xp||0)}</small></span>
-        <button class="mini-btn danger" data-rmf="${uid}">SEVER</button>
-      </div>
-    `;
-    list.querySelectorAll(`[data-rmf="${uid}"]`).forEach(b=>{
-      b.onclick = ()=> removeFriend(uid);
-    });
+  list.innerHTML = "";
+  for(const uid of ids){
+    const snap = await getDoc(doc(db, "users", uid));
+    if(snap.exists()){
+      const u = snap.data();
+      list.innerHTML += `
+        <div class="index-row">
+          <span><a class="userlink" data-user="${uid}">${escapeHtml(u.username || "???")}</a></span>
+          <button class="mini-btn danger" data-unfriend="${uid}">SEVER</button>
+        </div>
+      `;
+    }
+  }
+}
+
+async function addFriend(uid){
+  await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayUnion(uid) });
+  currentUserData.friends = [...(currentUserData.friends || []), uid];
+  toast("CONNECTION_ESTABLISHED");
+  loadFriends();
+}
+
+async function removeFriend(uid){
+  await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayRemove(uid) });
+  currentUserData.friends = (currentUserData.friends || []).filter(x => x !== uid);
+  toast("CONNECTION_SEVERED");
+  loadFriends();
+}
+
+function wireSearch(){
+  const input = $("userSearch");
+  const results = $("search-results");
+  if(!input || !results) return;
+
+  let timer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const term = (input.value || "").trim().toLowerCase();
+      if(term.length < 2){
+        results.innerHTML = `<div class="tiny-note">TYPE_2+_CHARS</div>`;
+        return;
+      }
+
+      // requires users.usernameLower field
+      const q = query(
+        collection(db, "users"),
+        where("usernameLower", ">=", term),
+        where("usernameLower", "<=", term + "\uf8ff"),
+        limit(10)
+      );
+
+      const snap = await getDocs(q);
+      if(snap.empty){
+        results.innerHTML = `<div class="tiny-note">NO_ENTITIES_FOUND</div>`;
+        return;
+      }
+
+      results.innerHTML = "";
+      snap.forEach(d => {
+        const u = d.data();
+        const isMe = d.id === auth.currentUser.uid;
+        const already = (currentUserData.friends || []).includes(d.id);
+
+        results.innerHTML += `
+          <div class="index-row">
+            <span><a class="userlink" data-user="${d.id}">${escapeHtml(u.username || "???")}</a></span>
+            ${isMe ? `<span class="chip">YOU</span>` : (already
+              ? `<span class="chip">FRIEND</span>`
+              : `<button class="mini-btn" data-addfriend="${d.id}">BIND</button>`
+            )}
+          </div>
+        `;
+      });
+    }, 250);
   });
 }
 
-async function addFriend(targetUid){
-  const friends = new Set(currentUserData.friends || []);
-  friends.add(targetUid);
-  currentUserData.friends = [...friends];
+/* ==========================================
+   PROFILE PAGES (self + click to view others)
+========================================== */
+async function openProfile(uid, isSelf = false){
+  viewingProfileUid = uid;
 
-  await updateDoc(doc(db,"users",currentUser.uid), { friends: currentUserData.friends });
-  loadFriendsList();
-}
+  const chip = $("profile-chip");
+  chip.textContent = isSelf ? "SELF" : "ENTITY";
 
-async function removeFriend(targetUid){
-  const friends = new Set(currentUserData.friends || []);
-  friends.delete(targetUid);
-  currentUserData.friends = [...friends];
+  const snap = await getDoc(doc(db, "users", uid));
+  if(!snap.exists()) return;
 
-  await updateDoc(doc(db,"users",currentUser.uid), { friends: currentUserData.friends });
-  loadFriendsList();
-}
+  const u = snap.data();
+  const count = u.carvingCount || 0;
+  const rank = getRankFromCount(count);
 
-/* =========================
-   SETTINGS
-========================= */
-async function updateUsername(){
-  const newName = ($("new-username").value || "").trim();
-  if (!newName || newName.length < 3){
-    alert("CALLSIGN_TOO_SHORT");
-    return;
-  }
+  $("profileNameBig").textContent = u.username || "SUBJECT";
+  $("profileMeta").textContent =
+    `RANK ${rank.name} • CARVINGS ${count} • ${u.activePlanName ? "ACTIVE " + u.activePlanName : "NO_ACTIVE_SPLIT"}`;
 
-  // quick uniqueness-ish check (optional)
-  const qLower = newName.toLowerCase();
-  const check = await getDocs(query(collection(db,"users"), where("usernameLower","==", qLower), limit(1)));
-  if (!check.empty){
-    const hitId = check.docs[0].id;
-    if (hitId !== currentUser.uid){
-      alert("CALLSIGN_TAKEN");
-      return;
+  // avatar
+  mountAvatar($("profileAvatar"), uid, rank.name);
+
+  // badges
+  const badges = $("profileBadges");
+  const trophies = (u.trophies || []).slice(0, 10);
+  badges.innerHTML = trophies.length
+    ? trophies.map(t => `<span class="trophy ${t.type || ""}">${t.label}</span>`).join("")
+    : `<span class="trophy">NO_TROPHIES</span>`;
+
+  // PR hall (unless hidden)
+  const prHall = $("pr-hall");
+  if(u.hideLifts && !isSelf){
+    prHall.innerHTML = `<div class="tiny-note">LIFTS_HIDDEN_BY_ENTITY</div>`;
+  } else {
+    const prsSnap = await getDocs(query(collection(db, "users", uid, "prs"), orderBy("bestE1RM","desc"), limit(10)));
+    if(prsSnap.empty){
+      prHall.innerHTML = `<div class="tiny-note">NO_PRS_RECORDED</div>`;
+    } else {
+      prHall.innerHTML = prsSnap.docs.map(d => {
+        const pr = d.data();
+        return `<div class="lb-row">${escapeHtml(pr.exercise)} — <b>${pr.bestWeight}lbs</b> • e1RM <b>${pr.bestE1RM}</b></div>`;
+      }).join("");
     }
   }
 
-  await updateDoc(doc(db,"users",currentUser.uid), { username:newName, usernameLower:qLower });
-  currentUserData.username = newName;
-  currentUserData.usernameLower = qLower;
-
-  $("header-callsign").innerText = newName;
-  $("profileUsername").innerText = newName;
-  alert("IDENTITY_UPDATED");
-}
-
-async function updateGraveTag(){
-  await updateDoc(doc(db,"users",currentUser.uid), { tag: selectedTagCss });
-  currentUserData.tag = selectedTagCss;
-  $("user-grave-tag").className = `grave-tag mini-tag ${selectedTagCss}`;
-  alert("VISUALS_RECONFIGURED");
-}
-
-async function updateAvatar(){
-  await updateDoc(doc(db,"users",currentUser.uid), { avatar: selectedAvatarCss });
-  currentUserData.avatar = selectedAvatarCss;
-  $("profile-avatar").className = `avatar ${selectedAvatarCss}`;
-  alert("SIGIL_BOUND");
-}
-
-async function saveUiSettings(){
-  const ui = {
-    scanlines: $("toggle-scanlines").checked,
-    glow: $("toggle-glow").checked,
-    motion: $("toggle-motion").checked
-  };
-  await updateDoc(doc(db,"users",currentUser.uid), { ui });
-  currentUserData.ui = ui;
-  applyUiToggles(ui);
-  alert("UI_SAVED");
-}
-
-async function savePrivacy(){
-  const isPrivate = $("toggle-private").checked === true;
-  await updateDoc(doc(db,"users",currentUser.uid), { isPrivate });
-  currentUserData.isPrivate = isPrivate;
-  alert("PRIVACY_SAVED");
-}
-
-/* =========================
-   ADMIN (CLIENT-SIDE UI — REAL SECURITY MUST BE RULES)
-========================= */
-let adminTargetUser = null;
-
-async function adminBroadcastAnnouncement(){
-  const text = ($("admin-announce").value || "").trim();
-  if (!text) return;
-
-  if (!userIsAdmin()){
-    alert("ACCESS_DENIED");
-    return;
+  // posts
+  const postsBox = $("profile-posts");
+  postsBox.innerHTML = `<div class="tiny-note">SCANNING_POSTS...</div>`;
+  const postSnap = await getDocs(query(collection(db, "posts"), where("uid","==",uid), orderBy("timestamp","desc"), limit(10)));
+  if(postSnap.empty){
+    postsBox.innerHTML = `<div class="tiny-note">NO_POSTS_FOUND</div>`;
+  } else {
+    postsBox.innerHTML = postSnap.docs.map(d => {
+      const p = d.data();
+      const date = p.timestamp?.toDate ? p.timestamp.toDate().toLocaleString() : "";
+      return `<div class="lb-row">${escapeHtml(date)} • ${escapeHtml(p.text || "").slice(0,140)}${(p.text||"").length>140?"…":""}</div>`;
+    }).join("");
   }
 
-  await addDoc(collection(db,"posts"),{
-    uid: currentUser.uid,
-    username: currentUserData.username,
-    text,
-    isAnnouncement:true,
-    timestamp: serverTimestamp()
+  showTab("profile-panel");
+  toast(isSelf ? "PROFILE_OPENED: SELF" : `PROFILE_OPENED: ${u.username || "ENTITY"}`);
+}
+
+/* ==========================================
+   ADMIN: quick user lookup (front-end)
+========================================== */
+function wireAdminSearch(){
+  const box = $("admin-box");
+  if(!box) return;
+
+  const input = $("admin-user-lookup");
+  const results = $("admin-user-results");
+  if(!input || !results) return;
+
+  let timer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const term = (input.value || "").trim().toLowerCase();
+      if(term.length < 2){
+        results.innerHTML = `<div class="tiny-note">TYPE_2+_CHARS</div>`;
+        return;
+      }
+
+      const q = query(
+        collection(db, "users"),
+        where("usernameLower", ">=", term),
+        where("usernameLower", "<=", term + "\uf8ff"),
+        limit(10)
+      );
+      const snap = await getDocs(q);
+      if(snap.empty){
+        results.innerHTML = `<div class="tiny-note">NO_RESULTS</div>`;
+        return;
+      }
+
+      results.innerHTML = "";
+      snap.forEach(d => {
+        const u = d.data();
+        results.innerHTML += `
+          <div class="index-row">
+            <span>${escapeHtml(u.username || "???")} <span class="chip">${(u.role||"user").toUpperCase()}</span></span>
+            <button class="mini-btn danger" data-flag="${d.id}">FLAG</button>
+          </div>
+        `;
+      });
+    }, 250);
   });
-
-  $("admin-announce").value = "";
 }
 
-async function adminFindUser(){
-  const name = ($("admin-user-lookup").value || "").trim().toLowerCase();
-  const out = $("admin-user-result");
-  out.innerText = "";
-  adminTargetUser = null;
+async function flagUser(uid){
+  // NOTE: rules must restrict to admins
+  await updateDoc(doc(db, "users", uid), { flagged: true });
+  toast("ENTITY_FLAGGED");
+}
 
-  if (!name) return;
-  if (!userIsAdmin()) return alert("ACCESS_DENIED");
+/* ==========================================
+   REGISTRATION (2-step)
+========================================== */
+async function regContinue(){
+  const email = ($("reg-email").value || "").trim();
+  const pass = $("reg-pass").value || "";
+  const conf = $("reg-confirm").value || "";
 
-  const snap = await getDocs(query(collection(db,"users"), where("usernameLower","==", name), limit(1)));
-  if (snap.empty){
-    out.innerText = "NO_TARGET_FOUND";
+  $("reg-warn").textContent = "";
+
+  if(!email || !pass || pass.length < 6){
+    $("reg-warn").textContent = "PASSCODE_TOO_SHORT (6+)";
     return;
   }
-  const docHit = snap.docs[0];
-  adminTargetUser = { uid: docHit.id, ...docHit.data() };
-  out.innerText = `TARGET: ${adminTargetUser.username} | XP:${Number(adminTargetUser.xp||0)} | ADMIN:${adminTargetUser.isAdmin===true}`;
+  if(pass !== conf){
+    $("reg-warn").textContent = "PASSCODE_MISMATCH";
+    return;
+  }
+
+  // proceed to step 2, build pickers
+  setVisible($("reg-step-1"), false);
+  setVisible($("reg-step-2"), true);
+  buildTagPickers();
+  buildRegPlanPicker();
 }
 
-async function adminResetXP(){
-  if (!userIsAdmin()) return alert("ACCESS_DENIED");
-  if (!adminTargetUser) return alert("NO_TARGET_LOCKED");
-
-  await updateDoc(doc(db,"users",adminTargetUser.uid), { xp:0 });
-  $("admin-user-result").innerText = "XP_RESET";
-}
-
-async function adminToggleAdmin(){
-  if (!userIsAdmin()) return alert("ACCESS_DENIED");
-  if (!adminTargetUser) return alert("NO_TARGET_LOCKED");
-
-  const newVal = !(adminTargetUser.isAdmin === true);
-  await updateDoc(doc(db,"users",adminTargetUser.uid), { isAdmin: newVal });
-  $("admin-user-result").innerText = `ADMIN_SET_TO_${newVal}`;
-}
-
-/* =========================
-   XP BUMP (centralized)
-========================= */
-async function bumpXP(flags){
-  const delta = deriveXPUpdate(flags);
-  if (!delta) return;
-
-  const xp = Number(currentUserData.xp || 0) + delta;
-  currentUserData.xp = xp;
-
-  await updateDoc(doc(db,"users",currentUser.uid), { xp });
-
-  refreshCardAndStats();
-  renderRankPath();
-}
-
-/* =========================
-   AUTH SCREEN EVENTS
-========================= */
-$("loginBtn").onclick = async () => {
-  const email = ($("email").value || "").trim();
-  const pass = ($("password").value || "").trim();
-  if (!email || !pass) return;
-  await signInWithEmailAndPassword(auth, email, pass);
-};
-
-$("showRegBtn").onclick = () => {
-  setScreen("registration-screen");
-  showRegStep(1);
-  seedRegPickers();
-};
-
-$("returnToLoginBtn").onclick = () => {
-  setScreen("auth-screen");
-};
-
-/* Registration: Step buttons */
-$("nextStepBtn").onclick = () => {
+async function regFinalize(){
   const email = ($("reg-email").value || "").trim();
-  const pass = ($("reg-pass").value || "").trim();
-  const conf = ($("reg-confirm").value || "").trim();
+  const pass = $("reg-pass").value || "";
+  const username = ($("reg-username").value || "").trim();
 
-  if (!email || !pass) return alert("MISSING_FIELDS");
-  if (pass.length < 6) return alert("PASSCODE_TOO_SHORT");
-  if (pass !== conf) return alert("PASSCODES_DO_NOT_MATCH");
+  $("reg-warn-2").textContent = "";
 
-  regDraft.email = email;
-  regDraft.pass = pass;
-
-  showRegStep(2);
-};
-
-$("toStep3Btn").onclick = () => {
-  const uname = ($("reg-username").value || "").trim();
-  if (!uname || uname.length < 3) return alert("CALLSIGN_TOO_SHORT");
-
-  regDraft.username = uname;
-  regDraft.usernameLower = uname.toLowerCase();
-  regDraft.isPrivate = $("reg-private").checked === true;
-
-  showRegStep(3);
-};
-
-$("finalizeRegBtn").onclick = async () => {
-  if (!regDraft.planId) return alert("SELECT_A_SPLIT");
+  if(!username || username.length < 3){
+    $("reg-warn-2").textContent = "CALLSIGN_TOO_SHORT";
+    return;
+  }
 
   // create auth user
-  const cred = await createUserWithEmailAndPassword(auth, regDraft.email, regDraft.pass);
-  const uid = cred.user.uid;
+  const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
+  // default picks
+  const tagLabel = selectedTagCss.includes("crt") ? "CRT" :
+                   selectedTagCss.includes("blood") ? "BLOOD" :
+                   selectedTagCss.includes("void") ? "VOID" : "RUST";
 
   const userDoc = {
-    username: regDraft.username,
-    usernameLower: regDraft.usernameLower,
-    tag: regDraft.tag || "tag-rust",
-    avatar: regDraft.avatar || "a-sigil-1",
-    activePlanId: regDraft.planId,
-    isPrivate: regDraft.isPrivate === true,
-    isAdmin: false,        // set true manually in Firestore for your account
+    username,
+    usernameLower: username.toLowerCase(),
+    createdAt: serverTimestamp(),
+
+    // visuals
+    tagCss: selectedTagCss,
+    tagLabel: tagLabel,
+    cardStyle: selectedCardStyle,
+
+    // social
     friends: [],
-    carvings: 0,
-    xp: 0,
-    prCount: 0,
-    ui: { scanlines:true, glow:true, motion:true },
-    createdAt: serverTimestamp()
+
+    // progression
+    carvingCount: 0,
+    trophies: [],
+
+    // plans
+    activePlanId: selectedRegPlanId,
+    activePlanName: (PLANS.find(p => p.id === selectedRegPlanId)?.name || ""),
+
+    // flags/roles
+    role: "user",
+    flagged: false,
+    disabled: false,
+
+    // privacy
+    hideLifts: false
   };
 
-  await setDoc(doc(db,"users",uid), userDoc);
+  await setDoc(doc(db, "users", cred.user.uid), userDoc);
 
-  // done: auth state listener will boot into app
-};
+  toast("RECRUIT_BOUND_TO_GRAVE");
+}
 
-/* =========================
-   PLANS PANEL: keep right-side selectors synced
-========================= */
-function debounce(fn, ms){
-  let t = null;
-  return (...args)=>{
-    clearTimeout(t);
-    t = setTimeout(()=>fn(...args), ms);
+/* ==========================================
+   LISTENERS (single mount)
+========================================== */
+let wired = false;
+function wireListeners(){
+  if(wired) return;
+  wired = true;
+
+  // tab buttons
+  document.querySelectorAll("[data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      showTab(btn.getAttribute("data-tab"));
+      if(btn.getAttribute("data-tab") === "plans-panel"){
+        hydrateLogUI();
+      }
+    });
+  });
+
+  // auth
+  $("showRegBtn").onclick = () => showRegistration();
+  $("returnToLoginBtn").onclick = () => showAuth();
+
+  $("loginBtn").onclick = async () => {
+    $("login-warn").textContent = "";
+    try{
+      await signInWithEmailAndPassword(auth, $("email").value, $("password").value);
+    }catch(e){
+      $("login-warn").textContent = "LOGIN_FAILED: " + (e?.code || "UNKNOWN");
+    }
+  };
+
+  $("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  // registration buttons
+  $("nextStepBtn").onclick = regContinue;
+  $("finalizeRegBtn").onclick = regFinalize;
+
+  // tag click (both reg + settings pickers)
+  document.body.addEventListener("click", async (e) => {
+    const tagEl = e.target.closest("[data-tagcss]");
+    if(tagEl){
+      document.querySelectorAll("[data-tagcss]").forEach(x => x.classList.remove("active"));
+      tagEl.classList.add("active");
+      selectedTagCss = tagEl.getAttribute("data-tagcss");
+
+      // if already logged in, update preview only; commit on button
+      if(currentUserData){
+        $("user-grave-tag").className = `grave-tag ${selectedTagCss}`;
+      }
+    }
+
+    const cardEl = e.target.closest("[data-cardstyle]");
+    if(cardEl){
+      document.querySelectorAll("[data-cardstyle]").forEach(x => x.classList.remove("active"));
+      cardEl.classList.add("active");
+      selectedCardStyle = cardEl.getAttribute("data-cardstyle");
+
+      // preview
+      const cc = $("calling-card");
+      if(cc){
+        cc.classList.remove(...CARD_STYLES.map(s => s.css));
+        cc.classList.add(selectedCardStyle);
+      }
+    }
+
+    const regPlan = e.target.closest("[data-regplan]");
+    if(regPlan){
+      document.querySelectorAll("[data-regplan]").forEach(x => x.classList.remove("active"));
+      regPlan.classList.add("active");
+      selectedRegPlanId = regPlan.getAttribute("data-regplan");
+    }
+
+    // plan activate/preview
+    const act = e.target.closest("[data-activate]");
+    if(act){
+      const id = act.getAttribute("data-activate");
+      await activatePlan(id);
+    }
+
+    const prev = e.target.closest("[data-preview]");
+    if(prev){
+      const id = prev.getAttribute("data-preview");
+      const p = PLANS.find(x => x.id === id);
+      if(p){
+        toast(`PREVIEW: ${p.name}`);
+        // quick preview = set day dropdown temporarily (no save)
+        activePlan = p;
+        hydrateLogUI();
+        // revert after short delay if you already had an active plan saved
+        setTimeout(() => {
+          const saved = currentUserData.activePlanId ? PLANS.find(z => z.id === currentUserData.activePlanId) : null;
+          activePlan = saved;
+          hydrateLogUI();
+        }, 1200);
+      }
+    }
+
+    // delete post / log / comment action
+    const delPost = e.target.closest("[data-delpost]");
+    if(delPost) await deletePost(delPost.getAttribute("data-delpost"));
+
+    const delLog = e.target.closest("[data-dellog]");
+    if(delLog) await deleteLog(delLog.getAttribute("data-dellog"));
+
+    const cBtn = e.target.closest("[data-comment]");
+    if(cBtn) await postComment(cBtn.getAttribute("data-comment"));
+
+    const userLink = e.target.closest("[data-user]");
+    if(userLink){
+      const uid = userLink.getAttribute("data-user");
+      const isSelf = uid === auth.currentUser.uid;
+      await openProfile(uid, isSelf);
+    }
+
+    const addF = e.target.closest("[data-addfriend]");
+    if(addF) await addFriend(addF.getAttribute("data-addfriend"));
+
+    const unF = e.target.closest("[data-unfriend]");
+    if(unF) await removeFriend(unF.getAttribute("data-unfriend"));
+
+    const flag = e.target.closest("[data-flag]");
+    if(flag) await flagUser(flag.getAttribute("data-flag"));
+  });
+
+  // feed post buttons
+  $("postStatusBtn").onclick = () => createPost({ anon:false });
+  $("postStatusAnonBtn").onclick = () => createPost({ anon:true });
+
+  // plan filters
+  $("applyPlanFiltersBtn").onclick = () => buildPlansList();
+  $("plan-days").onchange = () => buildPlansList();
+  $("plan-goal").onchange = () => buildPlansList();
+  $("plan-style").onchange = () => buildPlansList();
+
+  // log panel
+  $("log-day").onchange = () => hydrateLogUI();
+  $("submitLogBtn").onclick = submitLog;
+
+  $("addExerciseBtn").onclick = async () => {
+    const ex = prompt("ADD_EXERCISE_NAME:");
+    if(!ex) return;
+    if(activePlan){
+      const idx = Number($("log-day").value || 0);
+      activePlan.days[idx].exercises = [...new Set([...(activePlan.days[idx].exercises || []), ex])];
+      hydrateLogUI();
+      toast("EXERCISE_ADDED_TO_DAY (LOCAL)");
+    }
+  };
+
+  // settings buttons
+  $("renameBtn").onclick = async () => {
+    const newName = ($("new-username").value || "").trim();
+    if(!newName || newName.length < 3){
+      toast("CALLSIGN_TOO_SHORT");
+      return;
+    }
+    await saveSettingsPatch({ username: newName, usernameLower: newName.toLowerCase() });
+    toast("IDENTITY_UPDATED");
+    location.reload();
+  };
+
+  $("updateTagBtn").onclick = async () => {
+    await saveSettingsPatch({ tagCss: selectedTagCss, tagLabel: selectedTagCss.includes("blood") ? "BLOOD" : (selectedTagCss.includes("crt") ? "CRT" : (selectedTagCss.includes("void") ? "VOID" : "RUST")) });
+    toast("TAG_UPDATED");
+    location.reload();
+  };
+
+  $("saveCardStyleBtn").onclick = async () => {
+    await saveSettingsPatch({ cardStyle: selectedCardStyle });
+    toast("CALLING_CARD_SEALED");
+    location.reload();
+  };
+
+  $("privacy-hide-lifts").onchange = async () => {
+    await saveSettingsPatch({ hideLifts: $("privacy-hide-lifts").checked });
+    toast("PRIVACY_UPDATED");
   };
 }
 
-/* Refresh friends list whenever entering friends tab */
-const originalSetActiveTab = setActiveTab;
-setActiveTab = (panelId) => {
-  originalSetActiveTab(panelId);
-  if (panelId === "friends-panel") loadFriendsList();
-};
-
-/* =========================
-   SAFARI QUIRK: ensure DOM exists before wiring
-   (we already run in module after DOM parse; ok)
-========================= */
+/* ==========================================
+   UTILS
+========================================== */
+function escapeHtml(str){
+  return String(str || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
