@@ -8,14 +8,13 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
-
 <div id="crt"></div>
 
 <div id="auth-screen" class="screen">
   <h1 class="glitch">MASSGRAVES</h1>
   <div class="panel">
     <p style="text-align:center; color: #ff00ea;">[ ACCESS RESTRICTED ]</p>
-    <input id="email" placeholder="USER_ID (EMAIL)">
+    <input id="email" placeholder="USER_ID">
     <input id="password" type="password" placeholder="PASS_CODE">
     <button onclick="window.login()">LOGIN</button>
     <div style="margin: 10px 0; text-align: center; color: #444;">— OR —</div>
@@ -28,67 +27,63 @@
   <h1 class="glitch" style="font-size: 32px; margin: 10px 0;">MASSGRAVES</h1>
   
   <nav>
-    <button onclick="window.show('feed')">THE_FEED</button>
-    <button onclick="window.show('log')">LOG_WORK</button>
-    <button onclick="window.show('prs')">VITAL_STATS</button>
-    <button onclick="window.show('profile')">MY_ID</button>
-    <button id="nav-admin" class="hidden" onclick="window.show('admin-panel')">ROOT</button>
-    <button onclick="window.logout()" style="border-color: #ff00ea; color: #ff00ea;">EXIT</button>
+    <button onclick="window.show('feed')">FEED</button>
+    <button onclick="window.show('log')">LOG</button>
+    <button onclick="window.show('vault')">VAULT</button>
+    <button onclick="window.show('active-plan')">PLAN</button>
+    <button onclick="window.show('prs')">STATS</button>
+    <button onclick="window.logout()" style="color: #ff00ea;">EXIT</button>
   </nav>
 
   <section id="feed" class="panel"></section>
 
   <section id="log" class="panel hidden">
     <h3>REPORT PROGRESS</h3>
-    <label style="color: #ff00ea; font-size: 0.8rem;">CHOOSE MOVEMENT:</label>
     <select id="exerciseSelect" onchange="window.toggleCustomExercise()">
-      <optgroup label="Main Lifts">
         <option value="Bench Press">Bench Press</option>
         <option value="Squat">Squat</option>
         <option value="Deadlift">Deadlift</option>
-        <option value="Overhead Press">Overhead Press</option>
-      </optgroup>
-      <optgroup label="Accessories">
-        <option value="Barbell Row">Barbell Row</option>
-        <option value="Dumbbell Press">Dumbbell Press</option>
+        <option value="OHP">Overhead Press</option>
         <option value="Pull Ups">Pull Ups</option>
-        <option value="Dips">Dips</option>
-        <option value="Leg Press">Leg Press</option>
-      </optgroup>
-      <option value="CUSTOM">-- CUSTOM / OTHER --</option>
+        <option value="CUSTOM">-- CUSTOM --</option>
     </select>
-
-    <input id="customExercise" class="hidden" placeholder="Enter custom movement name...">
-
-    <div style="display: flex; gap: 10px; margin-top: 10px;">
-      <input id="weightInput" type="number" placeholder="WEIGHT">
+    <input id="customExercise" class="hidden" placeholder="MOVEMENT NAME">
+    <div style="display: flex; gap: 10px;">
+      <input id="weightInput" type="number" placeholder="LBS">
       <input id="repsInput" type="number" placeholder="REPS">
     </div>
-    
-    <textarea id="workoutNotes" placeholder="HOW DID IT FEEL? (OPTIONAL)"></textarea>
-    <button onclick="window.postWorkout()">TRANSMIT TO FEED</button>
+    <textarea id="workoutNotes" placeholder="NOTES..."></textarea>
+    <button onclick="window.postWorkout()">TRANSMIT</button>
+  </section>
+
+  <section id="vault" class="panel hidden">
+    <h3>PLAN_VAULT</h3>
+    <p style="font-size: 0.8rem; color: #888;">SELECT A PREMADE PROTOCOL OR BUILD A NEW ONE.</p>
+    <div id="premade-list"></div>
+    <hr>
+    <button class="secondary" onclick="window.show('builder')">BUILD CUSTOM PROTOCOL</button>
+  </section>
+
+  <section id="builder" class="panel hidden">
+    <h3>CUSTOM_BUILDER</h3>
+    <input id="newPlanName" placeholder="PLAN NAME (e.g. ARMAGEDDON)">
+    <input id="newPlanDays" type="number" placeholder="DAYS PER WEEK (3-7)">
+    <p style="color: #ff00ea; font-size: 0.8rem;">Enter movements separated by commas for each day.</p>
+    <div id="day-inputs"></div>
+    <button onclick="window.saveCustomPlan()">FINALIZE PLAN</button>
+  </section>
+
+  <section id="active-plan" class="panel hidden">
+    <h3>ACTIVE_PROTOCOL</h3>
+    <div id="active-plan-display">
+        <p style="color: #444;">NO ACTIVE PROTOCOL FOUND. VISIT THE VAULT.</p>
+    </div>
   </section>
 
   <section id="prs" class="panel hidden">
     <h3>MAX_EFFORT_LOG</h3>
     <div id="prList"></div>
   </section>
-
-  <section id="profile" class="panel hidden">
-    <h3 id="profileEmail"></h3>
-    <div style="border: 1px dashed #444; padding: 10px; margin-top: 10px;">
-      <p style="color: #ff00ea; margin: 0;">STATUS: ACTIVE</p>
-      <p style="margin: 5px 0 0 0;">"EVERY REP IS A NAIL IN THE COFFIN."</p>
-    </div>
-  </section>
-
-  <section id="admin-panel" class="panel hidden">
-    <h3 style="color: red;">ADMIN_OVERRIDE</h3>
-    <input id="planName" placeholder="PLAN_NAME">
-    <button onclick="window.createPresetPlan()">GENERATE</button>
-    <div id="plans" style="margin-top: 10px;"></div>
-  </section>
 </div>
-
 </body>
 </html>
