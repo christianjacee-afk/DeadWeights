@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="crt">
 
 <div id="registration-screen" class="screen hidden">
-  <div class="morbid-title pulse">DEADWEIGHTS</div>
-  <div class="grave-box auth-box anim-slide-up">
+  <div class="morbid-title-main pulse">DEADWEIGHTS</div>
+  <div class="grave-box auth-box">
     <div class="grave-header">RECRUIT_INDUCTION</div>
     <div class="grave-body">
       <div id="reg-step-1">
@@ -22,7 +22,7 @@
       <div id="reg-step-2" class="hidden">
         <input id="reg-username" placeholder="ASSIGN_CALLSIGN">
         <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
-        <div id="initial-tag-picker"></div>
+        <div id="initial-tag-picker" class="tag-grid"></div>
         <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
       </div>
       <button onclick="window.showAuth()" class="grave-btn-alt">RETURN_TO_LOGIN</button>
@@ -31,7 +31,7 @@
 </div>
 
 <div id="auth-screen" class="screen">
-  <div class="morbid-title pulse">DEADWEIGHTS</div>
+  <div class="morbid-title-main pulse">DEADWEIGHTS</div>
   <div class="grave-box auth-box">
     <div class="grave-header">EXISTING_ENTITY_ACCESS</div>
     <div class="grave-body">
@@ -46,9 +46,9 @@
 
 <div id="app" class="screen hidden">
   <header class="grave-nav">
-    <div class="logo">DEADWEIGHTS // <span id="header-callsign"></span></div>
+    <div class="logo pulse">DEADWEIGHTS // <span id="header-callsign"></span></div>
     <div class="nav-controls">
-        <button onclick="window.showTab('settings')" class="mini-btn">SETTINGS</button>
+        <button onclick="window.showTab('settings-panel')" class="mini-btn">SETTINGS</button>
         <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
     </div>
   </header>
@@ -57,7 +57,7 @@
     <aside class="col">
       <div class="grave-box">
         <div id="user-grave-tag" class="grave-tag">
-          <span id="pfp-text">CADAVER</span>
+          <span id="pfp-text" class="tag-text">CADAVER</span>
         </div>
         <div class="grave-body">
           <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
@@ -92,17 +92,16 @@
           <div class="grave-body">
             <button class="grave-btn-alt" onclick="window.showTab('feed-panel')">BACK_TO_FEED</button>
             <div class="divider"></div>
-            <p>UPDATE_CALLSIGN:</p>
-            <input id="update-name" placeholder="NEW_NAME">
-            <button class="grave-btn" onclick="window.updateProfile()">UPDATE_ENTITY</button>
+            <p>MODIFY_GRAVE_TAG:</p>
+            <div id="settings-tag-picker" class="tag-grid"></div>
+            <button class="grave-btn" onclick="window.updateGraveTag()">UPDATE_TAG</button>
           </div>
         </div>
         <div id="admin-panel" class="grave-box hidden">
-          <div class="grave-header">ADMIN_TERMINAL</div>
+          <div class="grave-header">ADMIN_TERMINAL (SYSTEM_SCYTHE)</div>
           <div class="grave-body">
-            <p>BROADCAST_SYSTEM_ALERTS:</p>
-            <textarea id="admin-msg" placeholder="SYSTEM_MESSAGE"></textarea>
-            <button class="grave-btn" style="background:var(--blood)">PURGE_SYSTEM</button>
+            <p style="color:red">ADMINISTRATIVE_OVERRIDE_ACTIVE</p>
+            <button class="grave-btn" style="background:var(--blood)" onclick="window.purgeLogs()">PURGE_ALL_LOGS</button>
           </div>
         </div>
       </section>
@@ -111,13 +110,12 @@
     <aside class="col">
       <div class="grave-box">
         <div class="grave-header">LOGGING_STATION</div>
-        <div id="logging-ui" class="grave-body">
-          </div>
+        <div id="logging-ui" class="grave-body"></div>
       </div>
 
       <div class="grave-box">
-        <div class="grave-header">PEAK_EXHAUSTION</div>
-        <div id="prList" class="grave-body"></div>
+        <div class="grave-header">CARVING_INDEX (LOG_HISTORY)</div>
+        <div id="prList" class="grave-body index-container"></div>
       </div>
     </aside>
   </div>
