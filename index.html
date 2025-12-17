@@ -25,7 +25,6 @@
 
 <div id="app" class="screen hidden">
   <h1 class="glitch" style="font-size: 32px; margin: 10px 0;">MASSGRAVES</h1>
-  
   <nav>
     <button onclick="window.show('feed')">FEED</button>
     <button onclick="window.show('log')">LOG</button>
@@ -58,25 +57,23 @@
 
   <section id="vault" class="panel hidden">
     <h3>PLAN_VAULT</h3>
-    <p style="font-size: 0.8rem; color: #888;">SELECT A PREMADE PROTOCOL OR BUILD A NEW ONE.</p>
     <div id="premade-list"></div>
-    <hr>
-    <button class="secondary" onclick="window.show('builder')">BUILD CUSTOM PROTOCOL</button>
+    <hr style="border-color:#444;">
+    <button class="secondary" onclick="window.show('builder')" style="background:#ff00ea; color:#fff;">BUILD CUSTOM</button>
   </section>
 
   <section id="builder" class="panel hidden">
     <h3>CUSTOM_BUILDER</h3>
-    <input id="newPlanName" placeholder="PLAN NAME (e.g. ARMAGEDDON)">
-    <input id="newPlanDays" type="number" placeholder="DAYS PER WEEK (3-7)">
-    <p style="color: #ff00ea; font-size: 0.8rem;">Enter movements separated by commas for each day.</p>
+    <input id="newPlanName" placeholder="PLAN NAME">
+    <input id="newPlanDays" type="number" placeholder="DAYS PER WEEK (3-7)" onchange="window.show('builder')">
     <div id="day-inputs"></div>
-    <button onclick="window.saveCustomPlan()">FINALIZE PLAN</button>
+    <button onclick="window.saveCustomPlan()">FINALIZE</button>
   </section>
 
   <section id="active-plan" class="panel hidden">
     <h3>ACTIVE_PROTOCOL</h3>
     <div id="active-plan-display">
-        <p style="color: #444;">NO ACTIVE PROTOCOL FOUND. VISIT THE VAULT.</p>
+        <p style="color: #444;">SELECT A PROTOCOL IN THE VAULT.</p>
     </div>
   </section>
 
