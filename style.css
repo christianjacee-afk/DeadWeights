@@ -1,15 +1,109 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap');
-body { margin: 0; background: #050505; color: #00ff41; font-family: 'VT323', monospace; }
-#crt { pointer-events: none; position: fixed; inset: 0; z-index: 999; background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 3px); opacity: 0.3; }
-.glitch { font-family: 'Metal Mania', cursive; font-size: 48px; color: #fff; text-transform: uppercase; text-shadow: 3px 3px #ff00ea; text-align: center; }
-.screen { padding: 10px; max-width: 600px; margin: 0 auto; }
-.panel { background: #000; border: 2px solid #00ff41; padding: 15px; margin-bottom: 20px; box-shadow: 5px 5px 0px #220022; position: relative; }
-nav { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 20px; }
-nav button { flex: 1; min-width: 70px; background: #111; color: #00ff41; border: 1px solid #00ff41; padding: 10px 5px; font-family: 'VT323'; cursor: pointer; }
-nav button:hover { background: #00ff41; color: #000; }
-input, select, textarea { width: 100%; background: #000; border: 1px solid #00ff41; color: #00ff41; padding: 10px; margin-bottom: 10px; font-family: 'VT323'; box-sizing: border-box; font-size: 16px; }
-button { width: 100%; padding: 12px; background: #00ff41; color: #000; border: none; font-family: 'VT323'; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+body {
+  background-color: #f5f5f5;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  margin: 0;
+  color: #333;
+}
+
+.ms-top-nav {
+  background-color: #003399;
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.ms-container {
+  max-width: 800px;
+  margin: 20px auto;
+  display: flex;
+  gap: 20px;
+}
+
+.ms-left { width: 35%; }
+.ms-right { width: 65%; }
+
+/* The "Box" Style */
+.ms-box {
+  background: white;
+  border: 1px solid #003399;
+  margin-bottom: 15px;
+}
+
+.ms-header {
+  background-color: #6699cc;
+  color: white;
+  padding: 5px;
+  font-weight: bold;
+}
+
+.ms-header-sub {
+  background-color: #ffcc99;
+  color: #333;
+  padding: 3px 5px;
+  font-weight: bold;
+}
+
+.ms-body { padding: 10px; }
+
+/* Buttons */
+.ms-btn {
+  background: #ff6600;
+  color: white;
+  border: 1px solid #cc3300;
+  padding: 5px 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.ms-btn-alt {
+  background: #6699cc;
+  color: white;
+  border: 1px solid #003399;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.ms-small-btn {
+  font-size: 10px;
+  padding: 2px 4px;
+  background: #eee;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+/* Typography & Lists */
+input, textarea, select {
+  width: 100%;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+.ms-nav-list { list-style: none; padding: 0; }
+.ms-nav-list li { margin-bottom: 5px; }
+.ms-nav-list a { color: #003399; text-decoration: none; font-weight: bold; }
+.ms-nav-list a:hover { text-decoration: underline; }
+
+.ms-profile-pic { width: 100%; border: 1px solid #ccc; }
+.center { text-align: center; }
+
+.ms-alert {
+  background: #ffffcc;
+  border: 1px solid #ffcc00;
+  padding: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
 .hidden { display: none !important; }
-.post { border-bottom: 1px solid #222; padding: 10px 0; }
-.post pre { border-left: 3px solid #ff00ea; padding-left: 10px; white-space: pre-wrap; margin: 5px 0; }
-.plan-card { border: 1px solid #333; padding: 10px; margin-bottom: 10px; }
+.overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center; z-index: 3000;
+}
+
+.log-item { padding: 5px; border-bottom: 1px dotted #ccc; }
+.post { margin-top: 10px; }
