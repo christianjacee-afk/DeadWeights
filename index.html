@@ -8,43 +8,35 @@
 </head>
 
 <body class="crt">
-  <!-- AUTH / REGISTRATION -->
+  <!-- ====== REGISTRATION ====== -->
   <div id="registration-screen" class="screen hidden">
     <div class="morbid-title-main pulse">DEADWEIGHTS</div>
 
     <div class="grave-box auth-box">
-      <div class="grave-header">
-        <span>RECRUIT_INDUCTION</span>
-        <span class="header-chip" id="reg-status-chip">STAGE_1</span>
-      </div>
-
+      <div class="grave-header">RECRUIT_INDUCTION</div>
       <div class="grave-body">
         <div id="reg-step-1">
           <input id="reg-email" type="email" placeholder="EMAIL_ADDRESS" autocomplete="email">
           <input id="reg-pass" type="password" placeholder="CREATE_PASSCODE" autocomplete="new-password">
           <input id="reg-confirm" type="password" placeholder="CONFIRM_PASSCODE" autocomplete="new-password">
           <button id="nextStepBtn" class="grave-btn">CONTINUE_INDUCTION</button>
-
-          <div class="hint">
-            <span class="hint-dot"></span>
-            Your account is created in Stage 1, then you pick your Callsign + Tag.
+          <div class="small-text dim" id="reg-step-1-hint">
+            TIP: Use a real email/pass. You will log in with this.
           </div>
         </div>
 
         <div id="reg-step-2" class="hidden">
-          <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="18">
-          <div class="row-split">
-            <div>
-              <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
-              <div id="initial-tag-picker" class="tag-grid"></div>
-            </div>
-            <div>
-              <p class="small-label">CHOOSE A BASE AVATAR:</p>
-              <div id="avatar-picker" class="avatar-grid"></div>
-            </div>
-          </div>
+          <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="20">
+          <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
+          <div id="initial-tag-picker" class="tag-grid"></div>
+
+          <p class="small-label">SELECT INITIAL AVATAR:</p>
+          <div id="initial-avatar-picker" class="avatar-grid"></div>
+
           <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
-          <div class="tiny-warn" id="reg-warn"></div>
+          <div class="small-text dim">
+            You can change tag/avatar/calling-card later.
+          </div>
         </div>
 
         <button id="returnToLoginBtn" class="grave-btn-alt">RETURN_TO_LOGIN</button>
@@ -52,9 +44,9 @@
     </div>
   </div>
 
+  <!-- ====== AUTH ====== -->
   <div id="auth-screen" class="screen">
     <div class="morbid-title-main pulse">DEADWEIGHTS</div>
-
     <div class="grave-box auth-box">
       <div class="grave-header">EXISTING_ENTITY_ACCESS</div>
       <div class="grave-body">
@@ -62,58 +54,69 @@
         <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
         <button id="loginBtn" class="grave-btn">RESURRECT</button>
         <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
-        <div class="tiny-warn" id="auth-warn"></div>
+        <div class="small-text dim" id="auth-error"></div>
       </div>
     </div>
   </div>
 
-  <!-- APP -->
+  <!-- ====== APP ====== -->
   <div id="app" class="screen hidden">
     <header class="grave-nav">
       <div class="logo pulse">
-        DEADWEIGHTS //
-        <span id="header-callsign"></span>
-        <span class="subtle" id="header-rank"></span>
+        DEADWEIGHTS // <span id="header-callsign"></span>
+        <span class="chip" id="header-rank"></span>
       </div>
 
       <div class="nav-controls">
-        <button class="mini-btn" data-tab="feed-panel">FEED</button>
-        <button class="mini-btn" data-tab="plans-panel">PLANS</button>
-        <button class="mini-btn" data-tab="friends-panel">FRIENDS</button>
-        <button class="mini-btn" data-tab="settings-panel">SETTINGS</button>
+        <button id="navFeed" class="mini-btn">FEED</button>
+        <button id="navPlans" class="mini-btn">PLANS</button>
+        <button id="navFriends" class="mini-btn">FRIENDS</button>
+        <button id="navProfile" class="mini-btn">PROFILE</button>
+        <button id="navSettings" class="mini-btn">SETTINGS</button>
         <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
       </div>
     </header>
 
+    <!-- Top status bar -->
+    <div class="top-strip">
+      <div class="strip-box">
+        <div class="strip-title">MASSGRAVE // TODAY</div>
+        <div class="strip-value">
+          GLOBAL: <span id="massgrave-global">0</span> LBS • YOU: <span id="massgrave-you">0</span> LBS
+        </div>
+      </div>
+      <div class="strip-box">
+        <div class="strip-title">UNLOCKS</div>
+        <div class="strip-value" id="unlock-line">...</div>
+      </div>
+    </div>
+
     <div class="grave-grid">
-      <!-- LEFT: PROFILE + LEADERBOARD -->
+      <!-- LEFT COL -->
       <aside class="col">
         <div class="grave-box">
-          <div class="grave-tag" id="user-grave-tag">
-            <div class="tag-fog"></div>
-            <span class="tag-text" id="tag-text">CADAVER</span>
+          <div id="user-grave-tag" class="grave-tag">
+            <span class="tag-text">CADAVER</span>
           </div>
 
           <div class="grave-body">
             <div class="profile-top">
-              <div class="avatar-frame" id="avatar-frame"></div>
-
+              <div id="profile-avatar" class="avatar avatar-wraith"></div>
               <div class="profile-meta">
                 <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
+                <div class="dim small-text" id="profile-cardline">CALLING_CARD: NONE</div>
                 <div class="stats-line">
                   <div class="stat">
-                    <small>CARVINGS</small><b id="stat-count">0</b>
+                    <small>CARVINGS</small>
+                    <b id="stat-count">0</b>
                   </div>
                   <div class="stat">
-                    <small>RANK</small><b id="user-rank">NEWBORN</b>
-                  </div>
-                </div>
-                <div class="stats-line">
-                  <div class="stat">
-                    <small>PR_TROPHIES</small><b id="trophy-count">0</b>
+                    <small>RANK</small>
+                    <b id="user-rank">NEWBORN</b>
                   </div>
                   <div class="stat">
-                    <small>ACTIVE_SPLIT</small><b id="active-split-label">NONE</b>
+                    <small>TROPHIES</small>
+                    <b id="user-trophies">0</b>
                   </div>
                 </div>
               </div>
@@ -121,40 +124,37 @@
 
             <div class="divider"></div>
 
-            <div class="massgrave">
-              <div class="massgrave-title">DAILY MASSGRAVE</div>
-              <div class="massgrave-value" id="massgrave-value">0</div>
-              <div class="massgrave-sub">Total volume lifted today (all entities)</div>
+            <div class="mini-grid">
+              <button id="quickLogTodayBtn" class="grave-btn-alt">LOG TODAY'S SPLIT</button>
+              <button id="quickViewPRBtn" class="grave-btn-alt">VIEW PR VAULT</button>
             </div>
           </div>
         </div>
 
         <div class="grave-box">
-          <div class="grave-header">LEADERBOARD</div>
+          <div class="grave-header">LEADERBOARD // CARVINGS</div>
           <div id="leaderboard" class="grave-body small-text"></div>
         </div>
 
         <div class="grave-box">
-          <div class="grave-header">TROPHIES</div>
-          <div class="grave-body" id="trophy-list"></div>
+          <div class="grave-header">TROPHY_CASE</div>
+          <div id="trophyCase" class="grave-body"></div>
         </div>
       </aside>
 
-      <!-- CENTER: PANELS -->
+      <!-- CENTER COL -->
       <main class="col-main">
         <!-- FEED -->
         <section id="feed-panel">
           <div class="grave-box">
             <div class="grave-header">
               <span>BROADCAST_CARVING</span>
-              <span class="header-chip" id="feed-mode-chip">PUBLIC</span>
+              <span class="dim small-text">YOU CAN DELETE YOUR OWN POSTS</span>
             </div>
             <div class="grave-body">
               <textarea id="statusText" placeholder="SHARE INTEL..."></textarea>
-              <div class="btn-row">
-                <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
-                <button id="refreshFeedBtn" class="grave-btn-alt">RELOAD_FEED</button>
-              </div>
+              <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
+              <div class="small-text dim" id="postHint"></div>
             </div>
           </div>
           <div id="feed-content"></div>
@@ -163,51 +163,100 @@
         <!-- PLANS -->
         <section id="plans-panel" class="hidden">
           <div class="grave-box">
-            <div class="grave-header">
-              <span>SPLIT_INDEX</span>
-              <span class="header-chip">3–5 DAYS</span>
-            </div>
+            <div class="grave-header">WORKOUT_SPLITS // SELECTION</div>
             <div class="grave-body">
-              <div class="row-split">
-                <div>
-                  <p class="small-label">CHOOSE A SPLIT:</p>
-                  <div id="plan-index" class="plan-index"></div>
+              <div class="plan-row">
+                <div class="plan-col">
+                  <label class="small-label">CHOOSE SPLIT:</label>
+                  <select id="planSelect"></select>
                 </div>
 
-                <div>
-                  <p class="small-label">START DAY:</p>
-                  <div class="start-controls">
-                    <button class="mini-btn" id="start-auto-btn">AUTO (TODAY)</button>
-                    <select id="start-day-select"></select>
-                  </div>
+                <div class="plan-col">
+                  <label class="small-label">START MODE:</label>
+                  <select id="startMode">
+                    <option value="today">START TODAY</option>
+                    <option value="pickday">PICK DAY OF WEEK</option>
+                    <option value="date">CUSTOM START DATE</option>
+                  </select>
+                </div>
 
-                  <div class="divider thin"></div>
+                <div class="plan-col" id="startDayWrap" class="hidden">
+                  <label class="small-label">START DAY:</label>
+                  <select id="startDaySelect">
+                    <option value="1">MONDAY</option>
+                    <option value="2">TUESDAY</option>
+                    <option value="3">WEDNESDAY</option>
+                    <option value="4">THURSDAY</option>
+                    <option value="5">FRIDAY</option>
+                    <option value="6">SATURDAY</option>
+                    <option value="0">SUNDAY</option>
+                  </select>
+                </div>
 
-                  <p class="small-label">BUILD YOUR OWN:</p>
-                  <button id="open-builder-btn" class="grave-btn-alt">OPEN_SPLIT_FORGE</button>
-
-                  <div class="divider thin"></div>
-
-                  <div class="hint">
-                    <span class="hint-dot"></span>
-                    Once activated, today’s plan shows on the right logger. You can swap exercises beside each line.
-                  </div>
+                <div class="plan-col hidden" id="startDateWrap">
+                  <label class="small-label">START DATE:</label>
+                  <input id="startDateInput" type="date">
                 </div>
               </div>
+
+              <div class="divider"></div>
+
+              <div class="mini-grid">
+                <button id="activatePlanBtn" class="grave-btn">ACTIVATE_SPLIT</button>
+                <button id="openBuilderBtn" class="grave-btn-alt">BUILD_CUSTOM_SPLIT</button>
+              </div>
+
+              <div class="small-text dim" id="planStatusLine"></div>
             </div>
           </div>
 
           <div class="grave-box">
-            <div class="grave-header">
-              <span>ACTIVE_SPLIT_STATUS</span>
-              <span class="header-chip" id="active-day-chip">DAY_?</span>
-            </div>
+            <div class="grave-header">ACTIVE_SPLIT // TODAY'S RITUAL</div>
             <div class="grave-body">
-              <div id="active-plan-readout" class="active-plan-readout"></div>
-              <div class="btn-row">
-                <button id="deactivate-plan-btn" class="mini-btn danger">DEACTIVATE_SPLIT</button>
-                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY</button>
+              <div class="plan-row">
+                <div class="plan-col">
+                  <div class="small-label">ACTIVE SPLIT:</div>
+                  <div id="activePlanName" class="big-glow">NONE</div>
+                </div>
+                <div class="plan-col">
+                  <div class="small-label">TODAY IN SPLIT:</div>
+                  <div id="activePlanDay" class="big-glow">—</div>
+                </div>
+                <div class="plan-col">
+                  <div class="small-label">LOG FOR DAY:</div>
+                  <select id="logDayOverride"></select>
+                </div>
               </div>
+
+              <div class="divider"></div>
+
+              <div id="todayLogger"></div>
+
+              <div class="divider"></div>
+
+              <button id="submitDayLogBtn" class="grave-btn">SEAL_THE_DAY</button>
+              <div class="small-text dim" id="logResultLine"></div>
+            </div>
+          </div>
+
+          <div class="grave-box hidden" id="builderBox">
+            <div class="grave-header">SPLIT_FORGE // CUSTOM BUILDER</div>
+            <div class="grave-body">
+              <input id="builderName" placeholder="SPLIT_NAME (e.g. 'CRYPT_ENGINE V')" maxlength="32">
+              <div class="small-text dim">
+                Builder is intentionally “simple but lethal”: choose days, then add slots with exercise options.
+              </div>
+
+              <div class="divider"></div>
+
+              <div id="builderDays"></div>
+
+              <div class="divider"></div>
+
+              <button id="saveCustomSplitBtn" class="grave-btn">SAVE_CUSTOM_SPLIT</button>
+              <button id="closeBuilderBtn" class="grave-btn-alt">CLOSE_FORGE</button>
+
+              <div class="small-text dim" id="builderStatus"></div>
             </div>
           </div>
         </section>
@@ -228,157 +277,87 @@
           </div>
         </section>
 
-        <!-- SETTINGS -->
-        <section id="settings-panel" class="hidden">
+        <!-- PROFILE -->
+        <section id="profile-panel" class="hidden">
           <div class="grave-box">
-            <div class="grave-header">USER_PARAMETERS</div>
+            <div class="grave-header">PROFILE_PAGE</div>
             <div class="grave-body">
-              <div class="row-split">
+              <div class="profile-page-top">
+                <div id="profilePageAvatar" class="avatar avatar-wraith big"></div>
                 <div>
-                  <p>CHANGE CALLSIGN:</p>
-                  <input id="new-username" placeholder="NEW_CALLSIGN" maxlength="18">
-                  <button class="grave-btn" id="renameBtn">RENAME_ENTITY</button>
-
-                  <div class="divider"></div>
-
-                  <p>GRAVE_TAG_VISUALS:</p>
-                  <div id="settings-tag-picker" class="tag-grid"></div>
-                  <button class="grave-btn" id="updateTagBtn">UPDATE_TAG</button>
-                </div>
-
-                <div>
-                  <p>AVATAR + CALLING CARD:</p>
-                  <div id="settings-avatar-picker" class="avatar-grid"></div>
-                  <button class="grave-btn" id="updateAvatarBtn">BIND_AVATAR</button>
-
-                  <div class="divider"></div>
-
-                  <p>CALLING CARD (ANIMATED):</p>
-                  <div id="card-picker" class="card-grid"></div>
-                  <button class="grave-btn" id="updateCardBtn">EQUIP_CARD</button>
-
-                  <div class="hint">
-                    <span class="hint-dot"></span>
-                    Cards unlock with ranks + trophies. Some are locked until you earn them.
-                  </div>
+                  <div class="big-glow" id="profilePageName">YOU</div>
+                  <div class="dim small-text" id="profilePageCard">CALLING_CARD: —</div>
+                  <div class="dim small-text" id="profilePageTag">GRAVE_TAG: —</div>
+                  <div class="dim small-text" id="profilePageRank">RANK: —</div>
                 </div>
               </div>
 
               <div class="divider"></div>
 
-              <div class="admin-box">
-                <div class="admin-title">ADMIN_CONSOLE (OPTIONAL)</div>
-                <div class="small-label">If you later add admin claims, this panel can expand. For now: local controls only.</div>
-                <button id="purgeMyLogsBtn" class="mini-btn danger">PURGE_MY_LOGS</button>
-                <button id="purgeMyPostsBtn" class="mini-btn danger">PURGE_MY_POSTS</button>
+              <div class="grave-box inner">
+                <div class="grave-header">RECENT_CARVINGS</div>
+                <div class="grave-body index-container" id="profileRecentLogs"></div>
               </div>
 
+              <div class="grave-box inner">
+                <div class="grave-header">POSTS</div>
+                <div class="grave-body" id="profilePosts"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="settings-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">USER_PARAMETERS</div>
+            <div class="grave-body">
+              <p class="small-label">CHANGE CALLSIGN:</p>
+              <input id="new-username" placeholder="NEW_CALLSIGN">
+              <button id="renameBtn" class="grave-btn">RENAME_ENTITY</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">GRAVE_TAG_VISUALS:</p>
+              <div id="settings-tag-picker" class="tag-grid"></div>
+              <button id="updateTagBtn" class="grave-btn">UPDATE_TAG</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">AVATAR:</p>
+              <div id="settings-avatar-picker" class="avatar-grid"></div>
+              <button id="updateAvatarBtn" class="grave-btn">UPDATE_AVATAR</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">CALLING_CARD (UNLOCKED BY RANK/TROPHIES):</p>
+              <div id="settings-card-picker" class="card-grid"></div>
+              <button id="updateCardBtn" class="grave-btn">UPDATE_CALLING_CARD</button>
+
+              <div class="divider"></div>
+
+              <p class="small-label">DANGER_ZONE:</p>
+              <button id="resetPlanBtn" class="mini-btn danger">RESET ACTIVE SPLIT (YOU ONLY)</button>
+              <div class="small-text dim">
+                This does not delete logs/posts. It only clears which split is active.
+              </div>
             </div>
           </div>
         </section>
       </main>
 
-      <!-- RIGHT: LOGGER + PR INDEX -->
+      <!-- RIGHT COL -->
       <aside class="col">
         <div class="grave-box">
-          <div class="grave-header">LOGGING_STATION</div>
-          <div class="grave-body">
-            <div class="logger-top">
-              <div class="logger-title">TODAY’S WORK</div>
-              <div class="logger-sub" id="logger-sub">Activate a split to load today.</div>
-            </div>
-
-            <div id="today-workout-list" class="today-workout-list"></div>
-
-            <div class="divider thin"></div>
-
-            <div class="manual-log">
-              <div class="small-label">MANUAL CARVING (ANY EXERCISE):</div>
-              <select id="log-category"></select>
-              <select id="log-ex"></select>
-              <div class="row3">
-                <input id="log-w" type="number" inputmode="decimal" placeholder="LBS">
-                <input id="log-r" type="number" inputmode="numeric" placeholder="REPS">
-                <button id="manualLogBtn" class="mini-btn">RECORD</button>
-              </div>
-            </div>
-          </div>
+          <div class="grave-header">PR_VAULT // PERSONAL_RECORDS</div>
+          <div id="prList" class="grave-body index-container"></div>
         </div>
 
         <div class="grave-box">
-          <div class="grave-header">PERSONAL_RECORDS</div>
-          <div id="prList" class="grave-body index-container"></div>
+          <div class="grave-header">CARVING_INDEX // LAST 30</div>
+          <div id="logIndex" class="grave-body index-container"></div>
         </div>
       </aside>
-    </div>
-  </div>
-
-  <!-- PROFILE MODAL -->
-  <div id="profile-modal" class="modal hidden">
-    <div class="modal-inner grave-box">
-      <div class="grave-header">
-        <span id="modal-title">ENTITY_PROFILE</span>
-        <button id="closeProfileBtn" class="mini-btn danger">X</button>
-      </div>
-      <div class="grave-body">
-        <div class="profile-modal-top">
-          <div class="avatar-frame big" id="modal-avatar"></div>
-          <div class="profile-modal-meta">
-            <div class="modal-name" id="modal-name">CALLSIGN</div>
-            <div class="modal-sub" id="modal-rank">RANK</div>
-            <div class="modal-sub" id="modal-stats">STATS</div>
-            <div class="btn-row">
-              <button id="modal-friend-btn" class="mini-btn">ADD_FRIEND</button>
-              <button id="modal-view-posts-btn" class="mini-btn">VIEW_POSTS</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="modal-section-title">RECENT BROADCASTS</div>
-        <div id="modal-posts" class="modal-posts"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SPLIT BUILDER MODAL -->
-  <div id="builder-modal" class="modal hidden">
-    <div class="modal-inner grave-box">
-      <div class="grave-header">
-        <span>SPLIT_FORGE</span>
-        <button id="closeBuilderBtn" class="mini-btn danger">X</button>
-      </div>
-      <div class="grave-body">
-        <div class="row-split">
-          <div>
-            <p class="small-label">SPLIT_NAME</p>
-            <input id="builder-name" placeholder="EX: NECRO_PPL // 5-DAY">
-
-            <p class="small-label">DAYS_PER_WEEK</p>
-            <select id="builder-days">
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-
-            <div class="divider thin"></div>
-
-            <div class="hint">
-              <span class="hint-dot"></span>
-              Add workouts per day. You can reorder later by editing day labels.
-            </div>
-
-            <button id="builder-create-btn" class="grave-btn">SAVE_SPLIT</button>
-            <div class="tiny-warn" id="builder-warn"></div>
-          </div>
-
-          <div>
-            <div class="small-label">DAY_WORKOUTS</div>
-            <div id="builder-days-wrap" class="builder-days-wrap"></div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
