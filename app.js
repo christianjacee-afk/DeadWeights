@@ -22,6 +22,7 @@ const msg = document.getElementById("auth-msg");
 
 let currentUserRole = "user";
 
+// Auth Sync
 onAuthStateChanged(auth, async user => {
   if (user) {
     authScreen.classList.add("hidden");
@@ -49,14 +50,21 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-// Helper: Show/Hide Custom Input
+// Navigation logic
+window.show = (id) => {
+  document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+};
+
+// Dropdown/Custom Logic
 window.toggleCustomExercise = () => {
     const select = document.getElementById("exerciseSelect");
     const customInput = document.getElementById("customExercise");
     customInput.classList.toggle("hidden", select.value !== "CUSTOM");
 };
 
-async function postWorkout() {
+// Post Logic
+window.postWorkout = async () => {
     const select = document.getElementById("exerciseSelect");
     const custom = document.getElementById("customExercise");
     const weight = document.getElementById("weightInput").value;
@@ -66,36 +74,38 @@ async function postWorkout() {
     const exerciseName = select.value === "CUSTOM" ? custom.value : select.value;
 
     if (!exerciseName || !weight || !reps) {
-        alert("Enter exercise, weight, and reps!");
+        msg.innerText = "MISSING DATA POINTS.";
         return;
     }
 
-    const formattedText = `KILLED: ${exerciseName} | ${weight} LBS x ${reps} REPS \nNotes: ${notes}`;
+    const formattedText = `KILLED: ${exerciseName}\nVOLUME: ${weight} LBS x ${reps} REPS\nNOTES: ${notes || "NONE"}`;
 
-    await addDoc(collection(db, "posts"), {
-        text: formattedText,
-        uid: auth.currentUser.uid,
-        userEmail: auth.currentUser.email,
-        timestamp: new Date(),
-        likes: [],
-        comments: []
-    });
+    try {
+        await addDoc(collection(db, "posts"), {
+            text: formattedText,
+            uid: auth.currentUser.uid,
+            userEmail: auth.currentUser.email,
+            timestamp: new Date(),
+            likes: [],
+            comments: []
+        });
 
-    // Also update PR automatically if it's a high weight (simplified logic)
-    await addDoc(collection(db, "prs"), { 
-        uid: auth.currentUser.uid, 
-        lift: exerciseName, 
-        value: `${weight} LBS` 
-    });
+        // Auto-save to PRs
+        await addDoc(collection(db, "prs"), { 
+            uid: auth.currentUser.uid, 
+            lift: exerciseName, 
+            value: `${weight} LBS` 
+        });
 
-    // Reset fields
-    document.getElementById("weightInput").value = "";
-    document.getElementById("repsInput").value = "";
-    document.getElementById("workoutNotes").value = "";
-    show('feed');
-}
+        document.getElementById("weightInput").value = "";
+        document.getElementById("repsInput").value = "";
+        document.getElementById("workoutNotes").value = "";
+        window.show('feed');
+    } catch(e) {
+        msg.innerText = "TRANSMISSION FAILED.";
+    }
+};
 
-// REST OF THE LOGIC (Simplified for scope)
 function loadFeed() {
   const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
   onSnapshot(q, snap => {
@@ -105,9 +115,9 @@ function loadFeed() {
       const d = docSnap.data();
       feed.innerHTML += `
         <div class="post">
-          <small style="color: #ff00ea;">${d.userEmail}</small>
-          <pre style="font-family: 'VT323'; color: #00ff41; white-space: pre-wrap;">${d.text}</pre>
-          <button onclick="window.toggleLike('${docSnap.id}')">LIKE</button>
+          <small>${d.userEmail}</small>
+          <pre>${d.text}</pre>
+          <button style="width:auto; padding: 5px 15px;" onclick="window.toggleLike('${docSnap.id}')">LIKE</button>
         </div>`;
     });
   });
@@ -120,33 +130,22 @@ function loadPRs() {
         list.innerHTML = "";
         snap.forEach(docSnap => {
             const d = docSnap.data();
-            list.innerHTML += `<p>> ${d.lift}: ${d.value}</p>`;
+            list.innerHTML += `<p style="margin: 5px 0;">> ${d.lift}: ${d.value}</p>`;
         });
     });
 }
 
-async function login() {
+window.login = async () => {
   const e = document.getElementById("email").value;
   const p = document.getElementById("password").value;
-  try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { msg.innerText = err.message; }
-}
+  try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { msg.innerText = "ACCESS DENIED."; }
+};
 
 async function signup() {
   const e = document.getElementById("email").value;
   const p = document.getElementById("password").value;
-  try { await createUserWithEmailAndPassword(auth, e, p); } catch(err) { msg.innerText = err.message; }
+  try { await createUserWithEmailAndPassword(auth, e, p); } catch(err) { msg.innerText = "CREATION FAILED."; }
 }
 
-function logout() { signOut(auth); }
-
-function show(id) {
-  document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-}
-
-window.login = login;
-window.signup = signup;
-window.logout = logout;
-window.show = show;
-window.postWorkout = postWorkout;
+window.logout = () => signOut(auth);
 document.getElementById("signupBtn").addEventListener("click", signup);
