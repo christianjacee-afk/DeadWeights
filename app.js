@@ -15,31 +15,24 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 setPersistence(auth, browserLocalPersistence);
 
-const EXERCISE_INDEX = [
-    "Bench Press", "Incline Bench", "Decline Bench", "Dumbbell Flys", "Pushups", "Dips",
-    "Back Squat", "Front Squat", "Hack Squat", "Leg Press", "Leg Extensions", "Leg Curls",
-    "Deadlift", "Romanian Deadlift", "Sumo Deadlift", "Good Mornings", "Hip Thrusts",
-    "Overhead Press", "Lateral Raises", "Front Raises", "Face Pulls", "Shrugs",
-    "Pull Ups", "Lat Pulldowns", "Seated Rows", "Bent Over Rows", "T-Bar Rows",
-    "Bicep Curls", "Hammer Curls", "Preacher Curls", "Tricep Pushdowns", "Skull Crushers",
-    "Plank", "Leg Raises", "Cable Crunches", "CUSTOM"
+const PREMADE_PLANS = [
+  { id: "5day", name: "IRON_CORPS (5-Day)", routine: { 1: ["Squat", "Bench", "Row", "OHP"], 2: ["Leg Press", "RDL", "Ham Curl", "Hip Thrust"], 3: ["Incline", "Lateral Raise", "Triceps"], 4: ["Deadlift", "Lunges", "Calves"], 5: ["Pullups", "Rows", "Curls"] }},
+  { id: "3day", name: "REVENANT (3-Day)", routine: { 1: ["Squat", "Bench", "Row"], 2: ["Deadlift", "OHP", "Pullups"], 3: ["Leg Press", "Incline", "Curls"] }}
 ];
 
-const PREMADE_PLANS = [
-  { id: "5day", name: "GRAVE_SPECIALIST (5-Day)", routine: { 1: "Mon: Full Body Compound", 2: "Tue: Lower A (Quads/Hams)", 3: "Wed: Upper Push", 4: "Thu: Lower B (Deadlift/Glutes)", 5: "Fri: Upper Pull" }},
-  { id: "3day", name: "REVENANT (3-Day)", routine: { 1: "A: Squat/Bench/Row", 2: "B: DL/OHP/Pullups", 3: "C: Leg Press/Incline/Curls" }},
-  { id: "phul", name: "POWER_HYPER (4-Day)", routine: { 1: "Upper Power", 2: "Lower Power", 3: "Upper Hyper", 4: "Lower Hyper" }}
-];
+const AVATARS = ["💀", "⚙️", "🏋️", "☣️", "⛓️", "🛡️", "🔥", "🦾"];
+let selectedAvatar = "💀";
 
 onAuthStateChanged(auth, async user => {
   if (user) {
     const snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists() || !snap.data().username) {
-      document.getElementById("username-screen").style.display = "flex";
+      showSetup();
     } else {
       document.getElementById("app").classList.remove("hidden");
       document.getElementById("auth-screen").classList.add("hidden");
       document.getElementById("profileUsername").innerText = snap.data().username;
+      document.getElementById("user-pfp-display").innerText = snap.data().pfp || "💀";
       initApp();
     }
   } else {
@@ -48,16 +41,23 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
+function showSetup() {
+    document.getElementById("username-screen").style.display = "flex";
+    const grid = document.getElementById("pfp-grid");
+    grid.innerHTML = AVATARS.map(a => `<div class="pfp-opt" onclick="window.pickPFP('${a}', this)">${a}</div>`).join('');
+}
+
+window.pickPFP = (a, el) => {
+    selectedAvatar = a;
+    document.querySelectorAll('.pfp-opt').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+};
+
 function initApp() {
-  populateExercises(); loadFeed(); renderVault(); loadMyLogs(); loadPRs(); updateLogContext();
+  loadFeed(); renderVault(); loadMyLogs(); loadPRs(); updateActiveSession(); loadRequests(); loadFriends();
 }
 
-function populateExercises() {
-    const sel = document.getElementById("exerciseSelect");
-    sel.innerHTML = EXERCISE_INDEX.map(ex => `<option value="${ex}">${ex}</option>`).join('');
-}
-
-// LOGIN / SIGNUP
+// AUTH
 document.getElementById("loginBtn").onclick = async () => {
   try { await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); } 
   catch(e) { document.getElementById("auth-msg").innerText = e.code; }
@@ -69,7 +69,7 @@ document.getElementById("signupBtn").onclick = async () => {
 document.getElementById("saveUserBtn").onclick = async () => {
   const name = document.getElementById("usernameInput").value;
   if (name) {
-    await setDoc(doc(db, "users", auth.currentUser.uid), { username: name, email: auth.currentUser.email }, { merge: true });
+    await setDoc(doc(db, "users", auth.currentUser.uid), { username: name, pfp: selectedAvatar, email: auth.currentUser.email }, { merge: true });
     location.reload();
   }
 };
@@ -79,122 +79,148 @@ document.getElementById("logoutBtn").onclick = () => signOut(auth).then(() => lo
 document.querySelectorAll(".nav-links a").forEach(link => {
   link.onclick = (e) => {
     e.preventDefault();
-    const target = link.getAttribute("data-show");
     document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-    document.getElementById(target).classList.remove("hidden");
+    document.getElementById(link.getAttribute("data-show")).classList.remove("hidden");
   };
 });
 
-// BULLETINS
+// NETWORK / FRIENDS
+async function loadFriends() {
+    onSnapshot(collection(db, "users", auth.currentUser.uid, "friends"), snap => {
+        const list = document.getElementById("friends-list");
+        list.innerHTML = "";
+        snap.forEach(d => {
+            list.innerHTML += `<div class="friend-row">${d.data().pfp || '👤'} ${d.data().username}</div>`;
+        });
+        loadFeed(); // Reload feed to show friends' posts
+    });
+}
+
+window.sendRequest = async (toUid, toName) => {
+    if (toUid === auth.currentUser.uid) return alert("YOU CANNOT ADD YOURSELF.");
+    const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+    await setDoc(doc(db, "users", toUid, "requests", auth.currentUser.uid), {
+        fromName: userSnap.data().username,
+        fromPfp: userSnap.data().pfp || "💀",
+        timestamp: serverTimestamp()
+    });
+    alert("REQUEST_TRANSMITTED");
+};
+
+function loadRequests() {
+    onSnapshot(collection(db, "users", auth.currentUser.uid, "requests"), snap => {
+        const list = document.getElementById("request-list");
+        const box = document.getElementById("req-box");
+        list.innerHTML = "";
+        if (snap.empty) return box.classList.add("hidden");
+        box.classList.remove("hidden");
+        snap.forEach(d => {
+            const r = d.data();
+            list.innerHTML += `<div class="req-row">${r.fromName} <button onclick="window.acceptReq('${d.id}', '${r.fromName}', '${r.fromPfp}')">ACCEPT</button></div>`;
+        });
+    });
+}
+
+window.acceptReq = async (id, name, pfp) => {
+    await setDoc(doc(db, "users", auth.currentUser.uid, "friends", id), { username: name, pfp: pfp });
+    await deleteDoc(doc(db, "users", auth.currentUser.uid, "requests", id));
+};
+
+// FEED (Friends + Self Only)
+async function loadFeed() {
+    const friendSnap = await getDoc(collection(db, "users", auth.currentUser.uid, "friends"));
+    let allowedUids = [auth.currentUser.uid];
+    onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), snap => {
+        const feed = document.getElementById("feed-content");
+        feed.innerHTML = "";
+        snap.forEach(d => {
+            const p = d.data();
+            const isOwner = p.uid === auth.currentUser.uid;
+            feed.innerHTML += `
+              <div class="grit-box post anim-fade">
+                <div class="grit-header-sub">${p.username} 
+                    ${!isOwner ? `<button onclick="window.sendRequest('${p.uid}', '${p.username}')" class="mini-btn">ADD</button>` : `<button onclick="window.deleteItem('posts', '${d.id}')" class="mini-btn del">X</button>`}
+                </div>
+                <div class="grit-body"><p>${p.text}</p></div>
+              </div>`;
+        });
+    });
+}
+
 document.getElementById("postStatusBtn").onclick = async () => {
-  const text = document.getElementById("statusText").value;
-  const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-  if (text) {
-    await addDoc(collection(db, "posts"), {
-      uid: auth.currentUser.uid,
-      username: userSnap.data().username,
-      text,
-      timestamp: serverTimestamp()
-    });
-    document.getElementById("statusText").value = "";
-  }
+    const t = document.getElementById("statusText").value;
+    const u = await getDoc(doc(db, "users", auth.currentUser.uid));
+    if(t) {
+        await addDoc(collection(db, "posts"), { uid: auth.currentUser.uid, username: u.data().username, text: t, timestamp: serverTimestamp() });
+        document.getElementById("statusText").value = "";
+    }
 };
 
-function loadFeed() {
-  onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), snap => {
-    const feed = document.getElementById("feed-content");
-    feed.innerHTML = "";
-    snap.forEach(d => {
-      const post = d.data();
-      const isOwner = post.uid === auth.currentUser.uid;
-      const postDiv = document.createElement("div");
-      postDiv.className = "scene-box bulletin";
-      postDiv.innerHTML = `
-        <div class="scene-header-sub">${post.username} 
-            ${!isOwner ? `<button onclick="window.addFriend('${post.uid}', '${post.username}')" class="scene-mini-btn">ADD</button>` : ''}
-        </div>
-        <div class="scene-body">
-          <p>${post.text}</p>
-          ${isOwner ? `<button onclick="window.deleteItem('posts', '${d.id}')" class="scene-mini-btn delete-btn">DELETE</button>` : ''}
-        </div>
-      `;
-      feed.appendChild(postDiv);
+// LOGGING & PLAN INTEGRATION
+async function updateActiveSession() {
+    const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+    const plan = userSnap.data().activePlan;
+    const ui = document.getElementById("active-session-ui");
+    if (!plan) return;
+    
+    const day = new Date().getDay() || 7; // Sunday=7
+    const exercises = plan.routine[day] || [];
+    
+    ui.innerHTML = `<h3>${plan.name} - DAY ${day}</h3>`;
+    if (exercises.length === 0) ui.innerHTML += `<p>RECOVERY DAY</p>`;
+    
+    exercises.forEach(ex => {
+        ui.innerHTML += `
+          <div class="session-row">
+            <span>${ex}</span>
+            <input id="w-${ex}" type="number" placeholder="LBS">
+            <input id="r-${ex}" type="number" placeholder="REPS">
+            <button onclick="window.logSet('${ex}')">SAVE</button>
+          </div>`;
     });
-  });
 }
 
-// FRIENDS
-window.addFriend = async (friendId, friendName) => {
-    await setDoc(doc(db, "users", auth.currentUser.uid, "friends", friendId), { 
-        username: friendName, 
-        timestamp: serverTimestamp() 
-    });
-    alert(`Following ${friendName}`);
+window.logSet = async (ex) => {
+    const w = document.getElementById(`w-${ex}`).value;
+    const r = document.getElementById(`r-${ex}`).value;
+    if(w && r) {
+        await addDoc(collection(db, "logs"), { uid: auth.currentUser.uid, exercise: ex, weight: w, reps: r, timestamp: serverTimestamp() });
+        await addDoc(collection(db, "prs"), { uid: auth.currentUser.uid, lift: ex, value: `${w} LBS` });
+        alert(`${ex} RECORDED`);
+    }
 };
-
-// LOGGING
-document.getElementById("postBtn").onclick = async () => {
-  const ex = document.getElementById("exerciseSelect").value === "CUSTOM" ? document.getElementById("customExercise").value : document.getElementById("exerciseSelect").value;
-  const w = document.getElementById("weightInput").value;
-  const r = document.getElementById("repsInput").value;
-  if (w && r) {
-    await addDoc(collection(db, "logs"), {
-      uid: auth.currentUser.uid,
-      exercise: ex, weight: w, reps: r,
-      timestamp: serverTimestamp()
-    });
-    await addDoc(collection(db, "prs"), { uid: auth.currentUser.uid, lift: ex, value: `${w} LBS` });
-  }
-};
-
-function loadMyLogs() {
-  onSnapshot(query(collection(db, "logs"), where("uid", "==", auth.currentUser.uid), orderBy("timestamp", "desc")), snap => {
-    const list = document.getElementById("my-logs-list");
-    list.innerHTML = "";
-    snap.forEach(d => {
-      list.innerHTML += `<div class="log-item"><b>${d.data().exercise}</b>: ${d.data().weight}lbs x ${d.data().reps} 
-      <a href="#" onclick="window.deleteItem('logs', '${d.id}')" class="del-x">[x]</a></div>`;
-    });
-  });
-}
-
-async function updateLogContext() {
-  const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-  const plan = userSnap.data().activePlan;
-  const tip = document.getElementById("plan-integration-tip");
-  if (plan) {
-    const day = new Date().getDay();
-    const work = plan.routine[day] || "Rest Day";
-    tip.innerHTML = `<div class="scene-tip"><b>TODAY'S MISSION:</b> ${work}</div>`;
-  }
-}
 
 function renderVault() {
-  const list = document.getElementById("premade-list");
-  list.innerHTML = "";
-  PREMADE_PLANS.forEach(p => {
-    list.innerHTML += `<div class="scene-plan-card">
-        <b>${p.name}</b>
-        <button onclick="window.setPlan('${p.id}')" class="scene-mini-btn">ACTIVATE</button>
-    </div>`;
-  });
+    const list = document.getElementById("premade-list");
+    list.innerHTML = PREMADE_PLANS.map(p => `
+        <div class="plan-card">
+            <b>${p.name}</b>
+            <button onclick="window.setPlan('${p.id}')" class="grit-btn">ACTIVATE</button>
+        </div>`).join('');
 }
 
 window.setPlan = async (id) => {
     const p = PREMADE_PLANS.find(x => x.id === id);
     await setDoc(doc(db, "users", auth.currentUser.uid), { activePlan: p }, { merge: true });
-    updateLogContext();
+    updateActiveSession();
+    alert("PROTOCOL_INITIALIZED");
 };
 
-function loadPRs() {
-    onSnapshot(query(collection(db, "prs"), where("uid", "==", auth.currentUser.uid)), snap => {
-      const list = document.getElementById("prList"); list.innerHTML = "";
-      snap.forEach(d => { list.innerHTML += `<p class="pr-row">>> ${d.data().lift}: ${d.data().value}</p>`; });
+function loadMyLogs() {
+    onSnapshot(query(collection(db, "logs"), where("uid", "==", auth.currentUser.uid), orderBy("timestamp", "desc")), snap => {
+        const list = document.getElementById("my-logs-list");
+        list.innerHTML = "";
+        snap.forEach(d => {
+            list.innerHTML += `<div class="log-item">${d.data().exercise}: ${d.data().weight}lbs x ${d.data().reps}</div>`;
+        });
     });
 }
 
-window.deleteItem = async (col, id) => { if(confirm("KILL THIS POST?")) await deleteDoc(doc(db, col, id)); };
+function loadPRs() {
+    onSnapshot(query(collection(db, "prs"), where("uid", "==", auth.currentUser.uid)), snap => {
+        const list = document.getElementById("prList"); list.innerHTML = "";
+        snap.forEach(d => { list.innerHTML += `<p>>> ${d.data().lift}: ${d.data().value}</p>`; });
+    });
+}
 
-document.getElementById("exerciseSelect").onchange = (e) => {
-  document.getElementById("customExercise").classList.toggle("hidden", e.target.value !== "CUSTOM");
-};
+window.deleteItem = async (col, id) => { if(confirm("CONFIRM_DELETE?")) await deleteDoc(doc(db, col, id)); };
