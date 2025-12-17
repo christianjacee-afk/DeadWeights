@@ -1,378 +1,268 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>DEADWEIGHTS // THE_GRAVE</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DeadWeights</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
-<body class="crt">
-  <!-- REGISTRATION -->
-  <div id="registration-screen" class="screen hidden">
-    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
+<body>
+  <div class="bg"></div>
 
-    <div class="grave-box auth-box">
-      <div class="grave-header">
-        <span>RECRUIT_INDUCTION</span>
-        <span class="header-chip">v9</span>
-      </div>
-
-      <div class="grave-body">
-        <div id="reg-step-1">
-          <input id="reg-email" type="email" placeholder="EMAIL_ADDRESS" autocomplete="email">
-          <input id="reg-pass" type="password" placeholder="CREATE_PASSCODE" autocomplete="new-password">
-          <input id="reg-confirm" type="password" placeholder="CONFIRM_PASSCODE" autocomplete="new-password">
-          <button id="nextStepBtn" class="grave-btn">CONTINUE_INDUCTION</button>
-          <div class="tiny-note" id="reg-warn"></div>
-        </div>
-
-        <div id="reg-step-2" class="hidden">
-          <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="18">
-          <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
-          <div id="initial-tag-picker" class="tag-grid"></div>
-
-          <p class="small-label">SELECT STARTING SPLIT:</p>
-          <div id="reg-plan-picker" class="plan-mini-grid"></div>
-
-          <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
-          <div class="tiny-note" id="reg-warn-2"></div>
-        </div>
-
-        <button id="returnToLoginBtn" class="grave-btn-alt">RETURN_TO_LOGIN</button>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">DW</div>
+      <div class="brandText">
+        <div class="title">DeadWeights</div>
+        <div class="subtitle">log. grind. level up.</div>
       </div>
     </div>
-  </div>
 
-  <!-- LOGIN -->
-  <div id="auth-screen" class="screen">
-    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
-    <div class="grave-box auth-box">
-      <div class="grave-header">
-        <span>EXISTING_ENTITY_ACCESS</span>
-        <span class="header-chip" id="net-status">CONNECTED</span>
-      </div>
-
-      <div class="grave-body">
-        <input id="email" type="email" placeholder="USER_ID" autocomplete="email">
-        <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
-        <button id="loginBtn" class="grave-btn">RESURRECT</button>
-        <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
-        <div class="tiny-note" id="login-warn"></div>
-      </div>
+    <div class="topActions">
+      <button id="btnSignOut" class="btn ghost hidden" type="button">Sign out</button>
     </div>
-  </div>
+  </header>
 
-  <!-- APP -->
-  <div id="app" class="screen hidden">
-    <header class="grave-nav">
-      <div class="logo pulse">
-        DEADWEIGHTS //
-        <span id="header-callsign" class="neon"></span>
-        <span id="header-rank" class="rank-pill"></span>
+  <main class="container">
+    <!-- AUTH -->
+    <section id="authCard" class="card">
+      <div class="cardHead">
+        <h2>Enter the Grave</h2>
+        <p class="muted">Sign in, create an account, or reset your password.</p>
       </div>
 
-      <div class="nav-controls">
-        <button class="mini-btn" data-tab="feed-panel">FEED</button>
-        <button class="mini-btn" data-tab="plans-panel">PLANS</button>
-        <button class="mini-btn" data-tab="profile-panel">PROFILE</button>
-        <button class="mini-btn" data-tab="friends-panel">FRIENDS</button>
-        <button class="mini-btn" data-tab="settings-panel">SETTINGS</button>
-        <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
+      <div class="grid2">
+        <label class="field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="email" placeholder="you@email.com" />
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </label>
       </div>
-    </header>
 
-    <div class="grave-grid">
-      <!-- LEFT COLUMN -->
-      <aside class="col">
-        <div class="grave-box">
-          <div class="grave-header">
-            <span>CALLING_CARD</span>
-            <span class="header-chip" id="role-chip">USER</span>
-          </div>
+      <div class="row">
+        <button id="btnSignIn" class="btn" type="button">Sign in</button>
+        <button id="btnSignUp" class="btn alt" type="button">New user</button>
+        <button id="btnForgot" class="btn ghost" type="button">Forgot password</button>
+      </div>
 
-          <div id="calling-card" class="calling-card">
-            <div class="card-bg"></div>
-            <div class="card-scan"></div>
+      <div id="authMsg" class="msg"></div>
+      <div class="fineprint">
+        Tip: If GitHub Pages is cached, hard refresh (Ctrl+F5).
+      </div>
+    </section>
 
-            <div class="card-top">
-              <div id="avatarWrap" class="avatar-wrap"></div>
-              <div class="card-meta">
-                <div class="cadaver-name" id="profileUsername">SUBJECT</div>
-                <div class="muted">
-                  <span class="mono">CARVINGS:</span> <b id="stat-count">0</b>
-                  <span class="dot">•</span>
-                  <span class="mono">RANK:</span> <b id="user-rank">NEWBORN</b>
-                </div>
-                <div class="muted tiny" id="active-plan-label">NO_ACTIVE_SPLIT</div>
-              </div>
-            </div>
+    <!-- APP -->
+    <section id="appCard" class="card hidden">
+      <div class="cardHead">
+        <h2>Dashboard</h2>
+        <p class="muted">Pick a split, set your start day, and log each workout.</p>
+      </div>
 
-            <div class="card-row">
-              <div id="user-grave-tag" class="grave-tag"><span class="tag-text">CADAVER</span></div>
-            </div>
-
-            <div class="card-row trophies-row">
-              <div class="small-label">TROPHIES</div>
-              <div id="trophy-strip" class="trophy-strip"></div>
-            </div>
-          </div>
+      <div class="pillRow">
+        <div class="pill">
+          <div class="pillLabel">Signed in as</div>
+          <div id="whoami" class="pillValue">—</div>
         </div>
 
-        <div class="grave-box">
-          <div class="grave-header">
-            <span>LEADERBOARD</span>
-            <span class="header-chip">TOP_5</span>
-          </div>
-          <div id="leaderboard" class="grave-body small-text"></div>
+        <div class="pill">
+          <div class="pillLabel">Active split</div>
+          <div id="activeSplitName" class="pillValue">None</div>
         </div>
 
-        <div class="grave-box hidden" id="admin-box">
-          <div class="grave-header">
-            <span>ADMIN_CONSOLE</span>
-            <span class="header-chip danger">LIVE</span>
+        <div class="pill">
+          <div class="pillLabel">Week starts</div>
+          <div id="weekStartsLabel" class="pillValue">—</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="splits" type="button">Splits</button>
+        <button class="tab" data-tab="log" type="button">Log</button>
+        <button class="tab" data-tab="builder" type="button">Build a Split</button>
+        <button class="tab" data-tab="profile" type="button">Profile</button>
+      </div>
+
+      <!-- SPLITS -->
+      <section class="tabPanel" id="panel-splits">
+        <div class="panelGrid">
+          <div class="panel cardLite">
+            <h3>Built-in Splits</h3>
+            <p class="muted">Choose one. Then decide when to start.</p>
+
+            <div class="row wrap">
+              <label class="field inline">
+                <span>Start</span>
+                <select id="startMode">
+                  <option value="today">Today</option>
+                  <option value="custom">Pick a day</option>
+                </select>
+              </label>
+
+              <label class="field inline">
+                <span>Custom day</span>
+                <input id="customStart" type="date" disabled />
+              </label>
+
+              <button id="btnApplyStart" class="btn small" type="button">Apply</button>
+            </div>
+
+            <div id="splitList" class="splitList"></div>
           </div>
-          <div class="grave-body">
-            <div class="tiny-note">Admins can delete any post and mark users as “flagged”. (Rules must enforce it.)</div>
-            <input id="admin-user-lookup" placeholder="LOOKUP_CALLSIGN...">
-            <div id="admin-user-results" class="stack"></div>
+
+          <div class="panel cardLite">
+            <h3>What you’ll do next</h3>
+            <p class="muted">Based on your start date + split order.</p>
+            <div class="nextBox">
+              <div class="nextLine"><span class="k">Today:</span> <span id="todayWorkout">—</span></div>
+              <div class="nextLine"><span class="k">Next workout:</span> <span id="nextWorkout">—</span></div>
+            </div>
+
+            <div class="hr"></div>
+
+            <h3>Active Split Details</h3>
+            <div id="activeSplitDetails" class="details"></div>
           </div>
         </div>
-      </aside>
+      </section>
 
-      <!-- CENTER -->
-      <main class="col-main">
-        <!-- FEED -->
-        <section id="feed-panel" class="panel">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>BROADCAST_CARVING</span>
-              <span class="header-chip" id="feed-mode">PUBLIC</span>
-            </div>
-            <div class="grave-body">
-              <textarea id="statusText" placeholder="SHARE INTEL..."></textarea>
-              <div class="row-split">
-                <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
-                <button id="postStatusAnonBtn" class="grave-btn-alt">TRANSMIT_ANON</button>
-              </div>
-              <div class="tiny-note">Tip: click a callsign in the feed to open their profile page.</div>
-            </div>
-          </div>
-          <div id="feed-content"></div>
-        </section>
+      <!-- LOG -->
+      <section class="tabPanel hidden" id="panel-log">
+        <div class="panelGrid">
+          <div class="panel cardLite">
+            <h3>Workout Log</h3>
+            <p class="muted">Log each workout in order. Dropdowns included.</p>
 
-        <!-- PLANS -->
-        <section id="plans-panel" class="panel hidden">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>WORKOUT_SPLIT_INDEX</span>
-              <span class="header-chip">FILTER</span>
+            <div class="row wrap">
+              <label class="field inline">
+                <span>Log date</span>
+                <input id="logDate" type="date" />
+              </label>
+
+              <label class="field inline">
+                <span>Workout</span>
+                <select id="workoutSelect"></select>
+              </label>
+
+              <button id="btnLoadWorkout" class="btn small" type="button">Load</button>
             </div>
 
-            <div class="grave-body">
-              <div class="filter-grid">
-                <div class="filter-chip">
-                  <div class="small-label">DAYS/WEEK</div>
-                  <select id="plan-days">
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5" selected>5</option>
-                    <option value="6">6</option>
-                  </select>
-                </div>
+            <div id="workoutEditor" class="workoutEditor"></div>
 
-                <div class="filter-chip">
-                  <div class="small-label">GOAL</div>
-                  <select id="plan-goal">
-                    <option value="hypertrophy" selected>HYPERTROPHY</option>
-                    <option value="strength">STRENGTH</option>
-                    <option value="balanced">BALANCED</option>
-                  </select>
-                </div>
-
-                <div class="filter-chip">
-                  <div class="small-label">STYLE</div>
-                  <select id="plan-style">
-                    <option value="any" selected>ANY</option>
-                    <option value="upperlower">UPPER/LOWER</option>
-                    <option value="ppl">PPL</option>
-                    <option value="fullbody">FULL_BODY</option>
-                    <option value="bro">BRO_SPLIT</option>
-                  </select>
-                </div>
-
-                <button id="applyPlanFiltersBtn" class="mini-btn">SCAN_SPLITS</button>
-              </div>
-
-              <div class="divider"></div>
-
-              <div class="small-label">AVAILABLE_SPLITS</div>
-              <div id="plans-list" class="plans-list"></div>
+            <div class="row">
+              <button id="btnSaveLog" class="btn" type="button">Save log</button>
+              <button id="btnClearWorkout" class="btn ghost" type="button">Clear</button>
             </div>
+
+            <div id="logMsg" class="msg"></div>
           </div>
 
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>ACTIVE_SPLIT_LOGGING</span>
-              <span class="header-chip" id="log-day-chip">DAY_NONE</span>
-            </div>
-
-            <div class="grave-body">
-              <div class="row-split">
-                <div style="flex:1">
-                  <div class="small-label">SELECT_DAY</div>
-                  <select id="log-day"></select>
-                </div>
-                <div style="flex:1">
-                  <div class="small-label">EXERCISE</div>
-                  <select id="log-ex"></select>
-                </div>
-              </div>
-
-              <div class="row-split">
-                <div style="flex:1">
-                  <div class="small-label">WEIGHT</div>
-                  <input id="log-w" type="number" placeholder="LBS" inputmode="decimal">
-                </div>
-                <div style="flex:1">
-                  <div class="small-label">REPS</div>
-                  <input id="log-r" type="number" placeholder="REPS" inputmode="numeric">
-                </div>
-              </div>
-
-              <div class="row-split">
-                <button id="submitLogBtn" class="grave-btn">RECORD_CARVING</button>
-                <button id="addExerciseBtn" class="grave-btn-alt">ADD_EXERCISE_TO_DAY</button>
-              </div>
-
-              <div class="tiny-note" id="log-hint">Activate a split to unlock day templates + dropdowns.</div>
-            </div>
+          <div class="panel cardLite">
+            <h3>Recent Logs</h3>
+            <div id="recentLogs" class="logs"></div>
           </div>
+        </div>
+      </section>
 
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>RECENT_WORK</span>
-              <span class="header-chip">LAST_20</span>
-            </div>
-            <div id="workout-history" class="grave-body index-container"></div>
-          </div>
-        </section>
+      <!-- BUILDER -->
+      <section class="tabPanel hidden" id="panel-builder">
+        <div class="panelGrid">
+          <div class="panel cardLite">
+            <h3>Build a Custom Split</h3>
+            <p class="muted">Name it, set days, then add workouts in order.</p>
 
-        <!-- PROFILE -->
-        <section id="profile-panel" class="panel hidden">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>ENTITY_PROFILE</span>
-              <span class="header-chip" id="profile-chip">SELF</span>
-            </div>
+            <div class="grid2">
+              <label class="field">
+                <span>Split name</span>
+                <input id="customSplitName" placeholder="e.g., The Iron Ritual (M–F)" />
+              </label>
 
-            <div class="grave-body">
-              <div class="profile-top">
-                <div id="profileAvatar" class="profile-avatar"></div>
-                <div class="profile-info">
-                  <div class="profile-name" id="profileNameBig">SUBJECT</div>
-                  <div class="muted tiny" id="profileMeta"></div>
-                  <div class="profile-badges" id="profileBadges"></div>
-                </div>
-              </div>
-
-              <div class="divider"></div>
-
-              <div class="profile-grid">
-                <div class="grave-box inner">
-                  <div class="grave-header"><span>PR_HALL</span><span class="header-chip">TOP</span></div>
-                  <div id="pr-hall" class="grave-body small-text"></div>
-                </div>
-
-                <div class="grave-box inner">
-                  <div class="grave-header"><span>RECENT_POSTS</span><span class="header-chip">10</span></div>
-                  <div id="profile-posts" class="grave-body"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- FRIENDS -->
-        <section id="friends-panel" class="panel hidden">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>SEARCH_ENTITIES</span>
-              <span class="header-chip">CALLSIGN</span>
-            </div>
-            <div class="grave-body">
-              <input id="userSearch" placeholder="SEARCH_CALLSIGN...">
-              <div id="search-results" class="stack"></div>
-            </div>
-          </div>
-
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>THE_COVEN</span>
-              <span class="header-chip">FRIENDS</span>
-            </div>
-            <div id="friends-list" class="grave-body"></div>
-          </div>
-        </section>
-
-        <!-- SETTINGS -->
-        <section id="settings-panel" class="panel hidden">
-          <div class="grave-box">
-            <div class="grave-header">
-              <span>USER_PARAMETERS</span>
-              <span class="header-chip">CUSTOMIZE</span>
-            </div>
-            <div class="grave-body">
-              <div class="small-label">CHANGE_CALLSIGN</div>
-              <input id="new-username" placeholder="NEW_CALLSIGN" maxlength="18">
-              <button id="renameBtn" class="grave-btn">RENAME_ENTITY</button>
-
-              <div class="divider"></div>
-
-              <div class="small-label">GRAVE_TAG_VISUALS</div>
-              <div id="settings-tag-picker" class="tag-grid"></div>
-              <button id="updateTagBtn" class="grave-btn">UPDATE_TAG</button>
-
-              <div class="divider"></div>
-
-              <div class="small-label">CALLING_CARD_STYLE</div>
-              <div id="card-style-picker" class="card-style-grid"></div>
-              <button id="saveCardStyleBtn" class="grave-btn">SEAL_CALLING_CARD</button>
-
-              <div class="divider"></div>
-
-              <div class="small-label">PRIVACY</div>
-              <label class="toggle">
-                <input id="privacy-hide-lifts" type="checkbox">
-                <span class="toggle-ui"></span>
-                <span class="toggle-text">HIDE_LIFTS_ON_PROFILE</span>
+              <label class="field">
+                <span>Days per week</span>
+                <select id="customDays">
+                  <option>3</option>
+                  <option>4</option>
+                  <option selected>5</option>
+                  <option>6</option>
+                  <option>7</option>
+                </select>
               </label>
             </div>
-          </div>
-        </section>
-      </main>
 
-      <!-- RIGHT COLUMN -->
-      <aside class="col">
-        <div class="grave-box">
-          <div class="grave-header">
-            <span>CARVING_INDEX</span>
-            <span class="header-chip">PRS</span>
+            <div class="hr"></div>
+
+            <div class="row wrap">
+              <label class="field inline grow">
+                <span>Add workout name</span>
+                <input id="workoutNameInput" placeholder="e.g., Upper Power" />
+              </label>
+              <button id="btnAddWorkout" class="btn small" type="button">Add</button>
+            </div>
+
+            <div id="customWorkoutsList" class="splitList"></div>
+
+            <div class="row">
+              <button id="btnSaveCustomSplit" class="btn alt" type="button">Save split</button>
+              <button id="btnUseCustomSplit" class="btn" type="button">Use this split</button>
+            </div>
+
+            <div id="builderMsg" class="msg"></div>
           </div>
-          <div id="prList" class="grave-body index-container"></div>
+
+          <div class="panel cardLite">
+            <h3>Your Saved Custom Splits</h3>
+            <div id="savedCustomSplits" class="splitList"></div>
+          </div>
         </div>
+      </section>
 
-        <div class="grave-box">
-          <div class="grave-header">
-            <span>SYSTEM_FEED</span>
-            <span class="header-chip">EVENTS</span>
+      <!-- PROFILE -->
+      <section class="tabPanel hidden" id="panel-profile">
+        <div class="panelGrid">
+          <div class="panel cardLite">
+            <h3>Profile</h3>
+            <p class="muted">This is where “profile pages” start: name + goals now, expand later.</p>
+
+            <div class="grid2">
+              <label class="field">
+                <span>Display name</span>
+                <input id="displayName" placeholder="e.g., Christian" />
+              </label>
+
+              <label class="field">
+                <span>Goal</span>
+                <input id="goal" placeholder="e.g., 405 deadlift" />
+              </label>
+            </div>
+
+            <div class="row">
+              <button id="btnSaveProfile" class="btn" type="button">Save profile</button>
+            </div>
+
+            <div id="profileMsg" class="msg"></div>
           </div>
-          <div id="system-feed" class="grave-body small-text"></div>
-        </div>
-      </aside>
-    </div>
-  </div>
 
-  <script type="module" src="app.js"></script>
+          <div class="panel cardLite">
+            <h3>Coming next</h3>
+            <ul class="muted">
+              <li>Avatar + “scary” calling cards</li>
+              <li>Lift trophies + tags based on PR milestones</li>
+              <li>Weekly streaks + XP</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span class="muted">DeadWeights • GitHub Pages + Firebase</span>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
