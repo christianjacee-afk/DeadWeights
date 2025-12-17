@@ -2,93 +2,121 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MASSGRAVES // UNDERGROUND</title>
+  <title>MassGraves | MySpace</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="crt"></div>
 
-<div id="username-screen" class="screen" style="z-index: 2000; position: fixed; background: rgba(0,0,0,0.95); inset: 0; display: none; align-items: center; justify-content: center;">
-  <div class="panel" style="width: 90%; max-width: 400px;">
-    <h3 style="text-align: center;">IDENTIFY YOURSELF</h3>
-    <input id="usernameInput" placeholder="TAG_NAME" style="text-align: center; font-size: 24px; border-color: #ff00ea;">
-    <button id="saveUserBtn" style="background: #ff00ea; color: white;">INITIALIZE TAG</button>
+<div id="username-screen" class="overlay" style="display: none;">
+  <div class="ms-box">
+    <div class="ms-header">Setup Your Profile</div>
+    <div class="ms-body">
+      <p>Enter your Name / Grave Tag:</p>
+      <input id="usernameInput" placeholder="Name">
+      <button id="saveUserBtn" class="ms-btn">Create Profile</button>
+    </div>
   </div>
 </div>
 
 <div id="auth-screen" class="screen">
-  <h1 class="glitch">MASSGRAVES</h1>
-  <div class="panel">
-    <p style="text-align:center; color: #ff00ea;">[ ACCESS RESTRICTED ]</p>
-    <input id="email" type="email" placeholder="USER_ID (EMAIL)">
-    <div style="position: relative; width: 100%;">
-      <input id="password" type="password" placeholder="PASS_CODE">
-      <button id="peekBtn" style="position: absolute; right: 5px; top: 5px; width: 50px; height: 32px; font-size: 10px; background: #222; color: #00ff41; border: 1px solid #00ff41;">PEEK</button>
+  <div class="ms-top-nav">MassGraves.com</div>
+  <div class="ms-box" style="max-width: 400px; margin: 50px auto;">
+    <div class="ms-header">Member Login</div>
+    <div class="ms-body">
+      <input id="email" type="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button id="loginBtn" class="ms-btn">Login</button>
+      <button id="signupBtn" class="ms-btn-alt">Sign Up</button>
+      <p id="auth-msg" style="color:red; font-size:11px;"></p>
     </div>
-    <button id="loginBtn">LOGIN</button>
-    <div style="margin: 10px 0; text-align: center;">
-      <span id="resetBtn" style="color: #888; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">FORGOT PASS_CODE?</span>
-    </div>
-    <div style="margin: 10px 0; text-align: center; color: #444;">— OR —</div>
-    <button id="signupBtn" style="background: #222; color: #00ff41; border: 1px solid #00ff41;">ENTER THE GRAVE</button>
   </div>
-  <p id="auth-msg" style="text-align: center; color: #ff00ea;"></p>
 </div>
 
 <div id="app" class="screen hidden">
-  <h1 class="glitch" style="font-size: 32px; margin: 10px 0;">MASSGRAVES</h1>
-  <nav id="main-nav">
-    <button data-show="feed">FEED</button>
-    <button data-show="log">LOG</button>
-    <button data-show="vault">VAULT</button>
-    <button data-show="active-plan">PLAN</button>
-    <button data-show="prs">STATS</button>
-    <button id="logoutBtn" style="color: #ff00ea;">EXIT</button>
-  </nav>
+  <div class="ms-top-nav">
+    <span>MassGraves.com</span>
+    <button id="logoutBtn">Logout</button>
+  </div>
 
-  <section id="feed" class="panel"></section>
+  <div class="ms-container">
+    <div class="ms-left">
+      <div class="ms-box">
+        <div id="profileUsername" class="ms-header">Username</div>
+        <div class="ms-body center">
+          <img src="https://placehold.co/150x150/003399/white?text=PHOTO" class="ms-profile-pic">
+          <p>"Status: Killing it in the gym"</p>
+        </div>
+      </div>
 
-  <section id="log" class="panel hidden">
-    <h3>REPORT PROGRESS</h3>
-    <select id="exerciseSelect">
-        <option value="Bench Press">Bench Press</option>
-        <option value="Squat">Squat</option>
-        <option value="Deadlift">Deadlift</option>
-        <option value="OHP">Overhead Press</option>
-        <option value="Pull Ups">Pull Ups</option>
-        <option value="CUSTOM">-- CUSTOM --</option>
-    </select>
-    <input id="customExercise" class="hidden" placeholder="MOVEMENT NAME">
-    <input id="weightInput" type="number" placeholder="LBS">
-    <input id="repsInput" type="number" placeholder="REPS">
-    <button id="postBtn">TRANSMIT</button>
-  </section>
+      <div class="ms-box">
+        <div class="ms-header">My Links</div>
+        <div class="ms-body">
+          <ul class="ms-nav-list">
+            <li><a href="#" data-show="feed">Home (Feed)</a></li>
+            <li><a href="#" data-show="log">Workout Log</a></li>
+            <li><a href="#" data-show="vault">Plan Vault</a></li>
+            <li><a href="#" data-show="prs">My Stats</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
-  <section id="vault" class="panel hidden">
-    <h3>PLAN_VAULT</h3>
-    <div id="premade-list"></div>
-    <button id="goToBuilderBtn" style="background:#ff00ea; color:#fff; margin-top:20px;">BUILD CUSTOM</button>
-  </section>
+    <div class="ms-right">
+      
+      <section id="feed" class="panel">
+        <div class="ms-box">
+          <div class="ms-header">Post a Bulletin / Status</div>
+          <div class="ms-body">
+            <textarea id="statusText" placeholder="What's on your mind?"></textarea>
+            <button id="postStatusBtn" class="ms-btn">Post</button>
+          </div>
+        </div>
+        <div id="feed-content"></div>
+      </section>
 
-  <section id="builder" class="panel hidden">
-    <h3>CUSTOM_BUILDER</h3>
-    <input id="newPlanName" placeholder="PLAN NAME">
-    <input id="newPlanDays" type="number" placeholder="DAYS (3-7)">
-    <div id="day-inputs"></div>
-    <button id="saveCustomBtn">FINALIZE</button>
-  </section>
+      <section id="log" class="panel hidden">
+        <div class="ms-box">
+          <div class="ms-header">Today's Protocol</div>
+          <div class="ms-body">
+            <div id="plan-integration-tip"></div>
+            <select id="exerciseSelect">
+              <option value="Bench Press">Bench Press</option>
+              <option value="Squat">Squat</option>
+              <option value="Deadlift">Deadlift</option>
+              <option value="OHP">OHP</option>
+              <option value="CUSTOM">-- Custom --</option>
+            </select>
+            <input id="customExercise" class="hidden" placeholder="Exercise Name">
+            <div class="row">
+              <input id="weightInput" type="number" placeholder="Lbs">
+              <input id="repsInput" type="number" placeholder="Reps">
+            </div>
+            <button id="postBtn" class="ms-btn">Log Workout</button>
+          </div>
+        </div>
+        <div id="workout-history" class="ms-box" style="margin-top:10px;">
+           <div class="ms-header">My Workout Logs</div>
+           <div id="my-logs-list" class="ms-body"></div>
+        </div>
+      </section>
 
-  <section id="active-plan" class="panel hidden">
-    <h3>ACTIVE_PROTOCOL</h3>
-    <div id="active-plan-display"></div>
-  </section>
+      <section id="vault" class="panel hidden">
+        <div class="ms-box">
+          <div class="ms-header">Training Vault</div>
+          <div id="premade-list" class="ms-body"></div>
+        </div>
+      </section>
 
-  <section id="prs" class="panel hidden">
-    <h3>MAX_EFFORT_LOG</h3>
-    <div id="prList"></div>
-    <div id="profileUsername" style="color: #ff00ea; margin-top: 20px;"></div>
-  </section>
+      <section id="prs" class="panel hidden">
+        <div class="ms-box">
+          <div class="ms-header">Personal Records</div>
+          <div id="prList" class="ms-body"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
 </div>
 
 <script type="module" src="app.js"></script>
