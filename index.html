@@ -2,42 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <title>MassGraves</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Web App</title>
 
+  <!-- 80s fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase (Safari-safe compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-<h1>My Web App</h1>
-<button onclick="saveData()">Save Data</button>
+<div id="crt"></div>
 
-<script>
-  // Your specific Firebase credentials
-  const firebaseConfig = {
-    apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
-    authDomain: "deadweights-365c6.firebaseapp.com",
-    projectId: "deadweights-365c6",
-    databaseURL: "https://deadweights-365c6-default-rtdb.firebaseio.com", // Added based on your Project ID
-    storageBucket: "deadweights-365c6.firebasestorage.app",
-    messagingSenderId: "727970628768",
-    appId: "1:727970628768:web:3dfd719731f6632e88f5c5",
-    measurementId: "G-LDDZ5HEB8K"
-  };
+<div id="auth-screen" class="screen">
+  <h1 class="glitch">MASSGRAVES</h1>
 
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
+  <input id="email" placeholder="email">
+  <input id="password" type="password" placeholder="password">
+  <input id="invite" placeholder="invite code">
 
-  function saveData() {
-    database.ref("test").set({
-      message: "Hello world",
-      timestamp: Date.now()
-    });
-    alert("Data sent to Firebase!");
-  }
-</script>
+  <button onclick="signup()">ENTER THE GRAVE</button>
+  <button onclick="login()">LOGIN</button>
 
+  <p id="auth-msg"></p>
+</div>
+
+<div id="app" class="screen hidden">
+  <header>
+    <h2>MassGraves</h2>
+    <button onclick="logout()">LOGOUT</button>
+  </header>
+
+  <nav>
+    <button onclick="show('feed')">FEED</button>
+    <button onclick="show('log')">LOG WORKOUT</button>
+    <button onclick="show('prs')">PRs</button>
+    <button onclick="show('profile')">PROFILE</button>
+  </nav>
+
+  <section id="feed" class="panel"></section>
+
+  <section id="log" class="panel hidden">
+    <textarea id="workoutText" placeholder="Workout log..."></textarea>
+    <button onclick="postWorkout()">POST</button>
+  </section>
+
+  <section id="prs" class="panel hidden">
+    <input id="prName" placeholder="Lift">
+    <input id="prValue" placeholder="Weight">
+    <button onclick="savePR()">SAVE PR</button>
+    <div id="prList"></div>
+  </section>
+
+  <section id="profile" class="panel hidden">
+    <h3 id="profileEmail"></h3>
+  </section>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
