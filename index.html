@@ -2,118 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DEADWEIGHTS // INDUSTRIAL STRENGTH</title>
+  <title>DEADWEIGHTS // MASSGRAVE_RECRUIT</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="username-screen" class="overlay" style="display: none;">
-  <div class="grit-box anim-fade">
-    <div class="grit-header">IDENT_STATION</div>
-    <div class="grit-body">
-      <p>CHOOSE YOUR CALLSIGN:</p>
-      <input id="usernameInput" placeholder="USER_NAME">
-      <p>SELECT AVATAR:</p>
-      <div id="pfp-grid"></div>
-      <button id="saveUserBtn" class="grit-btn">INITIALIZE</button>
+  <div class="terminal-box">
+    <div class="terminal-header">IDENT_STATION</div>
+    <div class="terminal-body">
+      <p>CHOOSE CALLSIGN:</p>
+      <input id="usernameInput" placeholder="RECRUIT_NAME">
+      <p>SELECT INITIAL CALLING CARD:</p>
+      <div id="card-picker"></div>
+      <button id="saveUserBtn" class="terminal-btn">INITIALIZE</button>
     </div>
   </div>
 </div>
 
 <div id="auth-screen" class="screen">
-  <div class="logo-container anim-glitch">
-    <h1 class="grit-title">DEADWEIGHTS</h1>
-    <div class="subtitle">STRENGTH // RECOVERY // DEPRAVITY</div>
-  </div>
-  <div class="grit-box anim-slide-up" style="max-width: 350px; margin: 50px auto;">
-    <div class="grit-header">SECURE_LOGIN</div>
-    <div class="grit-body">
-      <input id="email" type="email" placeholder="EMAIL">
-      <input id="password" type="password" placeholder="PASSWORD">
-      <button id="loginBtn" class="grit-btn">ACCESS</button>
-      <button id="signupBtn" class="grit-btn-alt">REGISTER</button>
+  <div class="glitch-title">DEADWEIGHTS</div>
+  <div class="terminal-box auth-box">
+    <div class="terminal-header">ACCESS_REQUIRED</div>
+    <div class="terminal-body">
+      <input id="email" type="email" placeholder="USER_ID">
+      <input id="password" type="password" placeholder="PASS_CODE">
+      <button id="loginBtn" class="terminal-btn">LOGIN</button>
+      <button id="signupBtn" class="terminal-btn-alt">REGISTER</button>
       <p id="auth-msg"></p>
     </div>
   </div>
 </div>
 
 <div id="app" class="screen hidden">
-  <div class="grit-nav">
-    <span class="logo">DEADWEIGHTS</span>
-    <div class="nav-links">
-        <a href="#" data-show="feed">FEED</a>
-        <a href="#" data-show="log">ACTIVE_LOG</a>
-        <a href="#" data-show="vault">VAULT</a>
-        <a href="#" data-show="prs">STATS</a>
-        <button id="logoutBtn">LOGOUT</button>
-    </div>
-  </div>
+  <header class="main-header">
+    <div class="logo">DEADWEIGHTS // <span id="header-callsign"></span></div>
+    <button id="logoutBtn" class="mini-btn">DISCONNECT</button>
+  </header>
 
-  <div class="grit-container">
-    <div class="grit-left">
-      <div class="grit-box profile-box">
-        <div id="profileUsername" class="grit-header">USER_ID</div>
-        <div class="grit-body center">
-          <div id="user-pfp-display" class="pfp-main"></div>
-          <div class="grit-divider"></div>
-          <p class="status-msg">"READY_FOR_WORK"</p>
+  <div class="dashboard">
+    <aside class="col-left">
+      <div class="terminal-box profile-card">
+        <div id="user-calling-card" class="calling-card anim-card">
+          <span id="pfp-text">RECRUIT</span>
         </div>
-      </div>
-
-      <div class="grit-box">
-        <div class="grit-header">NETWORK</div>
-        <div id="friends-list" class="grit-body">
-            <p class="empty-msg">NO_FRIENDS_FOUND</p>
-        </div>
-      </div>
-
-      <div id="req-box" class="grit-box hidden">
-        <div class="grit-header">FRIEND_REQUESTS</div>
-        <div id="request-list" class="grit-body"></div>
-      </div>
-    </div>
-
-    <div class="grit-right">
-      <section id="feed" class="panel">
-        <div class="grit-box">
-          <div class="grit-header">BROADCAST_BULLETIN</div>
-          <div class="grit-body">
-            <textarea id="statusText" placeholder="TRANSMIT MESSAGE..."></textarea>
-            <button id="postStatusBtn" class="grit-btn">SEND</button>
+        <div class="terminal-body">
+          <h2 id="profileUsername">USER</h2>
+          <div class="stats-grid">
+            <div class="stat"><small>LIFTS</small><b id="stat-count">0</b></div>
+            <div class="stat"><small>RANK</small><b>PVT</b></div>
           </div>
         </div>
-        <div id="feed-content"></div>
-      </section>
+      </div>
 
-      <section id="log" class="panel hidden">
-        <div class="grit-box active-workout-box">
-          <div class="grit-header">CURRENT_ROUTINE</div>
-          <div id="active-session-ui" class="grit-body">
-            <p>NO ACTIVE PLAN. GO TO VAULT.</p>
-          </div>
+      <div class="terminal-box">
+        <div class="terminal-header">NETWORK_INTEL</div>
+        <div id="friends-list" class="terminal-body"></div>
+        <div id="req-box" class="terminal-body hidden" style="border-top: 1px solid #333;">
+            <p class="blink">!! RECRUIT_PENDING !!</p>
+            <div id="request-list"></div>
         </div>
-        <div class="grit-box">
-           <div class="grit-header">RECOVERY_DATA</div>
-           <div id="my-logs-list" class="grit-body"></div>
-        </div>
-      </section>
+      </div>
+    </aside>
 
-      <section id="vault" class="panel hidden">
-        <div class="grit-box">
-          <div class="grit-header">RECRUIT_PROTOCOLS</div>
-          <div id="premade-list" class="grit-body"></div>
+    <main class="col-center">
+      <div class="terminal-box">
+        <div class="terminal-header">BROADCAST_STATION</div>
+        <div class="terminal-body">
+          <textarea id="statusText" placeholder="TRANSMIT TO THE GRAVE..."></textarea>
+          <button id="postStatusBtn" class="terminal-btn">SEND_BULLETIN</button>
         </div>
-      </section>
+      </div>
+      <div id="feed-content"></div>
+    </main>
 
-      <section id="prs" class="panel hidden">
-        <div class="grit-box">
-          <div class="grit-header">MAX_LOAD_DATA</div>
-          <div id="prList" class="grit-body"></div>
+    <aside class="col-right">
+      <div class="terminal-box active-log">
+        <div class="terminal-header">MISSION_LOG</div>
+        <div id="active-session-ui" class="terminal-body">
+          <p>NO PROTOCOL LOADED.</p>
+          <button onclick="window.showVault()" class="terminal-btn">LOAD_PROTOCOL</button>
         </div>
-      </section>
-    </div>
+      </div>
+
+      <div class="terminal-box">
+        <div class="terminal-header">MAX_EFFORT_DATA</div>
+        <div id="prList" class="terminal-body"></div>
+      </div>
+    </aside>
   </div>
+</div>
+
+<div id="vault-modal" class="overlay hidden">
+    <div class="terminal-box" style="width: 400px;">
+        <div class="terminal-header">VAULT_ACCESS <button onclick="window.closeVault()" class="mini-btn" style="float:right">X</button></div>
+        <div id="premade-list" class="terminal-body"></div>
+    </div>
 </div>
 
 <script type="module" src="app.js"></script>
