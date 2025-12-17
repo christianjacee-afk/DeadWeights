@@ -1,1 +1,74 @@
+body {
+  margin: 0;
+  background: black;
+  color: #0f0;
+  font-family: 'VT323', monospace;
+}
+
+#crt {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    rgba(0,0,0,.15),
+    rgba(0,0,0,.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: flicker 3s infinite;
+}
+
+@keyframes flicker {
+  0%,100% { opacity:.9 }
+  50% { opacity:.7 }
+}
+
+.screen {
+  padding: 20px;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+input, textarea {
+  width: 90%;
+  margin: 6px 0;
+  background: black;
+  border: 1px solid #0f0;
+  color: #0f0;
+  padding: 8px;
+}
+
+button {
+  margin: 6px;
+  padding: 8px 16px;
+  background: black;
+  border: 1px solid #0f0;
+  color: #0f0;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+button:hover {
+  background: #0f0;
+  color: black;
+  box-shadow: 0 0 12px #0f0;
+}
+
+nav {
+  display: flex;
+  justify-content: space-around;
+}
+
+.panel {
+  margin-top: 12px;
+}
+
+.glitch {
+  font-family: 'Metal Mania', cursive;
+  font-size: 48px;
+  text-shadow: 2px 2px red, -2px -2px cyan;
+}
 
