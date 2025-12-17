@@ -10,24 +10,28 @@
 <body>
 <div id="crt"></div>
 
+<div id="username-screen" class="screen hidden" style="z-index: 2000; position: fixed; background: rgba(0,0,0,0.95); inset: 0; display: flex; align-items: center; justify-content: center;">
+  <div class="panel" style="width: 90%; max-width: 400px;">
+    <h3 style="text-align: center;">IDENTIFY YOURSELF</h3>
+    <p style="text-align: center; font-size: 14px; color: #888;">ENTER YOUR GRAVE_TAG (USERNAME). THIS WILL BE YOUR PUBLIC IDENTITY ON THE FEED.</p>
+    <input id="usernameInput" placeholder="TAG_NAME" style="text-align: center; font-size: 24px; border-color: #ff00ea;">
+    <button onclick="window.saveUsername()" style="background: #ff00ea; color: white;">INITIALIZE TAG</button>
+  </div>
+</div>
+
 <div id="auth-screen" class="screen">
   <h1 class="glitch">MASSGRAVES</h1>
   <div class="panel">
     <p style="text-align:center; color: #ff00ea;">[ ACCESS RESTRICTED ]</p>
-    
     <input id="email" placeholder="USER_ID (EMAIL)">
-    
     <div style="position: relative; width: 100%;">
       <input id="password" type="password" placeholder="PASS_CODE">
       <button onclick="window.togglePassword()" style="position: absolute; right: 5px; top: 5px; width: 50px; height: 32px; font-size: 10px; background: #222; color: #00ff41; border: 1px solid #00ff41; cursor: pointer;">PEEK</button>
     </div>
-
     <button onclick="window.login()">LOGIN</button>
-    
     <div style="margin: 10px 0; text-align: center;">
       <span onclick="window.resetPassword()" style="color: #888; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">FORGOT PASS_CODE?</span>
     </div>
-
     <div style="margin: 10px 0; text-align: center; color: #444;">— OR —</div>
     <button id="signupBtn">ENTER THE GRAVE</button>
   </div>
@@ -69,7 +73,7 @@
   <section id="vault" class="panel hidden">
     <h3>PLAN_VAULT</h3>
     <div id="premade-list"></div>
-    <hr style="border-color:#444;">
+    <hr style="border-color:#444; margin: 20px 0;">
     <button onclick="window.show('builder')" style="background:#ff00ea; color:#fff;">BUILD CUSTOM</button>
   </section>
 
@@ -91,7 +95,7 @@
   <section id="prs" class="panel hidden">
     <h3>MAX_EFFORT_LOG</h3>
     <div id="prList"></div>
-    <h3 id="profileEmail" style="font-size: 12px; opacity: 0.5; margin-top: 30px;"></h3>
+    <div id="profileUsername" style="color: #ff00ea; margin-top: 30px; border-top: 1px solid #222; padding-top: 10px;"></div>
   </section>
 </div>
 </body>
