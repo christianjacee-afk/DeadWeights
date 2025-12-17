@@ -2,110 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>xX_MASSGRAVES_Xx | SCENE</title>
+  <title>DEADWEIGHTS // INDUSTRIAL STRENGTH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="username-screen" class="overlay" style="display: none;">
-  <div class="scene-box">
-    <div class="scene-header">ENTER THE VOID</div>
-    <div class="scene-body">
-      <p>CHOOSE YOUR TAG:</p>
-      <input id="usernameInput" placeholder="xX_NAME_Xx">
-      <button id="saveUserBtn" class="scene-btn">INITIALIZE</button>
+  <div class="grit-box anim-fade">
+    <div class="grit-header">IDENT_STATION</div>
+    <div class="grit-body">
+      <p>CHOOSE YOUR CALLSIGN:</p>
+      <input id="usernameInput" placeholder="USER_NAME">
+      <p>SELECT AVATAR:</p>
+      <div id="pfp-grid"></div>
+      <button id="saveUserBtn" class="grit-btn">INITIALIZE</button>
     </div>
   </div>
 </div>
 
 <div id="auth-screen" class="screen">
-  <h1 class="scene-glitch">MASSGRAVES</h1>
-  <div class="scene-box" style="max-width: 350px; margin: 50px auto;">
-    <div class="scene-header">LOGIN // ACCESS</div>
-    <div class="scene-body">
+  <div class="logo-container anim-glitch">
+    <h1 class="grit-title">DEADWEIGHTS</h1>
+    <div class="subtitle">STRENGTH // RECOVERY // DEPRAVITY</div>
+  </div>
+  <div class="grit-box anim-slide-up" style="max-width: 350px; margin: 50px auto;">
+    <div class="grit-header">SECURE_LOGIN</div>
+    <div class="grit-body">
       <input id="email" type="email" placeholder="EMAIL">
       <input id="password" type="password" placeholder="PASSWORD">
-      <button id="loginBtn" class="scene-btn">ENTER</button>
-      <button id="signupBtn" class="scene-btn-alt">SIGN UP</button>
+      <button id="loginBtn" class="grit-btn">ACCESS</button>
+      <button id="signupBtn" class="grit-btn-alt">REGISTER</button>
       <p id="auth-msg"></p>
     </div>
   </div>
 </div>
 
 <div id="app" class="screen hidden">
-  <div class="scene-nav">
-    <span class="logo">MASSGRAVES // UNDERGROUND</span>
+  <div class="grit-nav">
+    <span class="logo">DEADWEIGHTS</span>
     <div class="nav-links">
-        <a href="#" data-show="feed">HOME</a>
-        <a href="#" data-show="log">LOGS</a>
+        <a href="#" data-show="feed">FEED</a>
+        <a href="#" data-show="log">ACTIVE_LOG</a>
         <a href="#" data-show="vault">VAULT</a>
         <a href="#" data-show="prs">STATS</a>
-        <button id="logoutBtn">EXIT</button>
+        <button id="logoutBtn">LOGOUT</button>
     </div>
   </div>
 
-  <div class="scene-container">
-    <div class="scene-left">
-      <div class="scene-box">
-        <div id="profileUsername" class="scene-header">USER</div>
-        <div class="scene-body center">
-          <img src="https://placehold.co/150x150/111/ff00ea?text=RAWWR" class="profile-pic">
-          <p class="status-msg">"The gym is my escape."</p>
+  <div class="grit-container">
+    <div class="grit-left">
+      <div class="grit-box profile-box">
+        <div id="profileUsername" class="grit-header">USER_ID</div>
+        <div class="grit-body center">
+          <div id="user-pfp-display" class="pfp-main"></div>
+          <div class="grit-divider"></div>
+          <p class="status-msg">"READY_FOR_WORK"</p>
         </div>
       </div>
 
-      <div class="scene-box">
-        <div class="scene-header">FOLLOWERS</div>
-        <div id="friends-list" class="scene-body">
-            <p style="font-size:10px; color:#666;">No followers yet...</p>
+      <div class="grit-box">
+        <div class="grit-header">NETWORK</div>
+        <div id="friends-list" class="grit-body">
+            <p class="empty-msg">NO_FRIENDS_FOUND</p>
         </div>
+      </div>
+
+      <div id="req-box" class="grit-box hidden">
+        <div class="grit-header">FRIEND_REQUESTS</div>
+        <div id="request-list" class="grit-body"></div>
       </div>
     </div>
 
-    <div class="scene-right">
-      
+    <div class="grit-right">
       <section id="feed" class="panel">
-        <div class="scene-box">
-          <div class="scene-header">POST A BULLETIN</div>
-          <div class="scene-body">
-            <textarea id="statusText" placeholder="Space for your thoughts..."></textarea>
-            <button id="postStatusBtn" class="scene-btn">POST BULLETIN</button>
+        <div class="grit-box">
+          <div class="grit-header">BROADCAST_BULLETIN</div>
+          <div class="grit-body">
+            <textarea id="statusText" placeholder="TRANSMIT MESSAGE..."></textarea>
+            <button id="postStatusBtn" class="grit-btn">SEND</button>
           </div>
         </div>
         <div id="feed-content"></div>
       </section>
 
       <section id="log" class="panel hidden">
-        <div class="scene-box">
-          <div class="scene-header">TRACK PROGRESS</div>
-          <div class="scene-body">
-            <div id="plan-integration-tip"></div>
-            <select id="exerciseSelect"></select> <input id="customExercise" class="hidden" placeholder="MOVEMENT NAME">
-            <div class="row">
-              <input id="weightInput" type="number" placeholder="LBS">
-              <input id="repsInput" type="number" placeholder="REPS">
-            </div>
-            <button id="postBtn" class="scene-btn">SAVE LOG</button>
+        <div class="grit-box active-workout-box">
+          <div class="grit-header">CURRENT_ROUTINE</div>
+          <div id="active-session-ui" class="grit-body">
+            <p>NO ACTIVE PLAN. GO TO VAULT.</p>
           </div>
         </div>
-        <div class="scene-box">
-           <div class="scene-header">MY RECENT REPS</div>
-           <div id="my-logs-list" class="scene-body"></div>
+        <div class="grit-box">
+           <div class="grit-header">RECOVERY_DATA</div>
+           <div id="my-logs-list" class="grit-body"></div>
         </div>
       </section>
 
       <section id="vault" class="panel hidden">
-        <div class="scene-box">
-          <div class="scene-header">WORKOUT PROTOCOLS</div>
-          <div id="premade-list" class="scene-body"></div>
+        <div class="grit-box">
+          <div class="grit-header">RECRUIT_PROTOCOLS</div>
+          <div id="premade-list" class="grit-body"></div>
         </div>
       </section>
 
       <section id="prs" class="panel hidden">
-        <div class="scene-box">
-          <div class="scene-header">LIFTING STATS</div>
-          <div id="prList" class="scene-body"></div>
+        <div class="grit-box">
+          <div class="grit-header">MAX_LOAD_DATA</div>
+          <div id="prList" class="grit-body"></div>
         </div>
       </section>
     </div>
