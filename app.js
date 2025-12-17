@@ -1,7 +1,7 @@
 // Firebase modular imports
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, where, arrayUnion } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, where, arrayUnion, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -20,6 +20,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Admin email list
+const ADMIN_EMAILS = ["christianjacee@gmail.com"]; // auto admin
+
 // Elements
 const authScreen = document.getElementById("auth-screen");
 const appScreen = document.getElementById("app");
@@ -27,7 +30,7 @@ const msg = document.getElementById("auth-msg");
 
 let currentUserRole = "user";
 
-// Auth state
+// Auth state observer
 onAuthStateChanged(auth, async user => {
   if (user) {
     authScreen.classList.add("hidden");
@@ -35,9 +38,11 @@ onAuthStateChanged(auth, async user => {
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
+
     if (!userSnap.exists()) {
-      await setDoc(userRef, { email: user.email, role: "user" });
-      currentUserRole = "user";
+      const role = ADMIN_EMAILS.includes(user.email) ? "admin" : "user";
+      await setDoc(userRef, { email: user.email, role });
+      currentUserRole = role;
     } else {
       currentUserRole = userSnap.data().role;
     }
@@ -45,11 +50,12 @@ onAuthStateChanged(auth, async user => {
     loadFeed();
     loadWorkoutPlans();
     loadPRs();
-
     document.getElementById("profileEmail").innerText = user.email;
 
     if (currentUserRole === "admin") {
       document.getElementById("admin-panel").classList.remove("hidden");
+    } else {
+      document.getElementById("admin-panel").classList.add("hidden");
     }
   } else {
     authScreen.classList.remove("hidden");
@@ -57,15 +63,16 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-// Admin secret key
-const SECRET_ADMIN_KEY = "MYSECRET123"; // <-- change this to your key
-
 // SIGNUP
 async function signup() {
   const emailVal = document.getElementById("email").value;
   const passwordVal = document.getElementById("password").value;
   const codeVal = document.getElementById("invite").value;
-  const adminKeyVal = document.getElementById("adminKey").value;
+
+  if (!emailVal || !passwordVal || !codeVal) {
+    msg.innerText = "Fill all fields!";
+    return;
+  }
 
   const inviteRef = doc(db, "invites", codeVal);
   const inviteSnap = await getDoc(inviteRef);
@@ -77,11 +84,15 @@ async function signup() {
 
   try {
     const userCred = await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
+
+    // Mark invite as used
     await updateDoc(inviteRef, { used: true });
 
-    const role = (adminKeyVal === SECRET_ADMIN_KEY) ? "admin" : "user";
-    await setDoc(doc(db, "users", userCred.user.uid), { email: emailVal, role });
+    // Assign role automatically if email is in admin list
+    const role = ADMIN_EMAILS.includes(emailVal) ? "admin" : "user";
 
+    await setDoc(doc(db, "users", userCred.user.uid), { email: emailVal, role });
+    msg.innerText = "Account created successfully!";
   } catch(e) {
     msg.innerText = e.message;
   }
@@ -91,6 +102,7 @@ async function signup() {
 async function login() {
   const emailVal = document.getElementById("email").value;
   const passwordVal = document.getElementById("password").value;
+
   try {
     await signInWithEmailAndPassword(auth, emailVal, passwordVal);
   } catch(e) {
