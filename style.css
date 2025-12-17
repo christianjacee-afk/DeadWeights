@@ -1,130 +1,176 @@
 @import url('https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap');
 
+/* --- GLOBAL CORE --- */
 body {
   margin: 0;
   background: #050505;
-  color: #00ff41; /* Classic Matrix Green */
+  color: #00ff41;
   font-family: 'VT323', monospace;
   overflow-x: hidden;
+  line-height: 1.2;
 }
 
-/* The Grainy CRT Overlay */
+/* --- THE MORBID OVERLAYS --- */
 #crt {
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 999;
-  background: 
-    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  background-size: 100% 2px, 3px 100%;
-  opacity: 0.3;
+  background: repeating-linear-gradient(
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.4;
 }
 
-/* VHS Static Noise Effect */
 body::before {
   content: "";
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: url('https://media.giphy.com/media/oEI9uWUicGPoY/giphy.gif'); /* Grainy static */
-  opacity: 0.03;
+  background: url('https://media.giphy.com/media/oEI9uWUicGPoY/giphy.gif');
+  opacity: 0.04;
   pointer-events: none;
   z-index: 1000;
 }
 
-.screen {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.hidden { display: none !important; }
-
-/* Glitch Heading */
+/* --- TYPOGRAPHY --- */
 .glitch {
   font-family: 'Metal Mania', cursive;
-  font-size: 64px;
+  font-size: clamp(32px, 8vw, 64px);
   color: #fff;
   text-transform: uppercase;
-  text-shadow: 
-    3px 3px 0px #ff00ea, 
-    -3px -3px 0px #00ffff;
-  letter-spacing: 5px;
-  animation: shake 0.5s infinite;
-}
-
-@keyframes shake {
-  0% { transform: translate(0); }
-  20% { transform: translate(-2px, 2px); }
-  40% { transform: translate(-2px, -2px); }
-  60% { transform: translate(2px, 2px); }
-  80% { transform: translate(2px, -2px); }
-  100% { transform: translate(0); }
-}
-
-/* MySpace-style Profile/Feed Boxes */
-.post, .panel {
-  background: rgba(15, 15, 15, 0.9);
-  border: 2px solid #00ff41;
+  text-shadow: 4px 4px 0px #ff00ea, -4px -4px 0px #00ffff;
+  letter-spacing: 4px;
   margin: 20px 0;
-  padding: 15px;
-  box-shadow: 5px 5px 0px #330000; /* Brutalist shadow */
-  text-align: left;
-  position: relative;
+  filter: drop-shadow(0 0 10px rgba(0, 255, 65, 0.5));
 }
 
-.post::before {
-  content: "ENTRY_LOG";
-  position: absolute;
-  top: -10px;
-  left: 10px;
-  background: #00ff41;
-  color: #000;
-  padding: 0 5px;
-  font-size: 12px;
-}
-
-/* Inputs & Buttons */
-input, textarea {
-  width: 100%;
-  background: #111;
-  border: 1px solid #444;
-  color: #ff00ea; /* Pink text for contrast */
-  padding: 10px;
-  box-sizing: border-box;
-  font-family: 'VT323';
-  margin-bottom: 10px;
-}
-
-button {
-  background: #00ff41;
-  color: #000;
-  border: none;
-  padding: 10px 20px;
-  font-family: 'VT323';
-  font-weight: bold;
-  text-transform: uppercase;
-  cursor: pointer;
-  margin-right: 5px;
-}
-
-button:hover {
-  background: #fff;
-  box-shadow: 0 0 15px #00ff41;
-}
-
+/* --- NAVIGATION (MySpace Style) --- */
 nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  border-bottom: 2px solid #00ff41;
-  padding-bottom: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 5px;
+  background: #111;
+  border: 2px solid #00ff41;
+  padding: 5px;
   margin-bottom: 20px;
 }
 
-/* Scrollbar for that old web feel */
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: #000; }
-::-webkit-scrollbar-thumb { background: #00ff41; border: 2px solid #000; }
+nav button {
+  background: #000;
+  color: #00ff41;
+  border: 1px solid #444;
+  padding: 8px 2px;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+nav button:hover {
+  background: #00ff41;
+  color: #000;
+  box-shadow: 0 0 15px #00ff41;
+}
+
+/* --- CONTAINERS --- */
+.screen {
+  padding: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.panel {
+  background: #000;
+  border: 2px solid #00ff41;
+  margin: 15px 0;
+  padding: 15px;
+  box-shadow: 8px 8px 0px #330000;
+  position: relative;
+}
+
+.panel h3 {
+  margin-top: 0;
+  color: #ff00ea;
+  text-transform: uppercase;
+  border-bottom: 1px solid #444;
+}
+
+/* --- INPUTS & DROPDOWNS --- */
+input, select, textarea {
+  width: 100%;
+  background: #111;
+  border: 2px solid #00ff41;
+  color: #00ff41;
+  padding: 12px;
+  font-family: 'VT323';
+  font-size: 18px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+select {
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, #00ff41 50%), linear-gradient(135deg, #00ff41 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+textarea {
+  height: 100px;
+  color: #ff00ea;
+}
+
+button {
+  cursor: pointer;
+  background: #00ff41;
+  color: #000;
+  border: none;
+  padding: 12px;
+  font-family: 'VT323';
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  width: 100%;
+  transition: 0.1s;
+}
+
+button:active {
+  transform: translate(2px, 2px);
+}
+
+/* --- FEED POSTS --- */
+.post {
+  border-bottom: 2px dashed #444;
+  padding: 15px 0;
+  margin-bottom: 10px;
+}
+
+.post small {
+  color: #ff00ea;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.post pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: rgba(0, 255, 65, 0.05);
+  padding: 10px;
+  border-left: 4px solid #ff00ea;
+  font-size: 1.1rem;
+}
+
+/* --- UTILS --- */
+.hidden { display: none !important; }
+
+hr { border: 0; border-top: 2px solid #00ff41; margin: 20px 0; }
+
+#auth-msg {
+  color: #ff00ea;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 10px;
+}
