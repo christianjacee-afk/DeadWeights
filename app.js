@@ -1,6 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  setPersistence, 
+  browserLocalPersistence,
+  sendPasswordResetEmail 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { 
+  getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, where 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
@@ -14,7 +25,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Force the browser to remember you
+// Keep user logged in even after closing the browser
 setPersistence(auth, browserLocalPersistence);
 
 const PREMADE_PLANS = [
@@ -24,17 +35,18 @@ const PREMADE_PLANS = [
     days: 5, 
     description: "Your Monday-Friday custom worksheet.", 
     routine: { 
-      1: "MON: Full Body Compound (Squat, Bench, Row, OHP, RDL)", 
-      2: "TUE: Lower A (Squat, Leg Press, Ham Curl, Hip Thrust)", 
-      3: "WED: Upper Push (Bench, Flys, OHP, Lat Raises, Triceps)", 
-      4: "THU: Lower B (Deadlift, Lunges, Leg Ext, Calves)", 
-      5: "FRI: Upper Pull (Pullups, Rows, Facepulls, Biceps)" 
+      1: "MON: Squat/Leg Press, Bench/Incline, Row/Pull-ups, OHP, RDL/Deadlift", 
+      2: "TUE: Squat/Hack Squat, Leg Press, RDL, Ham Curl, Hip Thrust, Add/Abd Machines", 
+      3: "WED: Bench/Incline, Flys, OHP, Lateral Raises, Skull Crushers, Rope Pushdowns", 
+      4: "THU: Deadlift, Lunges, Leg Extension, Seated Calf, Standing Calf", 
+      5: "FRI: Lat Pulls, Rows, Face Pulls, Bicep Curls, Hammer Curls" 
     }
   },
-  { id: "3day", name: "THE REVENANT (3-Day)", days: 3, description: "Full Body focus.", routine: { 1: "Squat/Bench/Row", 2: "DL/OHP/Pullups", 3: "Leg Press/Incline/Lat Pull" }},
+  { id: "3day", name: "REVENANT (3-Day)", days: 3, description: "Full Body focus.", routine: { 1: "Squat/Bench/Row", 2: "DL/OHP/Pullups", 3: "Leg Press/Incline/Lat Pull" }},
   { id: "6day", name: "HELL_BOUND (6-Day)", days: 6, description: "PPL Intensity.", routine: { 1: "Push", 2: "Pull", 3: "Legs", 4: "Push", 5: "Pull", 6: "Legs" }}
 ];
 
+// Auth Observer
 onAuthStateChanged(auth, async user => {
   const authScreen = document.getElementById("auth-screen");
   const appScreen = document.getElementById("app");
@@ -49,6 +61,7 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
+// LOGIN FUNCTION
 window.login = async () => {
   const e = document.getElementById("email").value;
   const p = document.getElementById("password").value;
@@ -61,10 +74,12 @@ window.login = async () => {
   }
 };
 
+// SIGNUP FUNCTION
 window.signup = async () => {
   const e = document.getElementById("email").value;
   const p = document.getElementById("password").value;
   const msg = document.getElementById("auth-msg");
+  if(!e || !p) { msg.innerText = "INPUTS REQUIRED."; return; }
   msg.innerText = "CREATING RECORD...";
   try { 
     const cred = await createUserWithEmailAndPassword(auth, e, p);
@@ -74,7 +89,26 @@ window.signup = async () => {
   }
 };
 
-window.logout = () => signOut(auth).then(() => window.location.reload());
+// PASSWORD PEEK
+window.togglePassword = () => {
+    const p = document.getElementById("password");
+    p.type = p.type === "password" ? "text" : "password";
+};
+
+// PASSWORD RESET
+window.resetPassword = async () => {
+    const email = document.getElementById("email").value;
+    const msg = document.getElementById("auth-msg");
+    if (!email) { msg.innerText = "ENTER EMAIL FIRST."; return; }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        msg.innerText = "RESET LINK SENT TO EMAIL.";
+    } catch (err) {
+        msg.innerText = "ERROR: " + err.code.replace('auth/', '').replace(/-/g, ' ');
+    }
+};
+
+window.logout = () => signOut(auth);
 
 window.show = (id) => {
     document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
