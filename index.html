@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Web App</title>
 
-  <!-- Firebase SDKs (Safari safe) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
@@ -15,24 +14,28 @@
 <button onclick="saveData()">Save Data</button>
 
 <script>
+  // Your specific Firebase credentials
   const firebaseConfig = {
-    apiKey: "PASTE_YOURS",
-    authDomain: "PASTE_YOURS",
-    databaseURL: "PASTE_YOURS",
-    projectId: "PASTE_YOURS",
-    storageBucket: "PASTE_YOURS",
-    messagingSenderId: "PASTE_YOURS",
-    appId: "PASTE_YOURS"
+    apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
+    authDomain: "deadweights-365c6.firebaseapp.com",
+    projectId: "deadweights-365c6",
+    databaseURL: "https://deadweights-365c6-default-rtdb.firebaseio.com", // Added based on your Project ID
+    storageBucket: "deadweights-365c6.firebasestorage.app",
+    messagingSenderId: "727970628768",
+    appId: "1:727970628768:web:3dfd719731f6632e88f5c5",
+    measurementId: "G-LDDZ5HEB8K"
   };
 
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
   function saveData() {
     database.ref("test").set({
-      message: "Hello world"
+      message: "Hello world",
+      timestamp: Date.now()
     });
-    alert("Saved!");
+    alert("Data sent to Firebase!");
   }
 </script>
 
