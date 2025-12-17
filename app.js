@@ -23,55 +23,66 @@ const appScreen = document.getElementById("app");
 const msg = document.getElementById("auth-msg");
 
 let currentUserRole = "user";
+let isSyncing = false; // Prevents infinite loops
 
 // Check login status
 onAuthStateChanged(auth, async user => {
-  if (user) {
+  if (user && !isSyncing) {
+    isSyncing = true; // Lock the process
     authScreen.classList.add("hidden");
     appScreen.classList.remove("hidden");
     document.getElementById("user-display").innerText = user.email;
 
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
+    try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      const role = ADMIN_EMAILS.includes(user.email) ? "admin" : "user";
-      await setDoc(userRef, { email: user.email, role });
-      currentUserRole = role;
-    } else {
-      currentUserRole = userSnap.data().role;
+        if (!userSnap.exists()) {
+          const role = ADMIN_EMAILS.includes(user.email) ? "admin" : "user";
+          await setDoc(userRef, { email: user.email, role: role });
+          currentUserRole = role;
+        } else {
+          currentUserRole = userSnap.data().role;
+        }
+
+        if (currentUserRole === "admin") {
+          document.getElementById("nav-admin").classList.remove("hidden");
+        }
+        
+        loadFeed();
+        loadWorkoutPlans();
+        loadPRs();
+    } catch (e) {
+        console.error("Auth State Error:", e);
+    } finally {
+        isSyncing = false; // Release the lock
     }
-
-    // Show Admin button in nav ONLY if admin
-    if (currentUserRole === "admin") {
-      document.getElementById("nav-admin").classList.remove("hidden");
-    }
-
-    loadFeed();
-    loadWorkoutPlans();
-    loadPRs();
-  } else {
+  } else if (!user) {
     authScreen.classList.remove("hidden");
     appScreen.classList.add("hidden");
   }
 });
 
 async function signup() {
+  msg.innerText = "COMMENCING RITUAL...";
   const emailVal = document.getElementById("email").value;
   const passwordVal = document.getElementById("password").value;
   if (!emailVal || !passwordVal) { msg.innerText = "CREDENTIALS REQUIRED"; return; }
 
   try {
-    const userCred = await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
-    const role = ADMIN_EMAILS.includes(emailVal) ? "admin" : "user";
-    await setDoc(doc(db, "users", userCred.user.uid), { email: emailVal, role });
-    msg.innerText = "ACCESS GRANTED. ENTERING...";
+    await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
+    msg.innerText = "ACCOUNT SEALED.";
   } catch(e) {
-    msg.innerText = "ERROR: " + e.message;
+    if (e.code === "auth/email-already-in-use") {
+        msg.innerText = "EMAIL ALREADY IN GRAVE. LOGIN INSTEAD.";
+    } else {
+        msg.innerText = "ERROR: " + e.message;
+    }
   }
 }
 
 async function login() {
+  msg.innerText = "VERIFYING...";
   const emailVal = document.getElementById("email").value;
   const passwordVal = document.getElementById("password").value;
   if (!emailVal || !passwordVal) { msg.innerText = "CREDENTIALS REQUIRED"; return; }
@@ -79,11 +90,15 @@ async function login() {
   try {
     await signInWithEmailAndPassword(auth, emailVal, passwordVal);
   } catch(e) {
-    msg.innerText = "ERROR: " + e.message;
+    if (e.code === "auth/too-many-requests") {
+        msg.innerText = "TOO MANY ATTEMPTS. WAIT 5 MINUTES.";
+    } else {
+        msg.innerText = "INVALID CREDENTIALS.";
+    }
   }
 }
 
-function logout() { signOut(auth); }
+function logout() { signOut(auth); window.location.reload(); }
 
 function show(id) {
   document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
@@ -93,16 +108,20 @@ function show(id) {
 async function postWorkout() {
   const text = document.getElementById("workoutText").value;
   if (!text) return;
-  await addDoc(collection(db, "posts"), {
-    text,
-    uid: auth.currentUser.uid,
-    userEmail: auth.currentUser.email,
-    timestamp: new Date(),
-    likes: [],
-    comments: []
-  });
-  document.getElementById("workoutText").value = "";
-  show('feed');
+  try {
+      await addDoc(collection(db, "posts"), {
+        text,
+        uid: auth.currentUser.uid,
+        userEmail: auth.currentUser.email,
+        timestamp: new Date(),
+        likes: [],
+        comments: []
+      });
+      document.getElementById("workoutText").value = "";
+      show('feed');
+  } catch(e) {
+      alert("Post failed. Check database rules.");
+  }
 }
 
 function loadFeed() {
