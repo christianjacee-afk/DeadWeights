@@ -4,98 +4,256 @@
   --blood: #b30000;
   --glow: #ff3333;
   --bg: #000000;
-  --panel: #0a0a0a;
+  --panel: #050505;
   --border: #1a1a1a;
-  --text: #555;
+  --text: #666;
   --highlight: #00ff41; /* CRT Green for high contrast */
+  --void: #020202;
 }
 
+/* BASE STYLES */
 body {
   background-color: var(--bg);
   color: var(--text);
   font-family: 'Courier Prime', monospace;
   margin: 0;
-  background-image: linear-gradient(rgba(10, 10, 10, 0.9) 50%, transparent 50%);
-  background-size: 100% 4px;
+  overflow-x: hidden;
+  /* Scanline Effect */
+  background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 3px 100%;
 }
 
-/* HIGH CONTRAST HEADER */
+/* THE SCALING HEADER */
 .morbid-title-main {
-  font-size: 80px; text-align: center; color: var(--blood);
-  letter-spacing: 20px; margin-top: 50px; 
-  text-shadow: 0 0 20px var(--blood), 0 0 40px #000;
+  font-size: 90px;
+  text-align: center;
+  color: var(--blood);
+  letter-spacing: 25px;
+  margin-top: 60px;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-shadow: 0 0 15px var(--blood), 0 0 30px #000;
+  filter: blur(0.5px);
 }
 
-.pulse { animation: pulse 3s infinite ease-in-out; }
+.pulse { animation: pulse 4s infinite ease-in-out; }
+
 @keyframes pulse {
-  0% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.02); filter: brightness(1.5); text-shadow: 0 0 30px var(--blood); }
-  100% { transform: scale(1); filter: brightness(1); }
+  0% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 5px var(--blood)); }
+  50% { transform: scale(1.05); filter: brightness(1.8) drop-shadow(0 0 25px var(--blood)); }
+  100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 5px var(--blood)); }
 }
 
-/* LAYOUT */
+/* NAVIGATION */
 .grave-nav {
-  background: #000; border-bottom: 3px solid var(--blood);
-  padding: 20px; display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 5px 20px rgba(0,0,0,1);
+  background: var(--void);
+  border-bottom: 2px solid var(--blood);
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0,0,0,1);
 }
 
-.logo { color: var(--highlight); font-weight: bold; font-size: 20px; }
+.logo { 
+  color: var(--highlight); 
+  font-weight: bold; 
+  font-size: 22px; 
+  letter-spacing: 3px; 
+  text-shadow: 0 0 8px var(--highlight);
+}
 
+/* GRID LAYOUT */
 .grave-grid {
-  display: grid; grid-template-columns: 280px 1fr 320px;
-  gap: 25px; max-width: 1500px; margin: 25px auto; padding: 0 20px;
+  display: grid;
+  grid-template-columns: 300px 1fr 340px;
+  gap: 30px;
+  max-width: 1600px;
+  margin: 30px auto;
+  padding: 0 25px;
 }
 
+/* BOXES & CONTAINERS */
 .grave-box {
-  background: var(--panel); border: 1px solid var(--border);
-  box-shadow: 10px 10px 0px #000;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 12px 12px 0px #000;
+  position: relative;
+  transition: border 0.3s ease;
+}
+
+.grave-box:hover {
+  border-color: #333;
 }
 
 .grave-header {
-  background: #000; color: var(--blood); padding: 12px;
-  border-bottom: 2px solid var(--blood); font-size: 12px; font-weight: bold;
+  background: #000;
+  color: var(--blood);
+  padding: 12px 15px;
+  border-bottom: 2px solid var(--blood);
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.grave-body { padding: 20px; color: #aaa; }
+.grave-body { 
+  padding: 20px; 
+  color: #888; 
+}
 
-/* GRAVE TAGS */
+/* GRAVE TAGS (CALLING CARDS) */
 .grave-tag { 
-    height: 80px; border-bottom: 1px solid var(--border); 
-    display: flex; align-items: center; justify-content: center;
+  height: 90px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
 }
-.tag-rust { background: linear-gradient(90deg, #1a0d00, #4d2600, #1a0d00); }
-.tag-crt { background: #001100; border: 1px solid var(--highlight); }
-.tag-blood { background: #330000; box-shadow: inset 0 0 20px #000; }
-.tag-void { background: #000; border: 1px dashed #333; }
 
-.tag-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
-.tag-opt { height: 40px; border: 1px solid #333; cursor: pointer; }
-.tag-opt.active { border: 2px solid var(--highlight); }
+.tag-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 2px 2px 4px #000;
+  z-index: 2;
+}
 
-/* INDEX & LOGS */
-.index-container { max-height: 400px; overflow-y: auto; }
+.tag-rust { background: linear-gradient(135deg, #1a0d00 0%, #4d2600 50%, #1a0d00 100%); }
+.tag-crt { 
+    background: #001100; 
+    border: 1px solid var(--highlight); 
+    box-shadow: inset 0 0 15px var(--highlight);
+}
+.tag-blood { background: #330000; box-shadow: inset 0 0 40px #000; }
+.tag-void { background: #000; border: 1px dashed #444; }
+
+.tag-grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 15px; 
+    margin: 20px 0; 
+}
+
+.tag-opt { 
+    height: 50px; 
+    border: 1px solid #222; 
+    cursor: pointer; 
+    transition: transform 0.2s;
+}
+
+.tag-opt:hover { transform: scale(1.05); }
+.tag-opt.active { border: 2px solid var(--highlight); box-shadow: 0 0 10px var(--highlight); }
+
+/* CARVING INDEX (LOG HISTORY) */
+.index-container { 
+  max-height: 500px; 
+  overflow-y: scroll; 
+  background: #020202;
+}
+
 .index-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px; border-bottom: 1px solid #111; font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #111;
+  font-size: 12px;
+  transition: background 0.2s;
 }
 
-/* BUTTONS */
-.grave-btn {
-  background: var(--blood); color: #fff; border: none; padding: 15px;
-  width: 100%; cursor: pointer; font-weight: bold; letter-spacing: 2px;
-}
-.grave-btn:hover { background: var(--glow); box-shadow: 0 0 15px var(--blood); }
+.index-row:hover { background: #080808; }
+.index-row span { color: #aaa; }
 
-.mini-btn { background: #000; color: var(--highlight); border: 1px solid var(--highlight); padding: 4px 8px; cursor: pointer; }
-.mini-btn.danger { color: var(--blood); border-color: var(--blood); }
+/* CUSTOM SCROLLBAR */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: var(--blood); }
 
+/* INPUTS & BUTTONS */
 input, textarea {
-  background: #000; border: 1px solid var(--border); color: var(--highlight);
-  padding: 12px; width: 100%; margin-bottom: 15px; font-family: inherit;
+  background: #000;
+  border: 1px solid var(--border);
+  color: var(--highlight);
+  padding: 14px;
+  width: 100%;
+  margin-bottom: 20px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+input:focus { border-color: var(--highlight); outline: none; }
+
+.grave-btn {
+  background: var(--blood);
+  color: #fff;
+  border: none;
+  padding: 18px;
+  width: 100%;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+
+.grave-btn:hover {
+  background: var(--glow);
+  box-shadow: 0 0 20px var(--blood);
+  letter-spacing: 5px;
+}
+
+.grave-btn-alt {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 12px;
+    width: 100%;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mini-btn {
+  background: #000;
+  color: var(--highlight);
+  border: 1px solid var(--highlight);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.mini-btn.danger {
+  color: var(--blood);
+  border-color: var(--blood);
+}
+
+.mini-btn:hover {
+  background: var(--highlight);
+  color: #000;
+}
+
+/* SYSTEM STATUS */
+.lb-row { 
+  font-size: 12px; 
+  padding: 10px; 
+  border-bottom: 1px solid #111; 
+  color: #eee;
 }
 
 .hidden { display: none !important; }
-.divider { height: 2px; background: var(--blood); margin: 20px 0; }
+.divider { height: 2px; background: var(--blood); margin: 25px 0; opacity: 0.5; }
 
-@media (max-width: 1000px) { .grave-grid { grid-template-columns: 1fr; } }
+/* FEED POSTS */
+.post { margin-bottom: 15px; border-left: 3px solid var(--blood); }
+.grave-header-sub { padding: 5px 15px; font-size: 11px; background: #000; color: #444; }
+
+@media (max-width: 1100px) {
+  .grave-grid { grid-template-columns: 1fr; }
+}
