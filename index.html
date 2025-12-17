@@ -39,7 +39,6 @@
       <input id="password" type="password" placeholder="PASS_CODE">
       <button id="loginBtn" class="grave-btn">RESURRECT</button>
       <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
-      <p id="auth-msg" class="flicker"></p>
     </div>
   </div>
 </div>
@@ -48,6 +47,8 @@
   <header class="grave-nav">
     <div class="logo pulse">DEADWEIGHTS // <span id="header-callsign"></span></div>
     <div class="nav-controls">
+        <button onclick="window.showTab('feed-panel')" class="mini-btn">FEED</button>
+        <button onclick="window.showTab('friends-panel')" class="mini-btn">FRIENDS</button>
         <button onclick="window.showTab('settings-panel')" class="mini-btn">SETTINGS</button>
         <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
     </div>
@@ -56,9 +57,7 @@
   <div class="grave-grid">
     <aside class="col">
       <div class="grave-box">
-        <div id="user-grave-tag" class="grave-tag">
-          <span id="pfp-text" class="tag-text">CADAVER</span>
-        </div>
+        <div id="user-grave-tag" class="grave-tag"><span class="tag-text">CADAVER</span></div>
         <div class="grave-body">
           <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
           <div class="stats-line">
@@ -67,9 +66,8 @@
           </div>
         </div>
       </div>
-
       <div class="grave-box">
-        <div class="grave-header">THE_BURN_LIST (LEADERBOARD)</div>
+        <div class="grave-header">LEADERBOARD</div>
         <div id="leaderboard" class="grave-body small-text"></div>
       </div>
     </aside>
@@ -79,29 +77,38 @@
         <div class="grave-box">
           <div class="grave-header">BROADCAST_CARVING</div>
           <div class="grave-body">
-            <textarea id="statusText" placeholder="CARVE YOUR THOUGHTS..."></textarea>
+            <textarea id="statusText" placeholder="SHARE INTEL..."></textarea>
             <button id="postStatusBtn" class="grave-btn">TRANSMIT</button>
           </div>
         </div>
         <div id="feed-content"></div>
       </section>
 
+      <section id="friends-panel" class="hidden">
+        <div class="grave-box">
+          <div class="grave-header">SEARCH_ENTITIES</div>
+          <div class="grave-body">
+            <input id="userSearch" placeholder="SEARCH CALLSIGN...">
+            <div id="search-results"></div>
+          </div>
+        </div>
+        <div class="grave-box">
+          <div class="grave-header">THE_COVEN (FRIENDS)</div>
+          <div id="friends-list" class="grave-body"></div>
+        </div>
+      </section>
+
       <section id="settings-panel" class="hidden">
         <div class="grave-box">
           <div class="grave-header">USER_PARAMETERS</div>
           <div class="grave-body">
-            <button class="grave-btn-alt" onclick="window.showTab('feed-panel')">BACK_TO_FEED</button>
+            <p>CHANGE CALLSIGN:</p>
+            <input id="new-username" placeholder="NEW_CALLSIGN">
+            <button class="grave-btn" onclick="window.updateUsername()">RENAME_ENTITY</button>
             <div class="divider"></div>
-            <p>MODIFY_GRAVE_TAG:</p>
+            <p>GRAVE_TAG_VISUALS:</p>
             <div id="settings-tag-picker" class="tag-grid"></div>
             <button class="grave-btn" onclick="window.updateGraveTag()">UPDATE_TAG</button>
-          </div>
-        </div>
-        <div id="admin-panel" class="grave-box hidden">
-          <div class="grave-header">ADMIN_TERMINAL (SYSTEM_SCYTHE)</div>
-          <div class="grave-body">
-            <p style="color:red">ADMINISTRATIVE_OVERRIDE_ACTIVE</p>
-            <button class="grave-btn" style="background:var(--blood)" onclick="window.purgeLogs()">PURGE_ALL_LOGS</button>
           </div>
         </div>
       </section>
@@ -110,11 +117,22 @@
     <aside class="col">
       <div class="grave-box">
         <div class="grave-header">LOGGING_STATION</div>
-        <div id="logging-ui" class="grave-body"></div>
+        <div class="grave-body">
+            <select id="log-category" onchange="window.updateExercises()">
+                <option value="Push">PUSH (Chest/Shoulders/Tri)</option>
+                <option value="Pull">PULL (Back/Bi)</option>
+                <option value="Legs">LEGS (Glutes/Quads/Ham)</option>
+            </select>
+            <select id="log-ex"></select>
+            <div style="display:flex; gap:10px;">
+                <input id="log-w" type="number" placeholder="LBS">
+                <input id="log-r" type="number" placeholder="REPS">
+            </div>
+            <button onclick="window.submitLog()" class="grave-btn">RECORD_CARVING</button>
+        </div>
       </div>
-
       <div class="grave-box">
-        <div class="grave-header">CARVING_INDEX (LOG_HISTORY)</div>
+        <div class="grave-header">CARVING_INDEX</div>
         <div id="prList" class="grave-body index-container"></div>
       </div>
     </aside>
