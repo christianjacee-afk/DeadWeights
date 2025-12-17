@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, onSnapshot, where, deleteDoc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, onSnapshot, where, deleteDoc, serverTimestamp, limit, getDocs, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
@@ -13,189 +13,183 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const RANKS = [
-    { min: 0, name: "NEWBORN" },
-    { min: 10, name: "STALKER" },
-    { min: 50, name: "GRAVE_LORD" },
-    { min: 100, name: "IMMORTAL" }
-];
+// --- PRELOADED DATA ---
+const EXERCISES = {
+    Push: ["Bench Press", "Incline DB Press", "Overhead Press", "Lateral Raises", "Tricep Pushdown", "Dips"],
+    Pull: ["Deadlifts", "Pull Ups", "Barbell Rows", "Lat Pulldown", "Face Pulls", "Bicep Curls"],
+    Legs: ["Back Squats", "Leg Press", "RDLs", "Leg Extensions", "Calf Raises", "Lunges"]
+};
 
-const TAGS = [
-    { id: "rust", css: "tag-rust", label: "OXIDIZED" },
-    { id: "crt", css: "tag-crt", label: "SYSTEM_ERR" },
-    { id: "blood", css: "tag-blood", label: "HAEMORRHAGE" },
-    { id: "void", css: "tag-void", label: "VACUUM" }
-];
-let selectedTag = "tag-rust";
-let currentUserRole = "user";
+const RANKS = [{min:0, name:"NEWBORN"}, {min:10, name:"STALKER"}, {min:50, name:"GRAVE_LORD"}, {min:100, name:"IMMORTAL"}];
+const TAGS = [{id:"rust", css:"tag-rust"}, {id:"crt", css:"tag-crt"}, {id:"blood", css:"tag-blood"}, {id:"void", css:"tag-void"}];
 
-// --- 1. DATA LOADING ---
+let currentUserData = null;
 
+// --- 1. CORE AUTH & INIT ---
+onAuthStateChanged(auth, async user => {
+    if (user) {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+            currentUserData = snap.data();
+            document.getElementById("app").classList.remove("hidden");
+            document.getElementById("auth-screen").classList.add("hidden");
+            initApp();
+        } else { window.showRegistration(); }
+    } else {
+        document.getElementById("auth-screen").classList.remove("hidden");
+        document.getElementById("app").classList.add("hidden");
+    }
+});
+
+function initApp() {
+    document.getElementById("header-callsign").innerText = currentUserData.username;
+    document.getElementById("profileUsername").innerText = currentUserData.username;
+    document.getElementById("user-grave-tag").className = `grave-tag ${currentUserData.tag || 'tag-rust'}`;
+    
+    const rank = RANKS.filter(r => (currentUserData.carvingCount || 0) >= r.min).pop();
+    document.getElementById("user-rank").innerText = rank.name;
+
+    window.updateExercises();
+    loadFeed();
+    loadLeaderboard();
+    loadPRs();
+    loadFriends();
+    
+    const sPicker = document.getElementById("settings-tag-picker");
+    if(sPicker) sPicker.innerHTML = TAGS.map(t => `<div class="tag-opt ${t.css}" onclick="window.pickTag('${t.css}', this)"></div>`).join('');
+}
+
+// --- 2. SOCIAL & FRIENDS ---
+const loadFriends = () => {
+    const list = document.getElementById("friends-list");
+    if(!list || !currentUserData.friends) return;
+    list.innerHTML = "";
+    currentUserData.friends.forEach(async fId => {
+        const fSnap = await getDoc(doc(db, "users", fId));
+        if(fSnap.exists()) {
+            list.innerHTML += `<div class="index-row"><span>${fSnap.data().username}</span><button class="mini-btn danger" onclick="window.removeFriend('${fId}')">SEVER</button></div>`;
+        }
+    });
+};
+
+window.addFriend = async (targetUid) => {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayUnion(targetUid) });
+    alert("CONNECTION_ESTABLISHED");
+    location.reload();
+};
+
+window.removeFriend = async (targetUid) => {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayRemove(targetUid) });
+    location.reload();
+};
+
+// --- 3. FEED & COMMENTS ---
 const loadFeed = () => {
-    onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc"), limit(25)), snap => {
+    onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc"), limit(20)), snap => {
         const feed = document.getElementById("feed-content");
-        if(!feed) return;
         feed.innerHTML = "";
         snap.forEach(d => {
             const p = d.data();
-            const isAdmin = currentUserRole === "admin";
-            const isOwner = p.uid === auth.currentUser?.uid;
             feed.innerHTML += `
               <div class="grave-box post">
-                <div class="grave-header-sub">
-                    ${p.username} 
-                    ${(isOwner || isAdmin) ? `<button onclick="window.deleteItem('posts', '${d.id}')" class="mini-btn danger" style="float:right">ERASE</button>` : ''}
-                </div>
+                <div class="grave-header-sub">${p.username} <span style="float:right; font-size:8px;">${p.timestamp?.toDate().toLocaleDateString() || ''}</span></div>
                 <div class="grave-body"><p>${p.text}</p></div>
+                <div class="comment-section" id="comments-${d.id}"></div>
+                <div class="comment-input-wrap">
+                    <input id="in-${d.id}" placeholder="REPLY...">
+                    <button class="mini-btn" onclick="window.postComment('${d.id}')">SEND</button>
+                </div>
               </div>`;
+            loadComments(d.id);
         });
     });
 };
 
-const loadLeaderboard = () => {
-    onSnapshot(query(collection(db, "users"), orderBy("carvingCount", "desc"), limit(5)), snap => {
-        const lb = document.getElementById("leaderboard");
-        if(!lb) return;
-        lb.innerHTML = "";
-        snap.forEach((d, i) => {
-            lb.innerHTML += `<div class="lb-row">#${i+1} ${d.data().username} — [${d.data().carvingCount || 0}]</div>`;
+const loadComments = (postId) => {
+    onSnapshot(query(collection(db, `posts/${postId}/comments`), orderBy("timestamp", "asc")), snap => {
+        const cBox = document.getElementById(`comments-${postId}`);
+        if(!cBox) return;
+        cBox.innerHTML = "";
+        snap.forEach(c => {
+            cBox.innerHTML += `<div class="comment"><b>${c.data().username}:</b> ${c.data().text}</div>`;
         });
     });
 };
 
-const loadPRs = () => {
-    onSnapshot(query(collection(db, "logs"), where("uid", "==", auth.currentUser.uid), orderBy("timestamp", "desc"), limit(30)), snap => {
-        const list = document.getElementById("prList");
-        if(!list) return;
-        list.innerHTML = "";
-        snap.forEach(d => {
-            const data = d.data();
-            list.innerHTML += `
-            <div class="index-row">
-                <span>${data.exercise}: ${data.weight}LBS</span>
-                <button onclick="window.deleteLog('${d.id}')" class="mini-btn">X</button>
-            </div>`;
-        });
-        document.getElementById("stat-count").innerText = snap.size;
+window.postComment = async (postId) => {
+    const text = document.getElementById(`in-${postId}`).value;
+    if(!text) return;
+    await addDoc(collection(db, `posts/${postId}/comments`), {
+        username: currentUserData.username, text, timestamp: serverTimestamp()
     });
+    document.getElementById(`in-${postId}`).value = "";
 };
 
-// --- 2. CORE LOGIC ---
-
-function initApp(userData) {
-  currentUserRole = userData.role || "user";
-  document.getElementById("header-callsign").innerText = userData.username;
-  document.getElementById("profileUsername").innerText = userData.username;
-  document.getElementById("user-grave-tag").className = `grave-tag ${userData.tag || 'tag-rust'}`;
-  
-  const rank = RANKS.filter(r => (userData.carvingCount || 0) >= r.min).pop();
-  document.getElementById("user-rank").innerText = rank ? rank.name : "NEWBORN";
-
-  if(userData.role === 'admin') document.getElementById("admin-panel").classList.remove("hidden");
-  
-  // Load settings tag picker
-  const sPicker = document.getElementById("settings-tag-picker");
-  if(sPicker) sPicker.innerHTML = TAGS.map(t => `<div class="tag-opt ${t.css}" onclick="window.pickTag('${t.css}', this)"></div>`).join('');
-
-  loadFeed(); loadLeaderboard(); loadPRs(); updateLoggingUI();
-}
-
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      document.getElementById("app").classList.remove("hidden");
-      document.getElementById("auth-screen").classList.add("hidden");
-      initApp(snap.data());
-    } else { window.showRegistration(); }
-  } else {
-    document.getElementById("auth-screen").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
-  }
-});
-
-// --- 3. WINDOW FUNCTIONS ---
-
-window.showTab = (tabId) => {
-    document.getElementById("feed-panel").classList.add("hidden");
-    document.getElementById("settings-panel").classList.add("hidden");
-    document.getElementById(tabId).classList.remove("hidden");
-};
-
-window.pickTag = (css, el) => {
-    selectedTag = css;
-    document.querySelectorAll('.tag-opt').forEach(x => x.classList.remove('active'));
-    el.classList.add('active');
-};
-
-window.updateGraveTag = async () => {
-    await setDoc(doc(db, "users", auth.currentUser.uid), { tag: selectedTag }, { merge: true });
-    document.getElementById("user-grave-tag").className = `grave-tag ${selectedTag}`;
-    alert("TAG_RECONFIGURED");
+// --- 4. WORKOUT LOGGING ---
+window.updateExercises = () => {
+    const cat = document.getElementById("log-category").value;
+    const exSelect = document.getElementById("log-ex");
+    exSelect.innerHTML = EXERCISES[cat].map(e => `<option value="${e}">${e}</option>`).join('');
 };
 
 window.submitLog = async () => {
     const ex = document.getElementById("log-ex").value;
     const w = document.getElementById("log-w").value;
     const r = document.getElementById("log-r").value;
-    if(ex && w && r) {
+    if(w && r) {
         await addDoc(collection(db, "logs"), { uid: auth.currentUser.uid, exercise: ex, weight: w, reps: r, timestamp: serverTimestamp() });
         const userRef = doc(db, "users", auth.currentUser.uid);
-        const snap = await getDoc(userRef);
-        await setDoc(userRef, { carvingCount: (snap.data().carvingCount || 0) + 1 }, { merge: true });
-        document.getElementById("log-ex").value = "";
+        await updateDoc(userRef, { carvingCount: (currentUserData.carvingCount || 0) + 1 });
     }
 };
 
-window.deleteLog = async (id) => {
-    if(confirm("PURGE_ENTRY?")) {
-        await deleteDoc(doc(db, "logs", id));
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        const snap = await getDoc(userRef);
-        await setDoc(userRef, { carvingCount: Math.max(0, (snap.data().carvingCount || 1) - 1) }, { merge: true });
+// --- 5. SETTINGS ---
+window.updateUsername = async () => {
+    const newName = document.getElementById("new-username").value;
+    if(newName) {
+        await updateDoc(doc(db, "users", auth.currentUser.uid), { username: newName });
+        alert("IDENTITY_UPDATED");
+        location.reload();
     }
 };
 
-window.deleteItem = async (col, id) => { if(confirm("ERASE?")) await deleteDoc(doc(db, col, id)); };
-
-function updateLoggingUI() {
-    document.getElementById("logging-ui").innerHTML = `
-        <input id="log-ex" placeholder="EXERCISE">
-        <div style="display:flex; gap:10px;">
-            <input id="log-w" type="number" placeholder="LBS">
-            <input id="log-r" type="number" placeholder="REPS">
-        </div>
-        <button id="sLog" class="grave-btn">LOG_CARVING</button>`;
-    document.getElementById("sLog").onclick = window.submitLog;
-}
-
-// --- 4. AUTH HANDLERS ---
-window.showRegistration = () => {
-    document.getElementById("auth-screen").classList.add("hidden");
-    document.getElementById("registration-screen").classList.remove("hidden");
-    document.getElementById("initial-tag-picker").innerHTML = TAGS.map(t => `<div class="tag-opt ${t.css}" onclick="window.pickTag('${t.css}', this)"></div>`).join('');
+window.updateGraveTag = async () => {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { tag: window.selectedTag });
+    alert("VISUALS_RECONFIGURED");
+    location.reload();
 };
 
+// Helper loaders
+const loadLeaderboard = () => {
+    onSnapshot(query(collection(db, "users"), orderBy("carvingCount", "desc"), limit(5)), snap => {
+        const lb = document.getElementById("leaderboard");
+        lb.innerHTML = snap.docs.map((d, i) => `<div class="lb-row">#${i+1} ${d.data().username} [${d.data().carvingCount || 0}]</div>`).join('');
+    });
+};
+
+const loadPRs = () => {
+    onSnapshot(query(collection(db, "logs"), where("uid", "==", auth.currentUser.uid), orderBy("timestamp", "desc"), limit(10)), snap => {
+        document.getElementById("prList").innerHTML = snap.docs.map(d => `<div class="index-row"><span>${d.data().exercise} ${d.data().weight}LBS</span><button onclick="window.deleteItem('logs','${d.id}')" class="mini-btn danger">X</button></div>`).join('');
+        document.getElementById("stat-count").innerText = snap.size;
+    });
+};
+
+// UI Toggling
+window.showTab = (id) => {
+    ["feed-panel", "friends-panel", "settings-panel"].forEach(p => document.getElementById(p).classList.add("hidden"));
+    document.getElementById(id).classList.remove("hidden");
+};
+
+window.showAuth = () => { document.getElementById("registration-screen").classList.add("hidden"); document.getElementById("auth-screen").classList.remove("hidden"); };
+window.showRegistration = () => { document.getElementById("auth-screen").classList.add("hidden"); document.getElementById("registration-screen").classList.remove("hidden"); };
+
+// Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById("loginBtn").onclick = async () => {
-        try { await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); }
-        catch(e) { alert("FAIL_TO_ARISE"); }
-    };
-    document.getElementById("showRegBtn").onclick = window.showRegistration;
-    document.getElementById("nextStepBtn").onclick = () => {
-        if(document.getElementById("reg-pass").value === document.getElementById("reg-confirm").value) {
-            document.getElementById("reg-step-1").classList.add("hidden");
-            document.getElementById("reg-step-2").classList.remove("hidden");
-        }
-    };
-    document.getElementById("finalizeRegBtn").onclick = async () => {
-        const res = await createUserWithEmailAndPassword(auth, document.getElementById("reg-email").value, document.getElementById("reg-pass").value);
-        await setDoc(doc(db, "users", res.user.uid), { username: document.getElementById("reg-username").value, tag: selectedTag, role: 'user', carvingCount: 0 });
-    };
-    document.getElementById("logoutBtn").onclick = () => signOut(auth).then(() => location.reload());
     document.getElementById("postStatusBtn").onclick = async () => {
         const text = document.getElementById("statusText").value;
-        if(text) await addDoc(collection(db, "posts"), { uid: auth.currentUser.uid, username: document.getElementById("header-callsign").innerText, text, timestamp: serverTimestamp() });
+        if(text) await addDoc(collection(db, "posts"), { uid: auth.currentUser.uid, username: currentUserData.username, text, timestamp: serverTimestamp() });
         document.getElementById("statusText").value = "";
     };
+    document.getElementById("logoutBtn").onclick = () => signOut(auth).then(() => location.reload());
+    document.getElementById("loginBtn").onclick = () => signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value);
 });
