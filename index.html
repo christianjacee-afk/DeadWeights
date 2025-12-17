@@ -1,3 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MASSGRAVES // UNDERGROUND</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+<div id="crt"></div>
+
 <div id="auth-screen" class="screen">
   <h1 class="glitch">MASSGRAVES</h1>
   <div class="panel">
@@ -7,7 +19,7 @@
     
     <div style="position: relative; width: 100%;">
       <input id="password" type="password" placeholder="PASS_CODE">
-      <button onclick="window.togglePassword()" style="position: absolute; right: 5px; top: 5px; width: 50px; height: 32px; font-size: 10px; background: #222; color: #00ff41; border: 1px solid #00ff41;">PEEK</button>
+      <button onclick="window.togglePassword()" style="position: absolute; right: 5px; top: 5px; width: 50px; height: 32px; font-size: 10px; background: #222; color: #00ff41; border: 1px solid #00ff41; cursor: pointer;">PEEK</button>
     </div>
 
     <button onclick="window.login()">LOGIN</button>
@@ -21,3 +33,66 @@
   </div>
   <p id="auth-msg"></p>
 </div>
+
+<div id="app" class="screen hidden">
+  <h1 class="glitch" style="font-size: 32px; margin: 10px 0;">MASSGRAVES</h1>
+  <nav>
+    <button onclick="window.show('feed')">FEED</button>
+    <button onclick="window.show('log')">LOG</button>
+    <button onclick="window.show('vault')">VAULT</button>
+    <button onclick="window.show('active-plan')">PLAN</button>
+    <button onclick="window.show('prs')">STATS</button>
+    <button onclick="window.logout()" style="color: #ff00ea;">EXIT</button>
+  </nav>
+
+  <section id="feed" class="panel"></section>
+
+  <section id="log" class="panel hidden">
+    <h3>REPORT PROGRESS</h3>
+    <select id="exerciseSelect" onchange="window.toggleCustomExercise()">
+        <option value="Bench Press">Bench Press</option>
+        <option value="Squat">Squat</option>
+        <option value="Deadlift">Deadlift</option>
+        <option value="OHP">Overhead Press</option>
+        <option value="Pull Ups">Pull Ups</option>
+        <option value="CUSTOM">-- CUSTOM --</option>
+    </select>
+    <input id="customExercise" class="hidden" placeholder="MOVEMENT NAME">
+    <div style="display: flex; gap: 10px;">
+      <input id="weightInput" type="number" placeholder="LBS">
+      <input id="repsInput" type="number" placeholder="REPS">
+    </div>
+    <textarea id="workoutNotes" placeholder="NOTES..."></textarea>
+    <button onclick="window.postWorkout()">TRANSMIT</button>
+  </section>
+
+  <section id="vault" class="panel hidden">
+    <h3>PLAN_VAULT</h3>
+    <div id="premade-list"></div>
+    <hr style="border-color:#444;">
+    <button onclick="window.show('builder')" style="background:#ff00ea; color:#fff;">BUILD CUSTOM</button>
+  </section>
+
+  <section id="builder" class="panel hidden">
+    <h3>CUSTOM_BUILDER</h3>
+    <input id="newPlanName" placeholder="PLAN NAME">
+    <input id="newPlanDays" type="number" placeholder="DAYS PER WEEK (3-7)" onchange="window.show('builder')">
+    <div id="day-inputs"></div>
+    <button onclick="window.saveCustomPlan()">FINALIZE</button>
+  </section>
+
+  <section id="active-plan" class="panel hidden">
+    <h3>ACTIVE_PROTOCOL</h3>
+    <div id="active-plan-display">
+        <p style="color: #444;">SELECT A PROTOCOL IN THE VAULT.</p>
+    </div>
+  </section>
+
+  <section id="prs" class="panel hidden">
+    <h3>MAX_EFFORT_LOG</h3>
+    <div id="prList"></div>
+    <h3 id="profileEmail" style="font-size: 12px; opacity: 0.5; margin-top: 30px;"></h3>
+  </section>
+</div>
+</body>
+</html>
