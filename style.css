@@ -1,203 +1,93 @@
 @import url('https://fonts.googleapis.com/css2?family=VT323&family=Metal+Mania&display=swap');
 
-/* --- CORE RESET & BACKGROUND --- */
 body {
   margin: 0;
   background: #050505;
   color: #00ff41;
   font-family: 'VT323', monospace;
   overflow-x: hidden;
-  line-height: 1.2;
 }
 
-/* --- THE MORBID OVERLAYS --- */
 #crt {
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 999;
-  background: repeating-linear-gradient(
-    rgba(0, 0, 0, 0.15),
-    rgba(0, 0, 0, 0.15) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  opacity: 0.4;
+  background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 3px);
+  opacity: 0.3;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: url('https://media.giphy.com/media/oEI9uWUicGPoY/giphy.gif');
-  opacity: 0.04;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-/* --- TYPOGRAPHY --- */
 .glitch {
   font-family: 'Metal Mania', cursive;
-  font-size: clamp(32px, 8vw, 64px);
+  font-size: 48px;
   color: #fff;
   text-transform: uppercase;
-  text-shadow: 4px 4px 0px #ff00ea, -4px -4px 0px #00ffff;
-  letter-spacing: 4px;
-  margin: 20px 0;
+  text-shadow: 3px 3px #ff00ea;
   text-align: center;
 }
 
-/* --- NAVIGATION --- */
-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-  gap: 5px;
-  background: #111;
-  border: 2px solid #00ff41;
-  padding: 5px;
-  margin-bottom: 20px;
-}
-
-nav button {
-  background: #000;
-  color: #00ff41;
-  border: 1px solid #444;
-  padding: 8px 2px;
-  font-size: 14px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-nav button:hover {
-  background: #00ff41;
-  color: #000;
-}
-
-/* --- CONTAINERS & PANELS --- */
-.screen {
-  padding: 10px;
-  max-width: 600px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
+.screen { padding: 10px; max-width: 600px; margin: 0 auto; }
 
 .panel {
   background: #000;
   border: 2px solid #00ff41;
-  margin: 15px 0;
   padding: 15px;
-  box-shadow: 8px 8px 0px #330000;
-  position: relative;
+  margin-bottom: 20px;
+  box-shadow: 5px 5px 0px #220022;
 }
 
-.panel h3 {
-  margin-top: 0;
-  color: #ff00ea;
-  text-transform: uppercase;
-  border-bottom: 1px solid #444;
-  padding-bottom: 5px;
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 20px;
 }
 
-/* --- INPUTS, SELECTS, TEXTAREAS --- */
+nav button {
+  flex: 1;
+  min-width: 80px;
+  background: #111;
+  color: #00ff41;
+  border: 1px solid #00ff41;
+  padding: 10px 5px;
+  font-family: 'VT323';
+  cursor: pointer;
+  font-size: 14px;
+}
+
+nav button:hover { background: #00ff41; color: #000; }
+
 input, select, textarea {
   width: 100%;
-  background: #111;
-  border: 2px solid #00ff41;
+  background: #000;
+  border: 1px solid #00ff41;
   color: #00ff41;
-  padding: 12px;
-  font-family: 'VT323';
-  font-size: 18px;
+  padding: 10px;
   margin-bottom: 10px;
+  font-family: 'VT323';
   box-sizing: border-box;
 }
 
-/* Specific styling for the Peek button inside the container */
-.panel div[style*="relative"] input {
-  padding-right: 60px; /* Make room for the PEEK button */
-}
-
-textarea {
-  height: 80px;
-  color: #ff00ea;
-}
-
 button {
-  cursor: pointer;
+  width: 100%;
+  padding: 12px;
   background: #00ff41;
   color: #000;
   border: none;
-  padding: 12px;
   font-family: 'VT323';
-  font-size: 18px;
   font-weight: bold;
-  text-transform: uppercase;
-  width: 100%;
-}
-
-button:active {
-  transform: translateY(2px);
-}
-
-/* --- PLAN VAULT & CARDS --- */
-.plan-card {
-  border: 1px solid #444;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: #0a0a0a;
-}
-
-.plan-card h4 {
-  margin: 0;
-  color: #00ff41;
+  cursor: pointer;
   text-transform: uppercase;
 }
 
-.plan-card small {
-  color: #888;
-  display: block;
-  margin-bottom: 8px;
-}
-
-.plan-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-.plan-table td {
-  padding: 8px 0;
-  border-bottom: 1px solid #222;
-  font-size: 16px;
-}
-
-/* --- FEED POSTS --- */
-.post {
-  border-bottom: 2px dashed #444;
-  padding: 15px 0;
-}
-
-.post small {
-  color: #ff00ea;
-  display: block;
-}
+.hidden { display: none !important; }
 
 .post pre {
   white-space: pre-wrap;
-  word-wrap: break-word;
-  background: rgba(0, 255, 65, 0.05);
-  padding: 10px;
-  border-left: 4px solid #ff00ea;
-  font-size: 1.1rem;
-  margin: 10px 0;
+  font-family: 'VT323';
+  font-size: 18px;
+  border-left: 3px solid #ff00ea;
+  padding-left: 10px;
 }
 
-/* --- UTILITIES --- */
-.hidden { display: none !important; }
-
-#auth-msg {
-  color: #ff00ea;
-  text-align: center;
-  font-weight: bold;
-  margin-top: 10px;
-  min-height: 20px;
-}
+.plan-table td { padding: 5px 0; border-bottom: 1px solid #111; }
