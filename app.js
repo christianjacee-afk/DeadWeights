@@ -20,8 +20,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Admin email list
-const ADMIN_EMAILS = ["christianjacee@gmail.com"]; // auto admin
+// Auto-admin email
+const ADMIN_EMAILS = ["christianjacee@gmail.com"];
 
 // Elements
 const authScreen = document.getElementById("auth-screen");
@@ -69,32 +69,43 @@ async function signup() {
   const passwordVal = document.getElementById("password").value;
   const codeVal = document.getElementById("invite").value;
 
+  console.log("Signup button clicked:", { emailVal, codeVal });
+
   if (!emailVal || !passwordVal || !codeVal) {
     msg.innerText = "Fill all fields!";
+    console.log("Signup failed: missing fields");
     return;
   }
 
   const inviteRef = doc(db, "invites", codeVal);
   const inviteSnap = await getDoc(inviteRef);
 
-  if (!inviteSnap.exists() || inviteSnap.data().used) {
+  if (!inviteSnap.exists()) {
     msg.innerText = "Invalid invite code";
+    console.log("Signup failed: invite code does not exist");
+    return;
+  }
+
+  if (inviteSnap.data().used) {
+    msg.innerText = "Invite code already used";
+    console.log("Signup failed: invite code used");
     return;
   }
 
   try {
     const userCred = await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
 
-    // Mark invite as used
     await updateDoc(inviteRef, { used: true });
+    console.log("Invite marked used");
 
-    // Assign role automatically if email is in admin list
     const role = ADMIN_EMAILS.includes(emailVal) ? "admin" : "user";
-
     await setDoc(doc(db, "users", userCred.user.uid), { email: emailVal, role });
+    console.log("User created with role:", role);
+
     msg.innerText = "Account created successfully!";
   } catch(e) {
     msg.innerText = e.message;
+    console.error("Signup failed:", e);
   }
 }
 
@@ -223,8 +234,10 @@ async function createPresetPlan() {
   document.getElementById("planName").value = "";
 }
 
+// Attach signup to button
+document.getElementById("signupBtn").addEventListener("click", signup);
+
 // Expose functions globally for Safari
-window.signup = signup;
 window.login = login;
 window.logout = logout;
 window.show = show;
