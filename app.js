@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAAjEYc7dMgi4FTfh3mD7gaq34g_5ppNTI",
@@ -21,10 +21,6 @@ const PREMADE_PLANS = [
   { id: "3day", name: "REVENANT (3-Day)", routine: { 1: "Full Body A", 2: "Full Body B", 3: "Full Body C" }}
 ];
 
-// UI ELEMENTS
-const authMsg = document.getElementById("auth-msg");
-
-// AUTH OBSERVER
 onAuthStateChanged(auth, async user => {
   if (user) {
     const userSnap = await getDoc(doc(db, "users", user.uid));
@@ -43,32 +39,19 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-// LOGIN / SIGNUP LOGIC
 document.getElementById("loginBtn").onclick = async () => {
-  authMsg.innerText = "LOGGING IN...";
-  try {
-    await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value);
-  } catch (e) { authMsg.innerText = "ERROR: " + e.code; }
+  try { await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); } 
+  catch (e) { document.getElementById("auth-msg").innerText = e.code; }
 };
 
 document.getElementById("signupBtn").onclick = async () => {
-  authMsg.innerText = "CREATING ACCOUNT...";
-  try {
-    await createUserWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value);
-  } catch (e) { authMsg.innerText = "ERROR: " + e.code; }
+  try { await createUserWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("password").value); } 
+  catch (e) { document.getElementById("auth-msg").innerText = e.code; }
 };
 
 document.getElementById("peekBtn").onclick = () => {
   const p = document.getElementById("password");
   p.type = p.type === "password" ? "text" : "password";
-};
-
-document.getElementById("resetBtn").onclick = async () => {
-  const email = document.getElementById("email").value;
-  if (email) {
-    await sendPasswordResetEmail(auth, email);
-    authMsg.innerText = "RESET EMAIL SENT.";
-  } else { authMsg.innerText = "ENTER EMAIL FIRST."; }
 };
 
 document.getElementById("saveUserBtn").onclick = async () => {
@@ -81,54 +64,40 @@ document.getElementById("saveUserBtn").onclick = async () => {
 
 document.getElementById("logoutBtn").onclick = () => signOut(auth).then(() => location.reload());
 
-// NAVIGATION
 document.querySelectorAll("nav button[data-show]").forEach(btn => {
   btn.onclick = () => {
     const target = btn.getAttribute("data-show");
     document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
     document.getElementById(target).classList.remove("hidden");
-    if (target === 'builder') renderBuilderFields();
   };
 });
-
-// WORKOUT LOGIC
-document.getElementById("exerciseSelect").onchange = (e) => {
-  document.getElementById("customExercise").classList.toggle("hidden", e.target.value !== "CUSTOM");
-};
 
 document.getElementById("postBtn").onclick = async () => {
   const ex = document.getElementById("exerciseSelect").value === "CUSTOM" ? document.getElementById("customExercise").value : document.getElementById("exerciseSelect").value;
   const w = document.getElementById("weightInput").value;
   const r = document.getElementById("repsInput").value;
   const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-  
   if (w && r) {
     await addDoc(collection(db, "posts"), { text: `KILLED: ${ex} | ${w} LBS x ${r}`, username: userSnap.data().username, timestamp: new Date() });
     await addDoc(collection(db, "prs"), { uid: auth.currentUser.uid, lift: ex, value: `${w} LBS` });
-    document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-    document.getElementById("feed").classList.remove("hidden");
+    document.querySelector('[data-show="feed"]').click();
   }
 };
 
-// VAULT & PLANS
 function renderVault() {
   const list = document.getElementById("premade-list");
   list.innerHTML = "";
   PREMADE_PLANS.forEach(p => {
     const div = document.createElement("div");
     div.className = "plan-card";
-    div.innerHTML = `<h4>${p.name}</h4><button class="act-btn" data-id="${p.id}">ACTIVATE</button>`;
-    div.querySelector(".act-btn").onclick = () => activatePlan(p.id);
+    div.innerHTML = `<h4>${p.name}</h4><button class="act-btn">ACTIVATE</button>`;
+    div.querySelector(".act-btn").onclick = async () => {
+        await setDoc(doc(db, "users", auth.currentUser.uid), { activePlan: p }, { merge: true });
+        syncActivePlan();
+        document.querySelector('[data-show="active-plan"]').click();
+    };
     list.appendChild(div);
   });
-}
-
-async function activatePlan(id) {
-  const plan = PREMADE_PLANS.find(p => p.id === id);
-  await setDoc(doc(db, "users", auth.currentUser.uid), { activePlan: plan }, { merge: true });
-  syncActivePlan();
-  document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-  document.getElementById("active-plan").classList.remove("hidden");
 }
 
 async function syncActivePlan() {
@@ -138,7 +107,7 @@ async function syncActivePlan() {
   if (!plan) return;
   display.innerHTML = `<h4>${plan.name}</h4><table style="width:100%;">`;
   Object.entries(plan.routine).forEach(([day, work]) => {
-    display.innerHTML += `<tr><td style="color:#ff00ea; width:60px;">DAY ${day}</td><td>${work}</td></tr>`;
+    display.innerHTML += `<tr><td style="color:#ff00ea;">DAY ${day}</td><td>${work}</td></tr>`;
   });
   display.innerHTML += `</table>`;
 }
@@ -147,8 +116,7 @@ function loadFeed() {
   onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), snap => {
     const feed = document.getElementById("feed"); feed.innerHTML = "";
     snap.forEach(d => {
-      const data = d.data();
-      feed.innerHTML += `<div class="post"><small>> ${data.username}</small><pre>${data.text}</pre></div>`;
+      feed.innerHTML += `<div class="post"><small>> ${d.data().username}</small><pre>${d.data().text}</pre></div>`;
     });
   });
 }
@@ -159,31 +127,3 @@ function loadPRs() {
     snap.forEach(d => { list.innerHTML += `<p>> ${d.data().lift}: ${d.data().value}</p>`; });
   });
 }
-
-document.getElementById("goToBuilderBtn").onclick = () => {
-    document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-    document.getElementById("builder").classList.remove("hidden");
-    renderBuilderFields();
-};
-
-function renderBuilderFields() {
-    const days = document.getElementById("newPlanDays").value || 3;
-    const container = document.getElementById("day-inputs");
-    container.innerHTML = "";
-    for(let i=1; i<=days; i++) {
-        const inp = document.createElement("input");
-        inp.id = `day-${i}`;
-        inp.placeholder = `DAY ${i} EXERCISES`;
-        container.appendChild(inp);
-    }
-}
-
-document.getElementById("saveCustomBtn").onclick = async () => {
-    const routine = {};
-    const days = document.getElementById("newPlanDays").value || 3;
-    for(let i=1; i<=days; i++) { routine[i] = document.getElementById(`day-${i}`).value; }
-    await setDoc(doc(db, "users", auth.currentUser.uid), { activePlan: { name: document.getElementById("newPlanName").value, routine } }, { merge: true });
-    syncActivePlan();
-    document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
-    document.getElementById("active-plan").classList.remove("hidden");
-};
