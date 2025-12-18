@@ -4,7 +4,6 @@
   --blood:#b30000;
   --glow:#ff3333;
 
-  /* Morbid but readable (less “crushed blacks”) */
   --bg:#0a0a0c;
   --bg2:#0f0f12;
   --panel:#101014;
@@ -16,15 +15,14 @@
   --text:#a6a6b3;
   --muted:#7a7a86;
 
-  /* CRT green highlight */
   --highlight:#00ff41;
 
   --void:#07070a;
   --shadow: 14px 14px 0px rgba(0,0,0,0.95);
 }
 
-/* ===== BASE ===== */
 *{ box-sizing:border-box; }
+
 body{
   margin:0;
   font-family:'Courier Prime', monospace;
@@ -47,7 +45,9 @@ body.crt{
   background-size: 100% 4px, 3px 100%, auto, auto, auto;
 }
 
-/* ===== TITLE ===== */
+.screen{ min-height:100vh; padding-bottom: 60px; }
+.hidden{ display:none !important; }
+
 .morbid-title-main{
   font-size: clamp(44px, 5vw, 86px);
   text-align:center;
@@ -67,10 +67,6 @@ body.crt{
   100%{ transform:scale(1); filter:brightness(1) drop-shadow(0 0 5px rgba(179,0,0,0.35)); }
 }
 
-/* ===== LAYOUT ===== */
-.screen{ min-height:100vh; padding-bottom: 60px; }
-.hidden{ display:none !important; }
-
 .grave-grid{
   display:grid;
   grid-template-columns: 320px 1fr 360px;
@@ -81,14 +77,12 @@ body.crt{
 }
 
 .col-main{ min-width: 0; }
-.col, .col-main{ }
 
 @media (max-width: 1100px){
   .grave-grid{ grid-template-columns: 1fr; }
   .grave-nav{ position: sticky; top:0; }
 }
 
-/* ===== NAV ===== */
 .grave-nav{
   background: linear-gradient(180deg, rgba(7,7,10,0.94), rgba(7,7,10,0.86));
   border-bottom: 2px solid rgba(179,0,0,0.8);
@@ -120,7 +114,6 @@ body.crt{
   letter-spacing: 1px;
 }
 
-/* ===== BOXES ===== */
 .grave-box{
   background: linear-gradient(180deg, rgba(16,16,20,0.95), rgba(12,12,16,0.95));
   border: 1px solid var(--border);
@@ -129,9 +122,7 @@ body.crt{
   border-radius: 14px;
   overflow: hidden;
 }
-.grave-box:hover{
-  border-color: rgba(0,255,65,0.22);
-}
+.grave-box:hover{ border-color: rgba(0,255,65,0.22); }
 
 .grave-header{
   background: linear-gradient(90deg, rgba(0,0,0,0.85), rgba(0,0,0,0.45));
@@ -146,10 +137,7 @@ body.crt{
   align-items:center;
   text-transform: uppercase;
 }
-.grave-body{
-  padding: 16px;
-  color: var(--text);
-}
+.grave-body{ padding: 16px; color: var(--text); }
 
 .header-chip{
   font-size: 10px;
@@ -160,7 +148,6 @@ body.crt{
   background: rgba(0,255,65,0.06);
 }
 
-/* ===== INPUTS / SELECTS ===== */
 input, textarea, select{
   width:100%;
   margin-bottom: 14px;
@@ -175,12 +162,10 @@ input, textarea, select{
   transition: border .2s, box-shadow .2s, transform .08s;
 }
 textarea{ min-height: 110px; resize: vertical; }
-
 input:focus, textarea:focus, select:focus{
   border-color: rgba(0,255,65,0.55);
   box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
 }
-
 select{
   appearance:none;
   background-image:
@@ -197,8 +182,8 @@ select{
   background-repeat:no-repeat;
 }
 
-/* ===== BUTTONS ===== */
 .btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+
 .grave-btn{
   background: linear-gradient(180deg, rgba(179,0,0,1), rgba(110,0,0,1));
   color:#fff;
@@ -212,10 +197,7 @@ select{
   transition: transform .08s, filter .2s, box-shadow .2s;
   text-transform: uppercase;
 }
-.grave-btn:hover{
-  filter: brightness(1.1);
-  box-shadow: 0 0 18px rgba(179,0,0,0.35);
-}
+.grave-btn:hover{ filter: brightness(1.1); box-shadow: 0 0 18px rgba(179,0,0,0.35); }
 .grave-btn:active{ transform: translateY(1px); }
 
 .grave-btn-alt{
@@ -248,19 +230,11 @@ select{
   text-transform: uppercase;
   transition: transform .08s, background .2s;
 }
-.mini-btn:hover{
-  background: rgba(0,255,65,0.12);
-}
+.mini-btn:hover{ background: rgba(0,255,65,0.12); }
 .mini-btn:active{ transform: translateY(1px); }
-.mini-btn.danger{
-  color: var(--blood);
-  border-color: rgba(179,0,0,0.75);
-}
-.mini-btn.danger:hover{
-  background: rgba(179,0,0,0.12);
-}
+.mini-btn.danger{ color: var(--blood); border-color: rgba(179,0,0,0.75); }
+.mini-btn.danger:hover{ background: rgba(179,0,0,0.12); }
 
-/* ===== TAGS ===== */
 .grave-tag{
   height: 96px;
   display:flex;
@@ -278,7 +252,6 @@ select{
   z-index: 3;
   text-shadow: 0 3px 14px rgba(0,0,0,0.95);
 }
-
 .tag-fog{
   position:absolute;
   inset:-60%;
@@ -330,7 +303,6 @@ select{
   box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
 }
 
-/* ===== AVATARS ===== */
 .avatar-grid{
   display:grid;
   grid-template-columns: repeat(2, 1fr);
@@ -352,7 +324,6 @@ select{
   border-color: rgba(0,255,65,0.55);
   box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
 }
-
 .avatar-frame{
   width: 74px;
   height: 74px;
@@ -379,7 +350,6 @@ select{
   to{ transform: rotate(360deg) scale(1.02); }
 }
 
-/* ===== PROFILE LEFT ===== */
 .profile-top{ display:flex; gap:14px; align-items:center; }
 .profile-meta{ min-width:0; }
 .cadaver-name{
@@ -400,7 +370,6 @@ select{
 .stat small{ color: rgba(166,166,179,0.7); display:block; font-size: 10px; letter-spacing:1.6px; }
 .stat b{ color: rgba(0,255,65,0.85); font-size: 14px; }
 
-/* ===== MASSGRAVE ===== */
 .massgrave{
   background: radial-gradient(900px 200px at 30% 0%, rgba(179,0,0,0.12), transparent 55%),
               rgba(0,0,0,0.25);
@@ -427,46 +396,6 @@ select{
   color: rgba(166,166,179,0.75);
 }
 
-/* ===== POSTS ===== */
-.post{ margin-bottom: 14px; }
-.post-top{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:center;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.28);
-}
-.post-top .who{
-  font-weight: 700;
-  color: rgba(0,255,65,0.85);
-  cursor:pointer;
-}
-.post-top .meta{
-  font-size: 10px;
-  color: rgba(166,166,179,0.7);
-  display:flex;
-  gap:10px;
-  align-items:center;
-  text-transform: uppercase;
-}
-.post-body{ padding: 14px; color: rgba(231,231,239,0.9); line-height: 1.35; }
-.comment{
-  padding: 10px 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px;
-  color: rgba(231,231,239,0.86);
-}
-.comment b{ color: rgba(0,255,65,0.85); }
-.comment-input-wrap{
-  display:flex;
-  gap: 10px;
-  padding: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.comment-input-wrap input{ margin:0; }
-
 .hint{
   display:flex;
   gap:10px;
@@ -485,7 +414,6 @@ select{
   margin-top: 2px;
 }
 
-/* ===== PLANS ===== */
 .plan-index{
   display:grid;
   grid-template-columns: 1fr;
@@ -548,7 +476,6 @@ select{
   line-height: 1.35;
 }
 
-/* ===== LOGGER ===== */
 .logger-top{ margin-bottom: 10px; }
 .logger-title{
   font-weight: 700;
@@ -566,6 +493,7 @@ select{
   flex-direction:column;
   gap: 10px;
 }
+
 .workline{
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
@@ -575,7 +503,7 @@ select{
 .workline-top{
   display:flex;
   gap: 10px;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
 }
 .workline-title{
@@ -583,6 +511,12 @@ select{
   letter-spacing: 1.6px;
   color: rgba(231,231,239,0.9);
   text-transform: uppercase;
+}
+.workline-sub{
+  margin-top:6px;
+  font-size: 11px;
+  color: rgba(166,166,179,0.8);
+  letter-spacing: 1px;
 }
 .workline-controls{
   display:flex;
@@ -600,11 +534,8 @@ select{
 }
 .row3 input{ margin:0; }
 
-.manual-log select{ margin-bottom: 10px; }
-
-/* ===== PR INDEX ===== */
 .index-container{
-  max-height: 560px;
+  max-height: 360px;
   overflow-y:auto;
   background: rgba(0,0,0,0.18);
   border-radius: 14px;
@@ -621,10 +552,8 @@ select{
   font-size: 12px;
 }
 .index-row:last-child{ border-bottom:none; }
-.index-row span{ color: rgba(231,231,239,0.86); }
 .index-row .dim{ color: rgba(166,166,179,0.7); font-size: 11px; }
 
-/* ===== MODALS ===== */
 .modal{
   position:fixed;
   inset:0;
@@ -667,7 +596,6 @@ select{
 }
 .modal-posts{ display:flex; flex-direction:column; gap: 10px; }
 
-/* ===== BUILDER ===== */
 .builder-days-wrap{
   display:flex;
   flex-direction:column;
@@ -695,7 +623,6 @@ select{
   color: rgba(0,255,65,0.9);
 }
 
-/* ===== SMALL HELPERS ===== */
 .small-label{
   font-size: 11px;
   color: rgba(166,166,179,0.8);
@@ -725,7 +652,6 @@ select{
   .row-split{ grid-template-columns: 1fr; }
 }
 
-/* scrollbars */
 ::-webkit-scrollbar{ width: 8px; }
 ::-webkit-scrollbar-track{ background: rgba(0,0,0,0.25); }
 ::-webkit-scrollbar-thumb{
