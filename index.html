@@ -8,6 +8,7 @@
 </head>
 
 <body class="crt">
+
   <!-- AUTH / REGISTRATION -->
   <div id="registration-screen" class="screen hidden">
     <div class="morbid-title-main pulse">DEADWEIGHTS</div>
@@ -33,6 +34,7 @@
 
         <div id="reg-step-2" class="hidden">
           <input id="reg-username" placeholder="ASSIGN_CALLSIGN" maxlength="18">
+
           <div class="row-split">
             <div>
               <p class="small-label">SELECT INITIAL GRAVE_TAG:</p>
@@ -43,6 +45,7 @@
               <div id="avatar-picker" class="avatar-grid"></div>
             </div>
           </div>
+
           <button id="finalizeRegBtn" class="grave-btn">FINALIZE_ENTRY</button>
           <div class="tiny-warn" id="reg-warn"></div>
         </div>
@@ -61,7 +64,12 @@
         <input id="email" type="email" placeholder="USER_ID" autocomplete="email">
         <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
         <button id="loginBtn" class="grave-btn">RESURRECT</button>
-        <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
+
+        <div class="btn-row" style="margin-top:10px;">
+          <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
+          <button id="forgotBtn" class="grave-btn-alt">FORGOT_PASSCODE</button>
+        </div>
+
         <div class="tiny-warn" id="auth-warn"></div>
       </div>
     </div>
@@ -86,7 +94,8 @@
     </header>
 
     <div class="grave-grid">
-      <!-- LEFT: PROFILE + LEADERBOARD -->
+
+      <!-- LEFT -->
       <aside class="col">
         <div class="grave-box">
           <div class="grave-tag" id="user-grave-tag">
@@ -100,6 +109,7 @@
 
               <div class="profile-meta">
                 <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
+
                 <div class="stats-line">
                   <div class="stat">
                     <small>CARVINGS</small><b id="stat-count">0</b>
@@ -108,6 +118,7 @@
                     <small>RANK</small><b id="user-rank">NEWBORN</b>
                   </div>
                 </div>
+
                 <div class="stats-line">
                   <div class="stat">
                     <small>PR_TROPHIES</small><b id="trophy-count">0</b>
@@ -122,9 +133,9 @@
             <div class="divider"></div>
 
             <div class="massgrave">
-              <div class="massgrave-title">DAILY MASSGRAVE</div>
+              <div class="massgrave-title">YOUR DAILY MASSGRAVE</div>
               <div class="massgrave-value" id="massgrave-value">0</div>
-              <div class="massgrave-sub">Total volume lifted today (all entities)</div>
+              <div class="massgrave-sub">Your total volume lifted today</div>
             </div>
           </div>
         </div>
@@ -140,8 +151,9 @@
         </div>
       </aside>
 
-      <!-- CENTER: PANELS -->
+      <!-- CENTER -->
       <main class="col-main">
+
         <!-- FEED -->
         <section id="feed-panel">
           <div class="grave-box">
@@ -157,6 +169,7 @@
               </div>
             </div>
           </div>
+
           <div id="feed-content"></div>
         </section>
 
@@ -165,7 +178,7 @@
           <div class="grave-box">
             <div class="grave-header">
               <span>SPLIT_INDEX</span>
-              <span class="header-chip">3–5 DAYS</span>
+              <span class="header-chip">3–7 DAYS</span>
             </div>
             <div class="grave-body">
               <div class="row-split">
@@ -175,9 +188,9 @@
                 </div>
 
                 <div>
-                  <p class="small-label">START DAY (PLAN DAY NUMBER):</p>
+                  <p class="small-label">START DAY:</p>
                   <div class="start-controls">
-                    <button class="mini-btn" id="start-auto-btn">AUTO (DAY_1)</button>
+                    <button class="mini-btn" id="start-auto-btn">AUTO (TODAY)</button>
                     <select id="start-day-select"></select>
                   </div>
 
@@ -190,7 +203,7 @@
 
                   <div class="hint">
                     <span class="hint-dot"></span>
-                    Auto-rotation: the plan advances only after a new calendar day begins AND you logged at least one plan entry on your last workout day.
+                    Auto-rotation: you only advance days when you log. Missed days don’t skip you.
                   </div>
                 </div>
               </div>
@@ -202,11 +215,12 @@
               <span>ACTIVE_SPLIT_STATUS</span>
               <span class="header-chip" id="active-day-chip">DAY_?</span>
             </div>
+
             <div class="grave-body">
               <div id="active-plan-readout" class="active-plan-readout"></div>
               <div class="btn-row">
                 <button id="deactivate-plan-btn" class="mini-btn danger">DEACTIVATE_SPLIT</button>
-                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY_1</button>
+                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY</button>
               </div>
             </div>
           </div>
@@ -233,6 +247,7 @@
           <div class="grave-box">
             <div class="grave-header">USER_PARAMETERS</div>
             <div class="grave-body">
+
               <div class="row-split">
                 <div>
                   <p>CHANGE CALLSIGN:</p>
@@ -244,6 +259,16 @@
                   <p>GRAVE_TAG_VISUALS:</p>
                   <div id="settings-tag-picker" class="tag-grid"></div>
                   <button class="grave-btn" id="updateTagBtn">UPDATE_TAG</button>
+
+                  <div class="divider"></div>
+
+                  <p>ADD EXERCISE TO YOUR INDEX:</p>
+                  <input id="new-exercise" placeholder="EX: DB Bench Press">
+                  <button class="grave-btn-alt" id="addExerciseBtn">ADD_TO_LIBRARY</button>
+                  <div class="hint">
+                    <span class="hint-dot"></span>
+                    Adds to your dropdowns (builder + logger). Fixes “exercise not listed”.
+                  </div>
                 </div>
 
                 <div>
@@ -259,7 +284,7 @@
 
                   <div class="hint">
                     <span class="hint-dot"></span>
-                    Cards unlock with ranks + trophies. Some are locked until you earn them.
+                    Cards unlock with ranks + trophies.
                   </div>
                 </div>
               </div>
@@ -267,8 +292,8 @@
               <div class="divider"></div>
 
               <div class="admin-box">
-                <div class="admin-title">ADMIN_CONSOLE (OPTIONAL)</div>
-                <div class="small-label">If you later add admin claims, this panel can expand. For now: local controls only.</div>
+                <div class="admin-title">ADMIN_CONSOLE (LOCAL)</div>
+                <div class="small-label">Local purge controls (your own data only).</div>
                 <button id="purgeMyLogsBtn" class="mini-btn danger">PURGE_MY_LOGS</button>
                 <button id="purgeMyPostsBtn" class="mini-btn danger">PURGE_MY_POSTS</button>
               </div>
@@ -276,9 +301,10 @@
             </div>
           </div>
         </section>
+
       </main>
 
-      <!-- RIGHT: LOGGER + PR INDEX -->
+      <!-- RIGHT -->
       <aside class="col">
         <div class="grave-box">
           <div class="grave-header">LOGGING_STATION</div>
@@ -296,12 +322,18 @@
               <div class="small-label">MANUAL CARVING (ANY EXERCISE):</div>
               <select id="log-category"></select>
               <select id="log-ex"></select>
+
               <div class="row3">
                 <input id="log-w" type="number" inputmode="decimal" placeholder="LBS">
                 <input id="log-r" type="number" inputmode="numeric" placeholder="REPS">
                 <button id="manualLogBtn" class="mini-btn">RECORD</button>
               </div>
             </div>
+
+            <div class="divider thin"></div>
+
+            <div class="small-label">MY CARVINGS (RECENT)</div>
+            <div id="my-logs" class="index-container"></div>
           </div>
         </div>
 
@@ -310,6 +342,7 @@
           <div id="prList" class="grave-body index-container"></div>
         </div>
       </aside>
+
     </div>
   </div>
 
@@ -349,24 +382,27 @@
         <span>SPLIT_FORGE</span>
         <button id="closeBuilderBtn" class="mini-btn danger">X</button>
       </div>
+
       <div class="grave-body">
         <div class="row-split">
           <div>
             <p class="small-label">SPLIT_NAME</p>
-            <input id="builder-name" placeholder="EX: NECRO_PPL // 5-DAY">
+            <input id="builder-name" placeholder="EX: NECRO_PPL // 6-DAY">
 
             <p class="small-label">DAYS_PER_WEEK</p>
             <select id="builder-days">
               <option value="3">3</option>
               <option value="4">4</option>
               <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
             </select>
 
             <div class="divider thin"></div>
 
             <div class="hint">
               <span class="hint-dot"></span>
-              Add workouts per day. You can reorder later by editing day labels.
+              One exercise per line. You can include dumbbells like: “DB Bench Press”.
             </div>
 
             <button id="builder-create-btn" class="grave-btn">SAVE_SPLIT</button>
