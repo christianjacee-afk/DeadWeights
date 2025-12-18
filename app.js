@@ -1,13 +1,11 @@
-// app.js (FULL REWRITE w/ the new “cool as hell” GraveFive split + auto-rotation + sets/reps targets)
-// Paste this whole file into app.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 import {
@@ -49,177 +47,150 @@ const db = getFirestore(app);
    UTIL
 ========================= */
 const $ = (id) => document.getElementById(id);
-const esc = (s = "") =>
-  String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+const esc = (s="") => String(s)
+  .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+  .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
-function toast(msg) {
-  alert(msg);
-}
+function toast(msg){ alert(msg); }
 
-function todayKey() {
+function todayKey(){
   const d = new Date();
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const da = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const da = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${da}`;
 }
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
+function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+
+function e1rm(w, r){
+  // Epley
+  return Math.round((Number(w) || 0) * (1 + (Number(r) || 0)/30));
 }
 
 /* =========================
    GAME SYSTEMS (RANKS / TROPHIES / CARDS)
 ========================= */
 const RANKS = [
-  { min: 0, name: "NEWBORN", cardUnlock: 0 },
-  { min: 10, name: "STALKER", cardUnlock: 1 },
-  { min: 50, name: "GRAVE_LORD", cardUnlock: 2 },
-  { min: 100, name: "IMMORTAL", cardUnlock: 3 },
-  { min: 200, name: "CRYPT_KING", cardUnlock: 4 }
+  { min: 0, name: "NEWBORN" },
+  { min: 10, name: "STALKER" },
+  { min: 40, name: "GRAVE_LORD" },
+  { min: 80, name: "IMMORTAL" },
+  { min: 150, name: "CRYPT_KING" }
 ];
 
-// trophy thresholds based on estimated 1RM for key lifts
+/* LOWERED TROPHIES for normal gym goers */
 const TROPHIES = [
-  { id: "BENCH_225", label: "BENCH 225+ (e1RM)", key: "Bench Press", min: 225 },
-  { id: "SQUAT_315", label: "SQUAT 315+ (e1RM)", key: "Back Squats", min: 315 },
-  { id: "DEAD_405", label: "DEADLIFT 405+ (e1RM)", key: "Deadlifts", min: 405 },
-  { id: "OHP_135", label: "OHP 135+ (e1RM)", key: "Overhead Press", min: 135 },
-  { id: "ROW_225", label: "ROW 225+ (e1RM)", key: "Barbell Rows", min: 225 }
+  { id:"BENCH_185", label:"BENCH 185+ (e1RM)", key:"Bench Press", min:185 },
+  { id:"SQUAT_225", label:"SQUAT 225+ (e1RM)", key:"Back Squat", min:225 },
+  { id:"DEAD_275",  label:"DEADLIFT 275+ (e1RM)", key:"Deadlift", min:275 },
+  { id:"OHP_95",    label:"OHP 95+ (e1RM)", key:"Overhead Press", min:95 },
+  { id:"ROW_185",   label:"ROW 185+ (e1RM)", key:"Barbell Row", min:185 },
 ];
 
-/* Calling Cards */
 const CALLING_CARDS = [
-  { id: "rust_sigils", name: "RUST_SIGILS", req: { rankMin: 0 }, fx: "sigils" },
-  { id: "crt_wraith", name: "CRT_WRAITH", req: { rankMin: 10 }, fx: "wraith" },
-  { id: "blood_oath", name: "BLOOD_OATH", req: { rankMin: 50 }, fx: "blood" },
-  { id: "void_howl", name: "VOID_HOWL", req: { rankMin: 100 }, fx: "howl" },
-  { id: "trophy_reaper", name: "REAPER_TROPHY", req: { trophy: "DEAD_405" }, fx: "reaper" }
+  { id:"rust_sigils", name:"RUST_SIGILS", req:{ carvingsMin:0 } },
+  { id:"crt_wraith",  name:"CRT_WRAITH", req:{ carvingsMin:10 } },
+  { id:"blood_oath",  name:"BLOOD_OATH", req:{ carvingsMin:40 } },
+  { id:"void_howl",   name:"VOID_HOWL", req:{ carvingsMin:80 } },
+  { id:"trophy_reaper", name:"REAPER_TROPHY", req:{ trophy:"DEAD_275" } },
 ];
 
-/* Grave Tags */
 const TAGS = [
-  { id: "rust", css: "tag-rust", label: "RUST" },
-  { id: "crt", css: "tag-crt", label: "CRT" },
-  { id: "blood", css: "tag-blood", label: "BLOOD" },
-  { id: "void", css: "tag-void", label: "VOID" }
+  { id:"rust",  css:"tag-rust",  label:"RUST"  },
+  { id:"crt",   css:"tag-crt",   label:"CRT"   },
+  { id:"blood", css:"tag-blood", label:"BLOOD" },
+  { id:"void",  css:"tag-void",  label:"VOID"  }
 ];
 
-/* =========================
-   EXERCISE POOLS
-========================= */
-const EXERCISES = {
-  Push: [
-    "Bench Press",
-    "Incline DB Press",
-    "Incline Bench Press",
-    "Overhead Press",
-    "Machine Shoulder Press",
-    "Seated DB Press",
-    "Dips",
-    "Close-Grip Bench",
-    "Skull Crushers",
-    "Rope Pushdowns",
-    "Cable Fly",
-    "DB Fly",
-    "Lateral Raises",
-    "Rear Delt Fly",
-    "Machine Chest Press",
-    "Pec Deck"
-  ],
-  Pull: [
-    "Deadlifts",
-    "RDLs",
-    "Romanian Deadlift",
-    "Barbell Rows",
-    "Cable Rows",
-    "Seated Cable Row",
-    "Lat Pulldown",
-    "Pull Ups",
-    "Chin Ups",
-    "Face Pulls",
-    "Shrugs",
-    "Back Extensions",
-    "Bicep Curls",
-    "EZ-Bar Curls",
-    "Hammer Curls",
-    "Preacher Curls",
-    "Incline DB Curls"
-  ],
-  Legs: [
-    "Back Squats",
-    "Hack Squat",
-    "Front Squats",
-    "Leg Press",
-    "Bulgarian Split Squat",
-    "Lunges",
-    "Leg Extensions",
-    "Hamstring Curls",
-    "Hip Thrust",
-    "Glute Bridge",
-    "Calf Raises",
-    "Step Ups",
-    "Good Mornings",
-    "Adductor Machine",
-    "Abductor Machine"
-  ],
-  Core: ["Hanging Leg Raises", "Cable Crunch", "Ab Wheel", "Plank", "Side Plank", "Russian Twists"],
-  Conditioning: ["Row Machine", "Bike Sprint", "Incline Treadmill", "Farmer Walk", "Sled Push"]
-};
+function computeRankName(carvingCount=0){
+  const r = RANKS.filter(x => carvingCount >= x.min).pop() || RANKS[0];
+  return r.name;
+}
 
-function allExercises() {
-  const set = new Set();
-  Object.values(EXERCISES)
-    .flat()
-    .forEach((x) => set.add(x));
-  return Array.from(set).sort();
+function cardsForUser(user){
+  const carvings = user?.carvingCount || 0;
+  const trophies = user?.trophies || {};
+  return CALLING_CARDS.map(c => {
+    const okCarvings = (c.req?.carvingsMin ?? 0) <= carvings;
+    const okTrophy = c.req?.trophy ? !!trophies[c.req.trophy] : true;
+    return { ...c, unlocked: okCarvings && okTrophy };
+  });
 }
 
 /* =========================
-   BUILT-IN SPLITS
-   - day.items[] supports:
-     { muscle, options[], sets, reps }
+   EXERCISE POOLS (expanded + dumbbell-friendly)
 ========================= */
+const EXERCISES = {
+  "Push": [
+    "Bench Press","Incline Bench Press","Machine Chest Press","DB Bench Press","DB Incline Press",
+    "Overhead Press","Seated DB Press","Machine Shoulder Press",
+    "Dips","Close-Grip Bench","Skull Crushers","Rope Pushdowns",
+    "Cable Fly","Pec Deck","DB Fly",
+    "Lateral Raises","Front Raises","Rear Delt Fly"
+  ],
+  "Pull": [
+    "Deadlift","Romanian Deadlift (RDL)","DB Romanian Deadlift","Barbell Row","Cable Row","Seated Cable Row","DB Row",
+    "Pull-up","Chin-up","Lat Pulldown",
+    "Face Pull","Shrug","Back Extension",
+    "EZ-Bar Curl","DB Curl","Hammer Curl","Preacher Curl","Incline DB Curl"
+  ],
+  "Legs": [
+    "Back Squat","Front Squat","Hack Squat","Leg Press","Bulgarian Split Squat","Lunge","Step Up",
+    "Leg Extension","Hamstring Curl",
+    "Hip Thrust","Glute Bridge",
+    "Calf Raise",
+    "Adductor Machine","Abductor Machine"
+  ],
+  "Core": [
+    "Hanging Leg Raise","Cable Crunch","Ab Wheel","Plank","Side Plank","Russian Twist"
+  ],
+  "Conditioning": [
+    "Row Machine","Bike Sprint","Incline Treadmill","Farmer Walk","Sled Push"
+  ]
+};
+
+function allExercises(){
+  const set = new Set();
+  Object.values(EXERCISES).flat().forEach(x => set.add(x));
+  (currentUserData?.exerciseLibrary || []).forEach(x => set.add(x));
+  return Array.from(set).sort((a,b)=>a.localeCompare(b));
+}
+
+/* =========================
+   BUILT-IN SPLITS (3–7 day support)
+========================= */
+
+/* Helper for plan exercise rows */
+const exRow = (muscle, name, sets, reps) => ({ muscle, name, sets, reps });
+
 const BUILT_IN_PLANS = [
   {
     id: "crypt_ppl_3",
     name: "CRYPT_PPL // 3-DAY",
     vibe: "Minimal days. Max brutality. (Push/Pull/Legs)",
     days: [
-      {
-        name: "DAY_1 PUSH",
-        items: [
-          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–10" },
-          { muscle: "Shoulders", options: ["Overhead Press", "Seated DB Press"], sets: 3, reps: "6–10" },
-          { muscle: "Chest", options: ["Cable Fly", "DB Fly", "Pec Deck"], sets: 3, reps: "10–15" },
-          { muscle: "Triceps", options: ["Skull Crushers", "Rope Pushdowns", "Close-Grip Bench"], sets: 3, reps: "10–12" }
-        ]
-      },
-      {
-        name: "DAY_2 PULL",
-        items: [
-          { muscle: "Back", options: ["Deadlifts", "RDLs"], sets: 3, reps: "3–6" },
-          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row", "Cable Rows"], sets: 4, reps: "6–10" },
-          { muscle: "Back", options: ["Lat Pulldown", "Pull Ups", "Chin Ups"], sets: 4, reps: "8–12" },
-          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "12–15" },
-          { muscle: "Biceps", options: ["EZ-Bar Curls", "Hammer Curls"], sets: 3, reps: "8–12" }
-        ]
-      },
-      {
-        name: "DAY_3 LEGS",
-        items: [
-          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "5–8" },
-          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
-          { muscle: "Hamstrings", options: ["Romanian Deadlift", "Hamstring Curls"], sets: 3, reps: "8–12" },
-          { muscle: "Glutes", options: ["Hip Thrust", "Glute Bridge"], sets: 3, reps: "8–12" },
-          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" }
-        ]
-      }
+      { name:"DAY_1 PUSH", exercises:[
+        exRow("Chest","Bench Press",3,"5–8"),
+        exRow("Shoulders","Overhead Press",3,"6–8"),
+        exRow("Chest","Incline Bench Press",3,"6–10"),
+        exRow("Shoulders","Lateral Raises",3,"12–15"),
+        exRow("Triceps","Rope Pushdowns",3,"10–12"),
+      ]},
+      { name:"DAY_2 PULL", exercises:[
+        exRow("Back","Deadlift",3,"3–6"),
+        exRow("Back","Barbell Row",3,"6–10"),
+        exRow("Back","Lat Pulldown",3,"8–12"),
+        exRow("Rear Delts","Face Pull",3,"12–15"),
+        exRow("Biceps","EZ-Bar Curl",3,"8–12"),
+      ]},
+      { name:"DAY_3 LEGS", exercises:[
+        exRow("Quads","Back Squat",3,"5–8"),
+        exRow("Quads","Leg Press",3,"8–12"),
+        exRow("Hamstrings","Romanian Deadlift (RDL)",3,"6–10"),
+        exRow("Quads","Leg Extension",3,"12–15"),
+        exRow("Calves","Calf Raise",3,"10–15"),
+      ]}
     ]
   },
 
@@ -228,165 +199,97 @@ const BUILT_IN_PLANS = [
     name: "WRAITH_U/L // 4-DAY",
     vibe: "Upper/Lower twice. Strong + aesthetic.",
     days: [
-      {
-        name: "DAY_1 UPPER_A",
-        items: [
-          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–8" },
-          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row"], sets: 4, reps: "6–10" },
-          { muscle: "Shoulders", options: ["Overhead Press", "Seated DB Press"], sets: 3, reps: "6–10" },
-          { muscle: "Back", options: ["Lat Pulldown", "Pull Ups"], sets: 3, reps: "8–12" },
-          { muscle: "Arms", options: ["Skull Crushers", "EZ-Bar Curls"], sets: 3, reps: "10–12" }
-        ]
-      },
-      {
-        name: "DAY_2 LOWER_A",
-        items: [
-          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "6–8" },
-          { muscle: "Hamstrings", options: ["Romanian Deadlift", "RDLs"], sets: 4, reps: "6–10" },
-          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
-          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "10–15" },
-          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" }
-        ]
-      },
-      {
-        name: "DAY_3 UPPER_B",
-        items: [
-          { muscle: "Chest", options: ["Incline DB Press", "Machine Chest Press"], sets: 4, reps: "8–12" },
-          { muscle: "Back", options: ["Seated Cable Row", "Cable Rows"], sets: 4, reps: "8–12" },
-          { muscle: "Shoulders", options: ["Lateral Raises"], sets: 4, reps: "12–15" },
-          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "12–15" },
-          { muscle: "Arms", options: ["Hammer Curls", "Rope Pushdowns"], sets: 3, reps: "10–12" }
-        ]
-      },
-      {
-        name: "DAY_4 LOWER_B",
-        items: [
-          { muscle: "Quads", options: ["Front Squats", "Hack Squat"], sets: 4, reps: "6–10" },
-          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "8–12" },
-          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "12–15" },
-          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12–15" },
-          { muscle: "Quads", options: ["Lunges", "Bulgarian Split Squat"], sets: 3, reps: "8–12" }
-        ]
-      }
+      { name:"DAY_1 UPPER_A", exercises:[
+        exRow("Chest","Bench Press",4,"6–8"),
+        exRow("Back","Barbell Row",4,"6–10"),
+        exRow("Shoulders","Overhead Press",3,"6–8"),
+        exRow("Back","Lat Pulldown",3,"8–12"),
+        exRow("Triceps","Skull Crushers",3,"10"),
+      ]},
+      { name:"DAY_2 LOWER_A", exercises:[
+        exRow("Quads","Back Squat",4,"6–8"),
+        exRow("Hamstrings","Romanian Deadlift (RDL)",4,"8"),
+        exRow("Quads","Leg Press",3,"10"),
+        exRow("Hamstrings","Hamstring Curl",3,"12"),
+        exRow("Calves","Calf Raise",3,"12–15"),
+      ]},
+      { name:"DAY_3 UPPER_B", exercises:[
+        exRow("Chest","Incline Bench Press",4,"6–8"),
+        exRow("Back","Cable Row",3,"8–10"),
+        exRow("Chest","Cable Fly",3,"12"),
+        exRow("Rear Delts","Face Pull",3,"15"),
+        exRow("Biceps","Hammer Curl",3,"10–12"),
+      ]},
+      { name:"DAY_4 LOWER_B", exercises:[
+        exRow("Quads","Hack Squat",4,"6–8"),
+        exRow("Glutes","Hip Thrust",3,"8–10"),
+        exRow("Quads","Leg Extension",3,"15"),
+        exRow("Hamstrings","Hamstring Curl",3,"12"),
+        exRow("Quads","Bulgarian Split Squat",3,"8"),
+      ]}
     ]
   },
 
-  /* ✅ YOUR SPLIT (as requested), with a brutal name */
+  /* ✅ YOUR EXACT GRAVEFIVE WORKSHEET */
   {
-    id: "ironcoffin_gravefive_5",
-    name: "IRON_COFFIN // GRAVEFIVE (5-DAY)",
-    vibe: "Every muscle 2×/week. Miss a day? The coffin rotates—no schedule breaks.",
+    id: "gravefive_hybrid_5",
+    name: "GRAVEFIVE // 5-DAY",
+    vibe: "Every muscle 2×/week (weekday friendly).",
     days: [
       {
-        name: "MONDAY // FULL BODY COMPOUND",
-        items: [
-          { muscle: "Quads", options: ["Back Squats", "Leg Press"], sets: 3, reps: "5–8" },
-          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 3, reps: "5–8" },
-          { muscle: "Back", options: ["Barbell Rows", "Pull Ups", "Lat Pulldown"], sets: 3, reps: "6–10" },
-          { muscle: "Shoulders", options: ["Overhead Press", "Machine Shoulder Press"], sets: 2, reps: "6–8" },
-          { muscle: "Ham/Glutes", options: ["Romanian Deadlift", "RDLs", "Deadlifts"], sets: 2, reps: "6–8" },
-          { muscle: "Arms (opt)", options: ["EZ-Bar Curls", "Hammer Curls", "Rope Pushdowns"], sets: 2, reps: "10–12" }
+        name:"MONDAY – FULL BODY COMPOUND",
+        exercises:[
+          exRow("Quads","Squat / Leg Press",3,"5–8"),
+          exRow("Chest","Bench / Incline",3,"5–8"),
+          exRow("Back","Row / Pull-ups",3,"6–10"),
+          exRow("Shoulders","Overhead Press",2,"6–8"),
+          exRow("Ham/Glutes","RDL / Deadlift",2,"6–8"),
+          exRow("Arms","Curl or Pushdown (opt)",2,"10–12"),
         ]
       },
       {
-        name: "TUESDAY // LOWER A (FULL LEGS)",
-        items: [
-          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "6–8" },
-          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "10" },
-          { muscle: "Hamstrings", options: ["Romanian Deadlift", "RDLs"], sets: 4, reps: "8" },
-          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12" },
-          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "10" },
-          { muscle: "Adductors", options: ["Adductor Machine"], sets: 3, reps: "15" },
-          { muscle: "Abductors", options: ["Abductor Machine"], sets: 3, reps: "15" }
+        name:"TUESDAY – LOWER A (FULL LEGS)",
+        exercises:[
+          exRow("Quads","Squat / Hack Squat",4,"6–8"),
+          exRow("Quads","Leg Press",3,"10"),
+          exRow("Hamstrings","Romanian Deadlift",4,"8"),
+          exRow("Hamstrings","Ham Curl",3,"12"),
+          exRow("Glutes","Hip Thrust",3,"10"),
+          exRow("Adductors","Adduction Machine",3,"15"),
+          exRow("Abductors","Abduction Machine",3,"15"),
         ]
       },
       {
-        name: "WEDNESDAY // UPPER PUSH",
-        items: [
-          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–8" },
-          { muscle: "Chest", options: ["Cable Fly", "DB Fly", "Pec Deck"], sets: 3, reps: "12" },
-          { muscle: "Shoulders", options: ["Overhead Press", "Machine Shoulder Press"], sets: 3, reps: "8" },
-          { muscle: "Shoulders", options: ["Lateral Raises"], sets: 4, reps: "12–15" },
-          { muscle: "Triceps", options: ["Skull Crushers"], sets: 3, reps: "10" },
-          { muscle: "Triceps", options: ["Rope Pushdowns"], sets: 3, reps: "12" }
+        name:"WEDNESDAY – UPPER PUSH",
+        exercises:[
+          exRow("Chest","Bench / Incline Press",4,"6–8"),
+          exRow("Chest","Fly Variation",3,"12"),
+          exRow("Shoulders","OHP / Machine Press",3,"8"),
+          exRow("Shoulders","Lateral Raises",4,"12–15"),
+          exRow("Triceps","Skull Crushers",3,"10"),
+          exRow("Triceps","Rope Pushdowns",3,"12"),
         ]
       },
       {
-        name: "THURSDAY // LOWER B (POSTERIOR)",
-        items: [
-          { muscle: "Ham/Glutes", options: ["Deadlifts", "Romanian Deadlift", "RDLs"], sets: 4, reps: "6" },
-          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "8" },
-          { muscle: "Quads", options: ["Bulgarian Split Squat"], sets: 3, reps: "8" },
-          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "15" },
-          { muscle: "Adductors", options: ["Adductor Machine"], sets: 2, reps: "15" },
-          { muscle: "Abductors", options: ["Abductor Machine"], sets: 2, reps: "15" }
+        name:"THURSDAY – LOWER B (POSTERIOR)",
+        exercises:[
+          exRow("Ham/Glutes","Deadlift / RDL",4,"6"),
+          exRow("Glutes","Hip Thrust",3,"8"),
+          exRow("Quads","Bulgarian Split Squat",3,"8"),
+          exRow("Quads","Leg Extension",3,"15"),
+          exRow("Adductors","Adduction Machine",2,"15"),
+          exRow("Abductors","Abduction Machine",2,"15"),
         ]
       },
       {
-        name: "FRIDAY // UPPER PULL + ARMS",
-        items: [
-          { muscle: "Back", options: ["Pull Ups", "Lat Pulldown"], sets: 4, reps: "8–10" },
-          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row", "Cable Rows"], sets: 3, reps: "8–10" },
-          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "15" },
-          { muscle: "Biceps", options: ["EZ-Bar Curls"], sets: 4, reps: "8–10" },
-          { muscle: "Biceps", options: ["Hammer Curls"], sets: 3, reps: "10–12" },
-          { muscle: "Triceps", options: ["Close-Grip Bench", "Dips"], sets: 3, reps: "6–8" }
-        ]
-      }
-    ]
-  },
-
-  {
-    id: "immortal_phul_5",
-    name: "IMMORTAL_PHUL // 5-DAY",
-    vibe: "Power + hypertrophy. Heavy days + pump days.",
-    days: [
-      {
-        name: "DAY_1 UPPER_POWER",
-        items: [
-          { muscle: "Chest", options: ["Bench Press"], sets: 4, reps: "3–6" },
-          { muscle: "Back", options: ["Barbell Rows"], sets: 4, reps: "3–6" },
-          { muscle: "Shoulders", options: ["Overhead Press"], sets: 3, reps: "4–6" },
-          { muscle: "Back", options: ["Pull Ups", "Lat Pulldown"], sets: 3, reps: "6–10" },
-          { muscle: "Triceps", options: ["Close-Grip Bench"], sets: 3, reps: "6–10" }
-        ]
-      },
-      {
-        name: "DAY_2 LOWER_POWER",
-        items: [
-          { muscle: "Quads", options: ["Back Squats"], sets: 4, reps: "3–6" },
-          { muscle: "Ham/Glutes", options: ["Deadlifts"], sets: 3, reps: "3–5" },
-          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
-          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" },
-          { muscle: "Core", options: ["Plank"], sets: 3, reps: "30–60s" }
-        ]
-      },
-      {
-        name: "DAY_3 UPPER_HYPER",
-        items: [
-          { muscle: "Chest", options: ["Incline DB Press"], sets: 4, reps: "8–12" },
-          { muscle: "Back", options: ["Seated Cable Row"], sets: 4, reps: "8–12" },
-          { muscle: "Chest/Tris", options: ["Dips"], sets: 3, reps: "8–12" },
-          { muscle: "Rear Delts", options: ["Face Pulls"], sets: 3, reps: "12–15" },
-          { muscle: "Biceps", options: ["Hammer Curls"], sets: 3, reps: "10–12" }
-        ]
-      },
-      {
-        name: "DAY_4 LOWER_HYPER",
-        items: [
-          { muscle: "Quads", options: ["Front Squats"], sets: 4, reps: "6–10" },
-          { muscle: "Hamstrings", options: ["RDLs", "Romanian Deadlift"], sets: 4, reps: "6–10" },
-          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "12–15" },
-          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12–15" },
-          { muscle: "Quads", options: ["Lunges"], sets: 3, reps: "8–12" }
-        ]
-      },
-      {
-        name: "DAY_5 OPTIONAL_COND",
-        items: [
-          { muscle: "Conditioning", options: ["Row Machine", "Bike Sprint"], sets: 6, reps: "20–40s" },
-          { muscle: "Conditioning", options: ["Farmer Walk", "Sled Push"], sets: 6, reps: "20–40m" },
-          { muscle: "Core", options: ["Ab Wheel"], sets: 4, reps: "8–12" }
+        name:"FRIDAY – UPPER PULL + ARMS",
+        exercises:[
+          exRow("Back","Pull-ups / Pulldowns",4,"8–10"),
+          exRow("Back","Barbell / Cable Rows",3,"8–10"),
+          exRow("Rear Delts","Face Pulls",3,"15"),
+          exRow("Biceps","EZ-Bar Curls",4,"8–10"),
+          exRow("Biceps","Hammer Curls",3,"10–12"),
+          exRow("Triceps","Close-Grip Bench / Dips",3,"6–8"),
         ]
       }
     ]
@@ -403,15 +306,18 @@ let selectedCard = "rust_sigils";
 let selectedPlanId = null;
 let manualCategory = "Push";
 
-/* =========================
-   AVATAR FACTORY
-========================= */
-function avatarSVG(style = "skull", seed = "X") {
-  let h = 0;
-  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) % 360;
+let unsubMyLogs = null;
+let unsubMassGrave = null;
 
-  const glow = `hsla(${(h + 110) % 360}, 100%, 55%, 0.45)`;
-  const rim = `hsla(${(h + 0) % 360}, 85%, 50%, 0.22)`;
+/* =========================
+   AVATAR FACTORY (SVG)
+========================= */
+function avatarSVG(style="skull", seed="X"){
+  let h = 0;
+  for(const ch of seed) h = (h*31 + ch.charCodeAt(0)) % 360;
+
+  const glow = `hsla(${(h+110)%360}, 100%, 55%, 0.45)`;
+  const rim  = `hsla(${(h+0)%360}, 85%, 50%, 0.22)`;
 
   const base = `
     <svg viewBox="0 0 120 120" class="avatar-sigil" xmlns="http://www.w3.org/2000/svg">
@@ -422,7 +328,10 @@ function avatarSVG(style = "skull", seed = "X") {
         </radialGradient>
         <filter id="f">
           <feGaussianBlur stdDeviation="1.2" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <feMerge>
+            <feMergeNode in="b"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
         </filter>
       </defs>
       <circle cx="60" cy="60" r="52" fill="rgba(0,0,0,0.35)" stroke="${rim}" stroke-width="2"/>
@@ -469,109 +378,76 @@ function avatarSVG(style = "skull", seed = "X") {
   return `<div style="position:absolute; inset:0;">${base}${face}</div>`;
 }
 
-function renderAvatarInto(el, style, seed) {
+function renderAvatarInto(el, style, seed){
   el.innerHTML = avatarSVG(style, seed);
 }
 
 /* =========================
    UI HELPERS
 ========================= */
-function setScreen(which) {
+function setScreen(which){
   $("auth-screen").classList.add("hidden");
   $("registration-screen").classList.add("hidden");
   $("app").classList.add("hidden");
   $(which).classList.remove("hidden");
 }
 
-function setTab(tabId) {
-  ["feed-panel", "plans-panel", "friends-panel", "settings-panel"].forEach((id) => $(id).classList.add("hidden"));
+function setTab(tabId){
+  ["feed-panel","plans-panel","friends-panel","settings-panel"].forEach(id => $(id).classList.add("hidden"));
   $(tabId).classList.remove("hidden");
 }
 
-function computeRankName(carvingCount = 0) {
-  const r = RANKS.filter((x) => carvingCount >= x.min).pop() || RANKS[0];
-  return r.name;
-}
-
-function cardUnlocked(user) {
-  const carvingCount = user?.carvingCount || 0;
-  const rankName = computeRankName(carvingCount);
-  const rankObj = RANKS.find((r) => r.name === rankName) || RANKS[0];
-  const trophies = user?.trophies || {};
-  return CALLING_CARDS.map((c) => {
-    const okRank = (c.req?.rankMin ?? -999) <= carvingCount;
-    const okTrophy = c.req?.trophy ? !!trophies[c.req.trophy] : true;
-    return { ...c, unlocked: okRank && okTrophy, rankObj };
-  });
-}
-
-function planById(id, user) {
-  const built = BUILT_IN_PLANS.find((p) => p.id === id);
-  if (built) return built;
+function planById(id, user){
+  const built = BUILT_IN_PLANS.find(p => p.id === id);
+  if(built) return built;
   const customs = user?.customPlans || [];
-  return customs.find((p) => p.id === id) || null;
+  return customs.find(p => p.id === id) || null;
 }
 
 /* =========================
    AUTH FLOW
 ========================= */
-async function doLogin() {
+async function doLogin(){
   const em = $("email").value.trim();
   const pw = $("password").value.trim();
   $("auth-warn").textContent = "";
-  if (!em || !pw) {
-    $("auth-warn").textContent = "MISSING CREDENTIALS.";
-    return;
-  }
-  try {
+  if(!em || !pw){ $("auth-warn").textContent = "MISSING CREDENTIALS."; return; }
+
+  try{
     await signInWithEmailAndPassword(auth, em, pw);
-  } catch (e) {
+  }catch(e){
     $("auth-warn").textContent = (e?.message || "LOGIN FAILED.").toUpperCase();
   }
 }
 
-async function beginRegistration() {
+async function beginRegistration(){
   const em = $("reg-email").value.trim();
   const pw = $("reg-pass").value.trim();
-  const c = $("reg-confirm").value.trim();
+  const c  = $("reg-confirm").value.trim();
   $("reg-warn").textContent = "";
 
-  if (!em || !pw) {
-    $("reg-warn").textContent = "EMAIL/PASSCODE REQUIRED.";
-    return;
-  }
-  if (pw.length < 6) {
-    $("reg-warn").textContent = "PASSCODE MUST BE 6+ CHARS.";
-    return;
-  }
-  if (pw !== c) {
-    $("reg-warn").textContent = "PASSCODES DO NOT MATCH.";
-    return;
-  }
+  if(!em || !pw){ $("reg-warn").textContent = "EMAIL/PASSCODE REQUIRED."; return; }
+  if(pw.length < 6){ $("reg-warn").textContent = "PASSCODE MUST BE 6+ CHARS."; return; }
+  if(pw !== c){ $("reg-warn").textContent = "PASSCODES DO NOT MATCH."; return; }
 
-  try {
+  try{
     await createUserWithEmailAndPassword(auth, em, pw);
     $("reg-status-chip").textContent = "STAGE_2";
     $("reg-step-1").classList.add("hidden");
     $("reg-step-2").classList.remove("hidden");
-  } catch (e) {
+    buildRegPickers(auth.currentUser.uid);
+  }catch(e){
     $("reg-warn").textContent = (e?.message || "REG FAILED.").toUpperCase();
   }
 }
 
-async function finalizeRegistration() {
+async function finalizeRegistration(){
   const user = auth.currentUser;
   const callsign = $("reg-username").value.trim();
   $("reg-warn").textContent = "";
 
-  if (!user) {
-    $("reg-warn").textContent = "NO AUTH USER FOUND.";
-    return;
-  }
-  if (!callsign || callsign.length < 3) {
-    $("reg-warn").textContent = "CALLSIGN 3+ CHARS.";
-    return;
-  }
+  if(!user){ $("reg-warn").textContent = "NO AUTH USER FOUND."; return; }
+  if(!callsign || callsign.length < 3){ $("reg-warn").textContent = "CALLSIGN 3+ CHARS."; return; }
 
   const payload = {
     uid: user.uid,
@@ -583,34 +459,46 @@ async function finalizeRegistration() {
     friends: [],
     trophies: {},
     prs: {},
-    // ✅ auto-rotation: nextDayIndex advances only when you log.
-    activePlan: null, // { planId, startPlanIndex, nextDayIndex, activatedKey, lastCompletedKey }
+    activePlan: null,
     customPlans: [],
+    exerciseLibrary: [],
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastLoginDayKey: todayKey()
+    updatedAt: serverTimestamp()
   };
 
-  try {
-    await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+  try{
+    await setDoc(doc(db,"users", user.uid), payload, { merge:true });
+    // No “stuck after create” — force UI swap right now.
     toast("ENTITY_BOUND. WELCOME TO THE GRAVE.");
-  } catch (e) {
+    // onAuthStateChanged will also run and call initApp()
+  }catch(e){
     $("reg-warn").textContent = (e?.message || "FINALIZE FAILED.").toUpperCase();
   }
 }
 
+async function doForgot(){
+  const em = $("email").value.trim();
+  if(!em) return toast("ENTER EMAIL FIRST.");
+  try{
+    await sendPasswordResetEmail(auth, em);
+    toast("RESET LINK SENT.");
+  }catch(e){
+    toast((e?.message || "RESET FAILED.").toUpperCase());
+  }
+}
+
 /* =========================
-   CORE APP INIT
+   AUTH STATE
 ========================= */
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
+  if(!user){
     currentUserData = null;
     setScreen("auth-screen");
     return;
   }
 
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists()) {
+  const snap = await getDoc(doc(db,"users", user.uid));
+  if(!snap.exists()){
     setScreen("registration-screen");
     $("reg-status-chip").textContent = "STAGE_2";
     $("reg-step-1").classList.add("hidden");
@@ -624,9 +512,14 @@ onAuthStateChanged(auth, async (user) => {
   initApp();
 });
 
-function initApp() {
+/* =========================
+   INIT APP
+========================= */
+function initApp(){
   $("header-callsign").textContent = currentUserData.username;
   $("profileUsername").textContent = currentUserData.username;
+
+  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
 
   const rankName = computeRankName(currentUserData.carvingCount || 0);
   $("user-rank").textContent = rankName;
@@ -634,53 +527,92 @@ function initApp() {
 
   const tagCss = currentUserData.tag || "tag-rust";
   $("user-grave-tag").className = `grave-tag ${tagCss}`;
-  $("tag-text").textContent = TAGS.find((t) => t.css === tagCss)?.label || "CADAVER";
+  $("tag-text").textContent = (TAGS.find(t => t.css===tagCss)?.label || "CADAVER");
 
   renderAvatarInto($("avatar-frame"), currentUserData.avatar || "skull", currentUserData.uid);
 
   $("active-split-label").textContent = currentUserData.activePlan?.planId
-    ? planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE"
+    ? (planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE")
     : "NONE";
 
+  hookNavButtons();
+  hookCoreButtons();
+
   buildSettingsPickers();
-  buildStartDaySelect(); // now = plan day selector (not weekdays)
+  buildStartDaySelect();
   buildManualLogger();
 
-  hookNavButtons();
-  loadFeedStream();
-  loadLeaderboardStream();
-  loadPRStream();
-  loadFriendsUI();
-  loadDailyMassGrave();
   renderPlansIndex();
   renderActivePlanStatus();
   renderTodayWorkoutLogger();
+
+  loadDailyMassGrave();
+  loadMyLogs();
+  loadPRStream();
+  loadLeaderboardStream();
+  loadFeedStream();
+  loadFriendsUI();
   renderTrophies();
 
   setTab("feed-panel");
 }
 
-/* =========================
-   NAV BUTTONS
-========================= */
-function hookNavButtons() {
-  document.querySelectorAll(".mini-btn[data-tab]").forEach((btn) => {
+function hookNavButtons(){
+  document.querySelectorAll(".mini-btn[data-tab]").forEach(btn => {
     btn.onclick = () => setTab(btn.getAttribute("data-tab"));
   });
+}
+
+function hookCoreButtons(){
+  $("loginBtn").onclick = doLogin;
+  $("showRegBtn").onclick = () => {
+    setScreen("registration-screen");
+    $("reg-status-chip").textContent = "STAGE_1";
+    $("reg-step-1").classList.remove("hidden");
+    $("reg-step-2").classList.add("hidden");
+    $("reg-warn").textContent = "";
+    buildRegPickers("seed");
+  };
+  $("forgotBtn").onclick = doForgot;
+
+  $("nextStepBtn").onclick = beginRegistration;
+  $("finalizeRegBtn").onclick = finalizeRegistration;
+  $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
+
+  $("logoutBtn").onclick = async () => {
+    if(unsubMyLogs) unsubMyLogs();
+    if(unsubMassGrave) unsubMassGrave();
+    await signOut(auth);
+  };
+
+  $("open-builder-btn").onclick = openBuilder;
+  $("closeBuilderBtn").onclick = closeBuilder;
+  $("builder-days").onchange = buildBuilderDays;
+  $("builder-create-btn").onclick = saveCustomSplit;
+
+  $("start-auto-btn").onclick = async () => activateSelectedPlanAuto();
+  $("deactivate-plan-btn").onclick = deactivatePlan;
+  $("jump-day-btn").onclick = jumpTodayDay;
+
+  $("manualLogBtn").onclick = manualLog;
+
+  $("addExerciseBtn").onclick = addExerciseToLibrary;
+
+  $("closeProfileBtn").onclick = () => $("profile-modal").classList.add("hidden");
 }
 
 /* =========================
    REGISTRATION PICKERS
 ========================= */
-function buildRegPickers(seed) {
+function buildRegPickers(seed){
   const wrap = $("initial-tag-picker");
   wrap.innerHTML = "";
   TAGS.forEach((t, idx) => {
     const div = document.createElement("div");
-    div.className = `tag-opt ${t.css} ${idx === 0 ? "active" : ""}`;
+    div.className = `tag-opt ${t.css} ${idx===0 ? "active":""}`;
     div.onclick = () => {
       selectedTagCss = t.css;
-      wrap.querySelectorAll(".tag-opt").forEach((x) => x.classList.remove("active"));
+      wrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
       div.classList.add("active");
     };
     wrap.appendChild(div);
@@ -689,14 +621,14 @@ function buildRegPickers(seed) {
 
   const aw = $("avatar-picker");
   aw.innerHTML = "";
-  const options = ["skull", "wraith", "reaper", "skull"];
+  const options = ["skull","wraith","reaper","skull"];
   options.forEach((a, idx) => {
     const div = document.createElement("div");
-    div.className = `avatar-opt ${idx === 0 ? "active" : ""}`;
+    div.className = `avatar-opt ${idx===0 ? "active":""}`;
     div.innerHTML = avatarSVG(a, seed);
     div.onclick = () => {
       selectedAvatar = a;
-      aw.querySelectorAll(".avatar-opt").forEach((x) => x.classList.remove("active"));
+      aw.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
       div.classList.add("active");
     };
     aw.appendChild(div);
@@ -709,392 +641,524 @@ function buildRegPickers(seed) {
 /* =========================
    SETTINGS PICKERS
 ========================= */
-function buildSettingsPickers() {
+function buildSettingsPickers(){
+  // TAG picker
   const tagWrap = $("settings-tag-picker");
   tagWrap.innerHTML = "";
-  TAGS.forEach((t) => {
+  TAGS.forEach(t => {
     const div = document.createElement("div");
-    div.className = `tag-opt ${t.css} ${currentUserData.tag === t.css ? "active" : ""}`;
+    div.className = `tag-opt ${t.css} ${currentUserData.tag===t.css ? "active":""}`;
     div.onclick = () => {
       selectedTagCss = t.css;
-      tagWrap.querySelectorAll(".tag-opt").forEach((x) => x.classList.remove("active"));
+      tagWrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
       div.classList.add("active");
     };
     tagWrap.appendChild(div);
   });
   selectedTagCss = currentUserData.tag || "tag-rust";
 
+  // Avatar picker
   const avWrap = $("settings-avatar-picker");
   avWrap.innerHTML = "";
-  const avatarOptions = ["skull", "wraith", "reaper", "skull"];
-  avatarOptions.forEach((a) => {
+  const avatarOptions = ["skull","wraith","reaper","skull"];
+  avatarOptions.forEach(a => {
     const div = document.createElement("div");
-    div.className = `avatar-opt ${(currentUserData.avatar || "skull") === a ? "active" : ""}`;
+    div.className = `avatar-opt ${(currentUserData.avatar||"skull")===a ? "active":""}`;
     div.innerHTML = avatarSVG(a, currentUserData.uid);
     div.onclick = () => {
       selectedAvatar = a;
-      avWrap.querySelectorAll(".avatar-opt").forEach((x) => x.classList.remove("active"));
+      avWrap.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
       div.classList.add("active");
     };
     avWrap.appendChild(div);
   });
   selectedAvatar = currentUserData.avatar || "skull";
 
-  const cards = cardUnlocked(currentUserData);
+  // Card picker
+  const cards = cardsForUser(currentUserData);
   const cardWrap = $("card-picker");
   cardWrap.innerHTML = "";
-  cards.forEach((c) => {
+  cards.forEach(c => {
     const div = document.createElement("div");
-    div.className = `plan-card ${currentUserData.callingCard === c.id ? "active" : ""}`;
+    div.className = `plan-card ${currentUserData.callingCard===c.id ? "active":""}`;
     div.style.cursor = c.unlocked ? "pointer" : "not-allowed";
     div.style.opacity = c.unlocked ? "1" : "0.55";
     div.innerHTML = `
       <div class="plan-name">${esc(c.name)}</div>
       <div class="plan-sub">${c.unlocked ? "UNLOCKED" : "LOCKED"}</div>
     `;
-    div.onclick = () => {
-      if (!c.unlocked) return;
+    div.onclick = async () => {
+      if(!c.unlocked) return;
       selectedCard = c.id;
-      cardWrap.querySelectorAll(".plan-card").forEach((x) => x.classList.remove("active"));
+      cardWrap.querySelectorAll(".plan-card").forEach(x => x.classList.remove("active"));
       div.classList.add("active");
+      await updateDoc(doc(db,"users", auth.currentUser.uid), { callingCard: selectedCard, updatedAt: serverTimestamp() });
+      currentUserData.callingCard = selectedCard;
+      toast("CARD_EQUIPPED.");
     };
     cardWrap.appendChild(div);
   });
-  selectedCard = currentUserData.callingCard || "rust_sigils";
 }
 
-/* =========================
-   START DAY SELECT = PLAN DAY (not weekdays)
-========================= */
-function buildStartDaySelect(planIdMaybe) {
-  const sel = $("start-day-select");
-  const plan = planById(planIdMaybe || selectedPlanId || "ironcoffin_gravefive_5", currentUserData);
-  const dayCount = plan?.days?.length || 5;
+async function addExerciseToLibrary(){
+  const val = $("new-exercise").value.trim();
+  if(!val || val.length < 3) return toast("TYPE AN EXERCISE NAME.");
+  const uid = auth.currentUser.uid;
 
-  sel.innerHTML = "";
-  for (let i = 0; i < dayCount; i++) {
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = `DAY_${i + 1}`;
-    sel.appendChild(opt);
-  }
-  sel.value = "0";
-
-  $("start-auto-btn").onclick = () => {
-    sel.value = "0";
-    toast("START DAY SET TO DAY_1.");
-  };
+  const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), val]));
+  await updateDoc(doc(db,"users", uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
+  currentUserData.exerciseLibrary = next;
+  $("new-exercise").value = "";
+  buildManualLogger();
+  renderTodayWorkoutLogger();
+  toast("ADDED_TO_LIBRARY.");
 }
 
 /* =========================
    MANUAL LOGGER
 ========================= */
-function buildManualLogger() {
+function buildManualLogger(){
   const catSel = $("log-category");
   const exSel = $("log-ex");
 
   catSel.innerHTML = Object.keys(EXERCISES)
-    .map((k) => `<option value="${esc(k)}">${esc(k)}</option>`)
+    .map(k => `<option value="${esc(k)}" ${k===manualCategory ? "selected":""}>${esc(k)}</option>`)
     .join("");
-  catSel.value = "Push";
-  manualCategory = "Push";
 
-  function refreshExercises() {
+  const buildEx = () => {
     const cat = catSel.value;
     manualCategory = cat;
-    exSel.innerHTML = EXERCISES[cat].map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
-  }
-  catSel.onchange = refreshExercises;
-  refreshExercises();
-
-  $("manualLogBtn").onclick = async () => {
-    const ex = exSel.value;
-    const w = Number($("log-w").value);
-    const r = Number($("log-r").value);
-    if (!ex || !w || !r) return toast("MISSING LOG FIELDS.");
-    await submitLog(ex, w, r, { source: "manual", setNumber: 1, targetSets: null, targetReps: null, muscle: manualCategory });
-    $("log-w").value = "";
-    $("log-r").value = "";
+    const list = [...(EXERCISES[cat] || []), ...(currentUserData.exerciseLibrary || [])];
+    const uniq = Array.from(new Set(list)).sort((a,b)=>a.localeCompare(b));
+    exSel.innerHTML = uniq.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
   };
+
+  catSel.onchange = buildEx;
+  buildEx();
+}
+
+async function manualLog(){
+  const ex = $("log-ex").value;
+  const w = Number($("log-w").value);
+  const r = Number($("log-r").value);
+  if(!ex) return toast("PICK EXERCISE.");
+  if(!w || !r) return toast("ENTER LBS + REPS.");
+  await submitLog(ex, w, r, { source:"manual" });
+  $("log-w").value = "";
+  $("log-r").value = "";
+  toast("CARVING_RECORDED.");
 }
 
 /* =========================
-   FEED
+   PLANS INDEX + ACTIVE PLAN
 ========================= */
-let feedUnsub = null;
-
-function loadFeedStream() {
-  if (feedUnsub) feedUnsub();
-
-  const qy = query(collection(db, "posts"), orderBy("timestamp", "desc"), limit(25));
-  feedUnsub = onSnapshot(qy, (snap) => {
-    const feed = $("feed-content");
-    feed.innerHTML = "";
-
-    snap.forEach((docSnap) => {
-      const p = docSnap.data();
-      const isMine = p.uid === auth.currentUser.uid;
-
-      const postEl = document.createElement("div");
-      postEl.className = "grave-box post";
-      postEl.innerHTML = `
-        <div class="post-top">
-          <div class="who" data-uid="${esc(p.uid)}">${esc(p.username || "UNKNOWN")}</div>
-          <div class="meta">
-            <span>${esc(p.dayKey || "")}</span>
-            ${isMine ? `<button class="mini-btn danger" data-del="${docSnap.id}">DELETE</button>` : ``}
-          </div>
-        </div>
-        <div class="post-body">${esc(p.text || "")}</div>
-        <div class="comment-section" id="comments-${docSnap.id}"></div>
-        <div class="comment-input-wrap">
-          <input id="in-${docSnap.id}" placeholder="REPLY...">
-          <button class="mini-btn" data-cmt="${docSnap.id}">SEND</button>
-        </div>
-      `;
-
-      feed.appendChild(postEl);
-
-      postEl.querySelector(".who").onclick = () => openProfile(p.uid);
-
-      const delBtn = postEl.querySelector(`[data-del="${docSnap.id}"]`);
-      if (delBtn) {
-        delBtn.onclick = async () => {
-          if (!confirm("DELETE YOUR POST?")) return;
-          await deleteDoc(doc(db, "posts", docSnap.id));
-        };
-      }
-
-      postEl.querySelector(`[data-cmt="${docSnap.id}"]`).onclick = () => postComment(docSnap.id);
-
-      loadCommentsStream(docSnap.id);
-    });
-  });
-}
-
-function loadCommentsStream(postId) {
-  const cBox = $(`comments-${postId}`);
-  if (!cBox) return;
-
-  const qy = query(collection(db, `posts/${postId}/comments`), orderBy("timestamp", "asc"), limit(50));
-  onSnapshot(qy, (snap) => {
-    cBox.innerHTML = "";
-    snap.forEach((c) => {
-      const d = c.data();
-      const div = document.createElement("div");
-      div.className = "comment";
-      div.innerHTML = `<b>${esc(d.username || "ENTITY")}:</b> ${esc(d.text || "")}`;
-      cBox.appendChild(div);
-    });
-  });
-}
-
-async function postComment(postId) {
-  const input = $(`in-${postId}`);
-  const text = (input?.value || "").trim();
-  if (!text) return;
-
-  await addDoc(collection(db, `posts/${postId}/comments`), {
-    uid: auth.currentUser.uid,
-    username: currentUserData.username,
-    text,
-    timestamp: serverTimestamp(),
-    dayKey: todayKey()
-  });
-
-  input.value = "";
-}
-
-async function createPost() {
-  const text = $("statusText").value.trim();
-  if (!text) return;
-
-  await addDoc(collection(db, "posts"), {
-    uid: auth.currentUser.uid,
-    username: currentUserData.username,
-    text,
-    timestamp: serverTimestamp(),
-    dayKey: todayKey()
-  });
-
-  $("statusText").value = "";
-}
-
-/* =========================
-   LEADERBOARD
-========================= */
-function loadLeaderboardStream() {
-  const qy = query(collection(db, "users"), orderBy("carvingCount", "desc"), limit(7));
-  onSnapshot(qy, (snap) => {
-    const lb = $("leaderboard");
-    lb.innerHTML = "";
-    let i = 1;
-    snap.forEach((d) => {
-      const u = d.data();
-      const row = document.createElement("div");
-      row.className = "index-row";
-      row.innerHTML = `
-        <span>#${i} <span class="dim">${esc(u.username || "ENTITY")}</span></span>
-        <span>${esc(String(u.carvingCount || 0))}</span>
-      `;
-      row.onclick = () => openProfile(d.id);
-      lb.appendChild(row);
-      i++;
-    });
-  });
-}
-
-/* =========================
-   PRS + TROPHIES
-========================= */
-function e1rm(weight, reps) {
-  return Math.round(weight * (1 + reps / 30));
-}
-
-function renderTrophies() {
-  const trophies = currentUserData.trophies || {};
-  const earned = Object.keys(trophies).filter((k) => trophies[k]);
-  $("trophy-count").textContent = String(earned.length);
-
-  const wrap = $("trophy-list");
+function renderPlansIndex(){
+  const wrap = $("plan-index");
   wrap.innerHTML = "";
 
-  TROPHIES.forEach((t) => {
-    const got = !!trophies[t.id];
-    const row = document.createElement("div");
-    row.className = "index-row";
-    row.innerHTML = `
-      <span>${got ? "🏴" : "·"} <span class="dim">${esc(t.label)}</span></span>
-      <span>${got ? "EARNED" : "LOCKED"}</span>
+  const built = BUILT_IN_PLANS;
+  const customs = currentUserData.customPlans || [];
+  const plans = [...built, ...customs];
+
+  plans.forEach(p => {
+    const card = document.createElement("div");
+    card.className = `plan-card ${selectedPlanId===p.id ? "active":""}`;
+    card.innerHTML = `
+      <div class="plan-name">${esc(p.name)}</div>
+      <div class="plan-sub">${esc(p.vibe || "")}</div>
     `;
-    wrap.appendChild(row);
+    card.onclick = () => {
+      selectedPlanId = p.id;
+      wrap.querySelectorAll(".plan-card").forEach(x => x.classList.remove("active"));
+      card.classList.add("active");
+    };
+    wrap.appendChild(card);
   });
+
+  selectedPlanId = selectedPlanId || currentUserData.activePlan?.planId || built[0]?.id;
 }
 
-function loadPRStream() {
-  const uid = auth.currentUser.uid;
-  const qy = query(collection(db, "logs"), where("uid", "==", uid), orderBy("timestamp", "desc"), limit(60));
+function buildStartDaySelect(){
+  const sel = $("start-day-select");
+  const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+  sel.innerHTML = days.map((d,i)=>`<option value="${i}">${d}</option>`).join("");
+  sel.value = String(new Date().getDay());
+}
 
-  onSnapshot(qy, (snap) => {
-    $("stat-count").textContent = String(currentUserData.carvingCount || 0);
+/* AUTO-ROTATION PLAN MODEL:
+   activePlan = {
+     planId,
+     startDayIndex,
+     currentDayIndex,
+     lastAdvancedDayKey
+   }
+   - Missed days do NOT advance.
+   - The first plan log of a new day advances day index for next time.
+*/
+function planDayForToday(){
+  const ap = currentUserData.activePlan;
+  if(!ap?.planId) return null;
+  const plan = planById(ap.planId, currentUserData);
+  if(!plan) return null;
 
-    const wrap = $("prList");
-    wrap.innerHTML = "";
+  const idx = clamp(Number(ap.currentDayIndex ?? ap.startDayIndex ?? 0), 0, plan.days.length-1);
+  return { plan, planIndex: idx };
+}
 
-    snap.forEach((d) => {
-      const L = d.data();
-      const row = document.createElement("div");
-      row.className = "index-row";
-      const setTxt = L.setNumber ? `S${L.setNumber}` : "";
-      const tgtTxt =
-        L.targetSets || L.targetReps
-          ? ` · TARGET ${L.targetSets ? `${L.targetSets}S` : ""}${L.targetReps ? ` @${L.targetReps}` : ""}`
-          : "";
-      row.innerHTML = `
-        <span>${esc(L.exercise)} <span class="dim">${esc(setTxt)} ${esc(String(L.weight))}LBS × ${esc(String(L.reps))}${esc(tgtTxt)}</span></span>
-        <button class="mini-btn danger">X</button>
-      `;
-      row.querySelector("button").onclick = async () => {
-        if (!confirm("DELETE THIS LOG?")) return;
-        await deleteLog(d.id, L);
-      };
-      wrap.appendChild(row);
-    });
+async function activateSelectedPlanAuto(){
+  if(!selectedPlanId) return toast("SELECT A SPLIT.");
+  const plan = planById(selectedPlanId, currentUserData);
+  if(!plan) return toast("PLAN NOT FOUND.");
+
+  const startDay = Number($("start-day-select").value || new Date().getDay());
+  const today = new Date().getDay();
+  const delta = (today - startDay + 7) % 7;
+
+  // If plan has fewer than 7 days, clamp rotation to plan length.
+  const startIdx = clamp(delta, 0, plan.days.length-1);
+
+  const activePlan = {
+    planId: selectedPlanId,
+    startDayIndex: startIdx,
+    currentDayIndex: startIdx,
+    lastAdvancedDayKey: null
+  };
+
+  await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan, updatedAt: serverTimestamp() });
+  currentUserData.activePlan = activePlan;
+
+  $("active-split-label").textContent = plan.name;
+  renderActivePlanStatus();
+  renderTodayWorkoutLogger();
+  toast("SPLIT_ACTIVATED.");
+}
+
+async function deactivatePlan(){
+  await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: null, updatedAt: serverTimestamp() });
+  currentUserData.activePlan = null;
+  $("active-split-label").textContent = "NONE";
+  $("active-day-chip").textContent = "DAY_?";
+  $("active-plan-readout").innerHTML = "";
+  renderTodayWorkoutLogger();
+  toast("SPLIT_DEACTIVATED.");
+}
+
+async function jumpTodayDay(){
+  // manual override for currentDayIndex = startDayIndex based on day-of-week alignment
+  const ap = currentUserData.activePlan;
+  if(!ap?.planId) return toast("NO ACTIVE SPLIT.");
+  const plan = planById(ap.planId, currentUserData);
+  if(!plan) return toast("PLAN NOT FOUND.");
+
+  const startDay = Number($("start-day-select").value || new Date().getDay());
+  const today = new Date().getDay();
+  const delta = (today - startDay + 7) % 7;
+  const idx = clamp(delta, 0, plan.days.length-1);
+
+  const next = { ...ap, currentDayIndex: idx };
+  await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: next, updatedAt: serverTimestamp() });
+  currentUserData.activePlan = next;
+  renderActivePlanStatus();
+  renderTodayWorkoutLogger();
+  toast("TODAY_SET.");
+}
+
+function renderActivePlanStatus(){
+  const ap = currentUserData.activePlan;
+  const wrap = $("active-plan-readout");
+  wrap.innerHTML = "";
+
+  if(!ap?.planId){
+    $("active-day-chip").textContent = "DAY_?";
+    return;
+  }
+
+  const plan = planById(ap.planId, currentUserData);
+  if(!plan){
+    $("active-day-chip").textContent = "DAY_?";
+    return;
+  }
+
+  const idx = clamp(Number(ap.currentDayIndex ?? 0), 0, plan.days.length-1);
+  $("active-day-chip").textContent = `DAY_${idx+1}`;
+
+  plan.days.forEach((d, i) => {
+    const badge = document.createElement("div");
+    badge.className = "day-badge";
+    badge.innerHTML = `
+      <div class="dname">${esc(d.name)}</div>
+      <div class="dlist">${d.exercises.map(e => esc(`${e.muscle}: ${e.name} (${e.sets} x ${e.reps})`)).join("<br>")}</div>
+    `;
+    if(i === idx){
+      badge.style.borderColor = "rgba(0,255,65,0.55)";
+      badge.style.boxShadow = "0 0 0 3px rgba(0,255,65,0.12)";
+    }
+    wrap.appendChild(badge);
   });
 }
 
 /* =========================
-   LOGGING + MASSGRAVE
-   ✅ Auto-rotation: first log of a day “completes” the plan day and advances nextDayIndex.
+   TODAY WORKOUT LOGGER (shows sets/reps + logs per exercise)
 ========================= */
-async function submitLog(exercise, weight, reps, meta = {}) {
+function renderTodayWorkoutLogger(){
+  const box = $("today-workout-list");
+  box.innerHTML = "";
+
+  const info = planDayForToday();
+  if(!info){
+    $("logger-sub").textContent = "Activate a split to load today.";
+    return;
+  }
+
+  const day = info.plan.days[info.planIndex];
+  $("logger-sub").textContent = `${day.name} // Log each exercise line.`;
+
+  day.exercises.forEach((row, exIdx) => {
+    const line = document.createElement("div");
+    line.className = "workline";
+
+    const pool = allExercises();
+    const currentName = row.name;
+
+    // allow swap: dropdown of all exercises + special "ADD_NEW"
+    const options = [
+      ...pool.map(e => `<option value="${esc(e)}" ${e===currentName ? "selected":""}>${esc(e)}</option>`),
+      `<option value="__ADD__">+ ADD EXERCISE…</option>`
+    ].join("");
+
+    line.innerHTML = `
+      <div class="workline-top">
+        <div style="min-width:0;">
+          <div class="workline-title">${esc(row.muscle)} — ${esc(currentName)}</div>
+          <div class="workline-sub">${esc(`${row.sets} sets x ${row.reps} reps`)}</div>
+        </div>
+        <div class="workline-controls">
+          <select data-swap="${exIdx}">${options}</select>
+        </div>
+      </div>
+
+      <div class="row3" style="margin-top:10px;">
+        <input type="number" inputmode="decimal" placeholder="LBS" data-w="${exIdx}">
+        <input type="number" inputmode="numeric" placeholder="REPS" data-r="${exIdx}">
+        <button class="mini-btn" data-quick="${exIdx}">RECORD</button>
+      </div>
+    `;
+
+    const sel = line.querySelector(`select[data-swap="${exIdx}"]`);
+    sel.onchange = async () => {
+      if(sel.value === "__ADD__"){
+        const name = prompt("New exercise name:");
+        if(!name) { sel.value = currentName; return; }
+        const clean = name.trim();
+        if(clean.length < 3){ sel.value = currentName; return; }
+        // add to library then select it
+        const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), clean]));
+        await updateDoc(doc(db,"users", auth.currentUser.uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
+        currentUserData.exerciseLibrary = next;
+        // rebuild dropdown options
+        renderTodayWorkoutLogger();
+        return;
+      }
+      line.querySelector(".workline-title").textContent = `${row.muscle} — ${sel.value}`;
+    };
+
+    line.querySelector(`button[data-quick="${exIdx}"]`).onclick = async () => {
+      const ex = sel.value;
+      const w = Number(line.querySelector(`input[data-w="${exIdx}"]`).value);
+      const r = Number(line.querySelector(`input[data-r="${exIdx}"]`).value);
+      if(!w || !r) return toast("ENTER LBS + REPS.");
+
+      await submitLog(ex, w, r, {
+        source: "plan",
+        planId: info.plan.id,
+        planDayIndex: info.planIndex,
+        muscle: row.muscle,
+        prescription: `${row.sets}x${row.reps}`
+      });
+
+      line.querySelector(`input[data-w="${exIdx}"]`).value = "";
+      line.querySelector(`input[data-r="${exIdx}"]`).value = "";
+      toast("CARVING_RECORDED.");
+    };
+
+    box.appendChild(line);
+  });
+}
+
+/* =========================
+   SPLIT BUILDER (3–7 days)
+========================= */
+function openBuilder(){
+  $("builder-modal").classList.remove("hidden");
+  $("builder-warn").textContent = "";
+  $("builder-name").value = "";
+  $("builder-days").value = "5";
+  buildBuilderDays();
+}
+
+function closeBuilder(){
+  $("builder-modal").classList.add("hidden");
+}
+
+function buildBuilderDays(){
+  const count = Number($("builder-days").value || 5);
+  const wrap = $("builder-days-wrap");
+  wrap.innerHTML = "";
+
+  for(let i=0;i<count;i++){
+    const day = document.createElement("div");
+    day.className = "builder-day";
+    day.innerHTML = `
+      <div class="builder-day-title">DAY_${i+1}</div>
+      <div class="small-label">EXERCISES (ONE PER LINE)</div>
+      <textarea data-day="${i}" placeholder="Bench Press&#10;DB Bench Press&#10;Lat Pulldown&#10;..."></textarea>
+    `;
+    wrap.appendChild(day);
+  }
+}
+
+async function saveCustomSplit(){
+  const name = $("builder-name").value.trim();
+  const count = Number($("builder-days").value || 5);
+  $("builder-warn").textContent = "";
+
+  if(!name || name.length < 4){
+    $("builder-warn").textContent = "NAME TOO SHORT.";
+    return;
+  }
+
+  const days = [];
+  for(let i=0;i<count;i++){
+    const ta = document.querySelector(`textarea[data-day="${i}"]`);
+    const lines = (ta?.value || "")
+      .split("\n")
+      .map(x => x.trim())
+      .filter(Boolean)
+      .slice(0, 14);
+
+    if(lines.length < 3){
+      $("builder-warn").textContent = `DAY_${i+1} NEEDS 3+ EXERCISES.`;
+      return;
+    }
+
+    days.push({
+      name: `DAY_${i+1} ${name.toUpperCase().replaceAll(" ","_")}`,
+      exercises: lines.map(x => exRow("Custom", x, 3, "8–12"))
+    });
+  }
+
+  const id = `custom_${Date.now()}`;
+  const custom = { id, name, vibe:"FORGED IN THE GRAVE.", days };
+
+  const nextPlans = [...(currentUserData.customPlans||[]), custom];
+
+  await updateDoc(doc(db,"users", auth.currentUser.uid), {
+    customPlans: nextPlans,
+    updatedAt: serverTimestamp()
+  });
+
+  currentUserData.customPlans = nextPlans;
+  closeBuilder();
+  renderPlansIndex();
+  toast("SPLIT_FORGED.");
+}
+
+/* =========================
+   LOGGING + AUTO ROTATION
+========================= */
+function userDailyDoc(uid, dayKey){
+  // per-user daily totals
+  return doc(db, "users", uid, "dailyTotals", dayKey);
+}
+
+async function submitLog(exercise, weight, reps, meta={}){
   const uid = auth.currentUser.uid;
   const dk = todayKey();
-  const vol = Math.round(weight * reps);
+  const volume = Number(weight) * Number(reps);
 
-  await addDoc(collection(db, "logs"), {
+  // store log
+  await addDoc(collection(db,"logs"), {
     uid,
+    dayKey: dk,
     exercise,
     weight,
     reps,
-    volume: vol,
-    dayKey: dk,
-    timestamp: serverTimestamp(),
-    source: meta.source || "plan",
-    planId: meta.planId || null,
-    planDayIndex: meta.planDayIndex ?? null,
-    muscle: meta.muscle || null,
-    setNumber: meta.setNumber ?? null,
-    targetSets: meta.targetSets ?? null,
-    targetReps: meta.targetReps ?? null
+    volume,
+    meta,
+    createdAt: serverTimestamp()
   });
 
-  await updateDoc(doc(db, "users", uid), {
+  // increment user carvings
+  await updateDoc(doc(db,"users", uid), {
     carvingCount: increment(1),
     updatedAt: serverTimestamp()
   });
 
-  await updateDoc(doc(db, "dailyTotals", dk), {
-    totalVolume: increment(vol),
-    updatedAt: serverTimestamp()
-  }).catch(async () => {
-    await setDoc(
-      doc(db, "dailyTotals", dk),
-      { dayKey: dk, totalVolume: vol, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-  });
-
-  // local + PR updates
   currentUserData.carvingCount = (currentUserData.carvingCount || 0) + 1;
-  await updatePRsAndTrophies(exercise, weight, reps);
+  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
 
-  // ✅ auto-rotation advancement (only for plan logs; advances once per calendar day)
-  if (meta.source === "plan" && currentUserData.activePlan?.planId) {
+  $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
+  $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
+
+  // update personal daily massgrave (per user)
+  await setDoc(userDailyDoc(uid, dk), {
+    uid,
+    dayKey: dk,
+    totalVolume: increment(volume),
+    updatedAt: serverTimestamp()
+  }, { merge:true });
+
+  // auto-rotation advance: only once per day, only for plan logs
+  if(meta?.source === "plan" && currentUserData.activePlan?.planId){
     const ap = currentUserData.activePlan;
-    if (ap.lastCompletedKey !== dk) {
+    if(ap.lastAdvancedDayKey !== dk){
       const plan = planById(ap.planId, currentUserData);
-      const len = plan?.days?.length || 1;
-      const next = (Number(ap.nextDayIndex ?? 0) + 1) % len;
+      const nextIndex = plan
+        ? (clamp(Number(ap.currentDayIndex ?? 0), 0, plan.days.length-1) + 1) % plan.days.length
+        : Number(ap.currentDayIndex ?? 0);
 
-      const patched = { ...ap, nextDayIndex: next, lastCompletedKey: dk };
-      await updateDoc(doc(db, "users", uid), { activePlan: patched, updatedAt: serverTimestamp() });
-      currentUserData.activePlan = patched;
+      const nextAp = { ...ap, currentDayIndex: nextIndex, lastAdvancedDayKey: dk };
+      await updateDoc(doc(db,"users", uid), { activePlan: nextAp, updatedAt: serverTimestamp() });
+      currentUserData.activePlan = nextAp;
 
       renderActivePlanStatus();
       renderTodayWorkoutLogger();
     }
   }
 
-  $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
-  $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
-  loadDailyMassGrave();
+  await updatePRsAndTrophies(exercise, weight, reps);
 }
 
-async function deleteLog(logId, logData) {
+async function deleteLog(logId, logData){
   const uid = auth.currentUser.uid;
-  await deleteDoc(doc(db, "logs", logId));
+  await deleteDoc(doc(db,"logs", logId));
 
-  await updateDoc(doc(db, "users", uid), {
+  await updateDoc(doc(db,"users", uid), {
     carvingCount: increment(-1),
     updatedAt: serverTimestamp()
   });
 
   const dk = logData.dayKey || todayKey();
-  const vol = Number(logData.volume || Number(logData.weight) * Number(logData.reps) || 0);
+  const vol = Number(logData.volume || (Number(logData.weight)*Number(logData.reps)) || 0);
 
-  await updateDoc(doc(db, "dailyTotals", dk), {
+  // decrement personal daily total
+  await setDoc(userDailyDoc(uid, dk), {
+    uid,
+    dayKey: dk,
     totalVolume: increment(-vol),
     updatedAt: serverTimestamp()
-  }).catch(() => {});
+  }, { merge:true });
 
-  currentUserData.carvingCount = Math.max(0, (currentUserData.carvingCount || 0) - 1);
+  currentUserData.carvingCount = Math.max(0, (currentUserData.carvingCount||0) - 1);
+  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
   $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
   $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
-  loadDailyMassGrave();
 }
 
-async function updatePRsAndTrophies(exercise, weight, reps) {
+/* =========================
+   PRs + TROPHIES
+========================= */
+async function updatePRsAndTrophies(exercise, weight, reps){
   const uid = auth.currentUser.uid;
   const prs = currentUserData.prs || {};
   const trophies = currentUserData.trophies || {};
@@ -1105,600 +1169,218 @@ async function updatePRsAndTrophies(exercise, weight, reps) {
   const improvedE = est > (prev.bestE1RM || 0);
   const improvedW = weight > (prev.bestWeight || 0);
 
-  if (improvedE || improvedW) {
+  if(improvedE || improvedW){
     prs[exercise] = {
-      bestE1RM: Math.max(prev.bestE1RM || 0, est),
-      bestWeight: Math.max(prev.bestWeight || 0, weight),
-      bestReps: improvedW ? reps : prev.bestReps || reps,
+      bestE1RM: Math.max(prev.bestE1RM||0, est),
+      bestWeight: Math.max(prev.bestWeight||0, weight),
+      bestReps: improvedW ? reps : (prev.bestReps || reps),
       updatedAt: Date.now()
     };
   }
 
-  for (const t of TROPHIES) {
-    if (trophies[t.id]) continue;
-    if (t.key !== exercise) continue;
-    if (est >= t.min) trophies[t.id] = true;
+  for(const t of TROPHIES){
+    if(trophies[t.id]) continue;
+    if(t.key !== exercise) continue;
+    if(est >= t.min) trophies[t.id] = true;
   }
 
-  await updateDoc(doc(db, "users", uid), { prs, trophies, updatedAt: serverTimestamp() });
-
+  await updateDoc(doc(db,"users", uid), { prs, trophies, updatedAt: serverTimestamp() });
   currentUserData.prs = prs;
   currentUserData.trophies = trophies;
   renderTrophies();
 }
 
-function loadDailyMassGrave() {
+/* =========================
+   DAILY MASSGRAVE (per user)
+========================= */
+function loadDailyMassGrave(){
+  const uid = auth.currentUser.uid;
   const dk = todayKey();
-  onSnapshot(doc(db, "dailyTotals", dk), (snap) => {
-    const total = snap.exists() ? snap.data().totalVolume || 0 : 0;
-    $("massgrave-value").textContent = String(total);
+
+  if(unsubMassGrave) unsubMassGrave();
+  unsubMassGrave = onSnapshot(userDailyDoc(uid, dk), (snap) => {
+    const total = snap.exists() ? (snap.data().totalVolume || 0) : 0;
+    $("massgrave-value").textContent = String(Math.max(0, Math.round(total)));
   });
 }
 
 /* =========================
-   FRIENDS + SEARCH + PROFILE MODAL
+   MY LOGS (visible list)
 ========================= */
-function loadFriendsUI() {
-  renderFriendsList();
+function loadMyLogs(){
+  const uid = auth.currentUser.uid;
+  const wrap = $("my-logs");
 
-  $("userSearch").oninput = async () => {
-    const term = $("userSearch").value.trim();
-    const box = $("search-results");
-    box.innerHTML = "";
-    if (term.length < 2) return;
+  if(unsubMyLogs) unsubMyLogs();
 
-    const snap = await getDocs(query(collection(db, "users"), orderBy("username"), limit(25)));
-    const found = [];
-    snap.forEach((d) => {
-      const u = d.data();
-      if ((u.username || "").toLowerCase().includes(term.toLowerCase()) && d.id !== auth.currentUser.uid) {
-        found.push({ id: d.id, ...u });
-      }
-    });
+  const qy = query(
+    collection(db,"logs"),
+    where("uid","==", uid),
+    orderBy("createdAt","desc"),
+    limit(30)
+  );
 
-    found.slice(0, 12).forEach((u) => {
-      const row = document.createElement("div");
-      row.className = "index-row";
-      row.innerHTML = `
-        <span>${esc(u.username)}</span>
-        <div style="display:flex; gap:8px;">
-          <button class="mini-btn">PROFILE</button>
-          <button class="mini-btn">ADD</button>
-        </div>
-      `;
-      row.querySelectorAll("button")[0].onclick = () => openProfile(u.id);
-      row.querySelectorAll("button")[1].onclick = () => addFriend(u.id);
-      box.appendChild(row);
-    });
-  };
-}
-
-function renderFriendsList() {
-  const list = $("friends-list");
-  list.innerHTML = "";
-  const friends = currentUserData.friends || [];
-  if (!friends.length) {
-    list.innerHTML = `<div class="hint"><span class="hint-dot"></span>No friends yet. Search callsigns to add.</div>`;
-    return;
-  }
-
-  friends.forEach(async (fid) => {
-    const s = await getDoc(doc(db, "users", fid));
-    if (!s.exists()) return;
-    const u = s.data();
-
-    const row = document.createElement("div");
-    row.className = "index-row";
-    row.innerHTML = `
-      <span>${esc(u.username)}</span>
-      <div style="display:flex; gap:8px;">
-        <button class="mini-btn">VIEW</button>
-        <button class="mini-btn danger">SEVER</button>
-      </div>
-    `;
-    row.querySelectorAll("button")[0].onclick = () => openProfile(fid);
-    row.querySelectorAll("button")[1].onclick = () => removeFriend(fid);
-    list.appendChild(row);
-  });
-}
-
-async function addFriend(targetUid) {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayUnion(targetUid), updatedAt: serverTimestamp() });
-  currentUserData.friends = Array.from(new Set([...(currentUserData.friends || []), targetUid]));
-  toast("CONNECTION_ESTABLISHED");
-  renderFriendsList();
-}
-
-async function removeFriend(targetUid) {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { friends: arrayRemove(targetUid), updatedAt: serverTimestamp() });
-  currentUserData.friends = (currentUserData.friends || []).filter((x) => x !== targetUid);
-  toast("CONNECTION_SEVERED");
-  renderFriendsList();
-}
-
-async function openProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) return;
-
-  const u = snap.data();
-  $("profile-modal").classList.remove("hidden");
-  $("modal-title").textContent = "ENTITY_PROFILE";
-  $("modal-name").textContent = u.username || "ENTITY";
-  $("modal-rank").textContent = `RANK: ${computeRankName(u.carvingCount || 0)}`;
-  $("modal-stats").textContent = `CARVINGS: ${u.carvingCount || 0}  //  TROPHIES: ${
-    Object.keys(u.trophies || {}).filter((k) => u.trophies[k]).length
-  }`;
-
-  renderAvatarInto($("modal-avatar"), u.avatar || "skull", uid);
-
-  const isFriend = (currentUserData.friends || []).includes(uid);
-  const isMe = uid === auth.currentUser.uid;
-
-  const friendBtn = $("modal-friend-btn");
-  friendBtn.textContent = isMe ? "THIS_IS_YOU" : isFriend ? "REMOVE_FRIEND" : "ADD_FRIEND";
-  friendBtn.className = isMe ? "mini-btn" : isFriend ? "mini-btn danger" : "mini-btn";
-
-  friendBtn.onclick = async () => {
-    if (isMe) return;
-    if ((currentUserData.friends || []).includes(uid)) await removeFriend(uid);
-    else await addFriend(uid);
-    $("profile-modal").classList.add("hidden");
-  };
-
-  $("modal-posts").innerHTML = `<div class="hint"><span class="hint-dot"></span>Click “VIEW_POSTS” to load latest broadcasts.</div>`;
-  $("modal-view-posts-btn").onclick = async () => {
-    const qy = query(collection(db, "posts"), where("uid", "==", uid), orderBy("timestamp", "desc"), limit(10));
-    const ps = await getDocs(qy);
-    const wrap = $("modal-posts");
+  unsubMyLogs = onSnapshot(qy, (snap) => {
     wrap.innerHTML = "";
-    ps.forEach((p) => {
-      const d = p.data();
-      const card = document.createElement("div");
-      card.className = "plan-card";
-      card.innerHTML = `
-        <div class="plan-name">${esc(d.dayKey || "")}</div>
-        <div class="plan-sub">${esc(d.text || "")}</div>
-      `;
-      wrap.appendChild(card);
-    });
-    if (!ps.size) {
-      wrap.innerHTML = `<div class="hint"><span class="hint-dot"></span>No public broadcasts found.</div>`;
-    }
-  };
-}
-
-function closeProfile() {
-  $("profile-modal").classList.add("hidden");
-}
-
-/* =========================
-   PLANS: INDEX + ACTIVATE + AUTO-ROTATE “MISSED DAYS”
-========================= */
-function renderPlansIndex() {
-  const wrap = $("plan-index");
-  wrap.innerHTML = "";
-
-  BUILT_IN_PLANS.forEach((p) => {
-    const card = document.createElement("div");
-    card.className = `plan-card ${selectedPlanId === p.id ? "active" : ""}`;
-    card.innerHTML = `
-      <div class="plan-name">${esc(p.name)}</div>
-      <div class="plan-sub">${esc(p.vibe)}</div>
-      <div class="btn-row" style="margin-top:10px;">
-        <button class="mini-btn">SELECT</button>
-        <button class="mini-btn">ACTIVATE</button>
-      </div>
-    `;
-
-    const btns = card.querySelectorAll("button");
-    btns[0].onclick = () => {
-      selectedPlanId = p.id;
-      wrap.querySelectorAll(".plan-card").forEach((x) => x.classList.remove("active"));
-      card.classList.add("active");
-      buildStartDaySelect(p.id);
-    };
-    btns[1].onclick = () => activatePlan(p.id);
-
-    wrap.appendChild(card);
-  });
-
-  const customs = currentUserData.customPlans || [];
-  if (customs.length) {
-    const sep = document.createElement("div");
-    sep.className = "small-label";
-    sep.style.marginTop = "18px";
-    sep.textContent = "CUSTOM_SPLITS";
-    wrap.appendChild(sep);
-
-    customs.forEach((p) => {
-      const card = document.createElement("div");
-      card.className = `plan-card ${selectedPlanId === p.id ? "active" : ""}`;
-      card.innerHTML = `
-        <div class="plan-name">${esc(p.name)}</div>
-        <div class="plan-sub">FORGED: ${esc(String(p.days?.length || 0))} DAYS</div>
-        <div class="btn-row" style="margin-top:10px;">
-          <button class="mini-btn">SELECT</button>
-          <button class="mini-btn">ACTIVATE</button>
-        </div>
-      `;
-
-      const btns = card.querySelectorAll("button");
-      btns[0].onclick = () => {
-        selectedPlanId = p.id;
-        wrap.querySelectorAll(".plan-card").forEach((x) => x.classList.remove("active"));
-        card.classList.add("active");
-        buildStartDaySelect(p.id);
-      };
-      btns[1].onclick = () => activatePlan(p.id);
-      wrap.appendChild(card);
-    });
-  }
-}
-
-async function activatePlan(planId) {
-  const plan = planById(planId, currentUserData);
-  if (!plan) return toast("PLAN NOT FOUND.");
-
-  const startPlanIndex = Number($("start-day-select").value || 0);
-  const dk = todayKey();
-
-  const active = {
-    planId,
-    startPlanIndex, // where the rotation begins
-    nextDayIndex: startPlanIndex, // ✅ this is what “today” shows until you log
-    activatedKey: dk,
-    lastCompletedKey: null
-  };
-
-  await updateDoc(doc(db, "users", auth.currentUser.uid), {
-    activePlan: active,
-    updatedAt: serverTimestamp()
-  });
-
-  currentUserData.activePlan = active;
-  $("active-split-label").textContent = plan.name;
-  toast("SPLIT ACTIVATED.");
-
-  renderActivePlanStatus();
-  renderTodayWorkoutLogger();
-}
-
-function deactivatePlan() {
-  updateDoc(doc(db, "users", auth.currentUser.uid), { activePlan: null, updatedAt: serverTimestamp() });
-  currentUserData.activePlan = null;
-  $("active-split-label").textContent = "NONE";
-  toast("SPLIT DEACTIVATED.");
-  renderActivePlanStatus();
-  renderTodayWorkoutLogger();
-}
-
-function planDayForToday() {
-  const ap = currentUserData.activePlan;
-  if (!ap) return null;
-
-  const plan = planById(ap.planId, currentUserData);
-  if (!plan) return null;
-
-  const planIndex = clamp(Number(ap.nextDayIndex ?? 0), 0, Math.max(0, plan.days.length - 1));
-  return { plan, planIndex };
-}
-
-function renderActivePlanStatus() {
-  const wrap = $("active-plan-readout");
-  const ap = currentUserData.activePlan;
-
-  if (!ap) {
-    wrap.innerHTML = `<div class="hint"><span class="hint-dot"></span>No active split. Activate one from the index above.</div>`;
-    $("active-day-chip").textContent = "DAY_?";
-    return;
-  }
-
-  const plan = planById(ap.planId, currentUserData);
-  if (!plan) {
-    wrap.innerHTML = `<div class="hint"><span class="hint-dot"></span>Active split missing.</div>`;
-    return;
-  }
-
-  const info = planDayForToday();
-  const todayDay = info ? plan.days[info.planIndex] : null;
-
-  $("active-day-chip").textContent = info ? `DAY_${info.planIndex + 1}` : "DAY_?";
-
-  wrap.innerHTML = `
-    <div class="day-badge">
-      <div class="dname">${esc(plan.name)}</div>
-      <div class="dlist">
-        <div style="margin-top:8px;"><span class="dim">TODAY (AUTO-ROTATE):</span> ${esc(todayDay?.name || "UNKNOWN")}</div>
-        <div style="margin-top:8px;"><span class="dim">ACTIVATED:</span> ${esc(ap.activatedKey || "")}</div>
-        <div style="margin-top:8px;"><span class="dim">LAST COMPLETED:</span> ${esc(ap.lastCompletedKey || "—")}</div>
-      </div>
-    </div>
-  `;
-
-  $("deactivate-plan-btn").onclick = deactivatePlan;
-
-  $("jump-day-btn").onclick = async () => {
-    const patched = { ...ap, nextDayIndex: 0 };
-    await updateDoc(doc(db, "users", auth.currentUser.uid), {
-      activePlan: patched,
-      updatedAt: serverTimestamp()
-    });
-    currentUserData.activePlan = patched;
-    toast("TODAY SET TO DAY_1.");
-    renderActivePlanStatus();
-    renderTodayWorkoutLogger();
-  };
-}
-
-function renderTodayWorkoutLogger() {
-  const box = $("today-workout-list");
-  box.innerHTML = "";
-
-  const info = planDayForToday();
-  if (!info) {
-    $("logger-sub").textContent = "Activate a split to load today.";
-    return;
-  }
-
-  const day = info.plan.days[info.planIndex];
-  $("logger-sub").textContent = `${day.name} // Log sets to advance the rotation.`;
-
-  const items = day.items || [];
-  items.forEach((it, idx) => {
-    const line = document.createElement("div");
-    line.className = "workline";
-
-    const options = (it.options?.length ? it.options : allExercises()).map((e, i) => {
-      const selected = i === 0 ? "selected" : "";
-      return `<option value="${esc(e)}" ${selected}>${esc(e)}</option>`;
-    }).join("");
-
-    line.innerHTML = `
-      <div class="workline-top">
-        <div class="workline-title">${esc(it.muscle || "MUSCLE")} — <span class="dim">${esc(
-      `${it.sets || "?"} SETS @ ${it.reps || "?"}`
-    )}</span></div>
-        <div class="workline-controls">
-          <select data-swap="${idx}">${options}</select>
-          <button class="mini-btn" data-quick="${idx}">RECORD</button>
-        </div>
-      </div>
-
-      <div class="row3" style="margin-top:10px;">
-        <input type="number" inputmode="decimal" placeholder="LBS" data-w="${idx}">
-        <input type="number" inputmode="numeric" placeholder="REPS" data-r="${idx}">
-        <button class="mini-btn" data-nextset="${idx}">SET #1</button>
-      </div>
-    `;
-
-    const sel = line.querySelector(`select[data-swap="${idx}"]`);
-    const btnRecord = line.querySelector(`button[data-quick="${idx}"]`);
-    const btnSet = line.querySelector(`button[data-nextset="${idx}"]`);
-    const inW = line.querySelector(`input[data-w="${idx}"]`);
-    const inR = line.querySelector(`input[data-r="${idx}"]`);
-
-    let setNum = 1;
-    const targetSets = Number(it.sets || 0) || null;
-
-    function refreshSetBtn() {
-      btnSet.textContent = `SET #${setNum}`;
-    }
-    refreshSetBtn();
-
-    btnSet.onclick = () => {
-      // manual bump if you want
-      setNum = clamp(setNum + 1, 1, 99);
-      refreshSetBtn();
-    };
-
-    btnRecord.onclick = async () => {
-      const ex = sel.value;
-      const w = Number(inW.value);
-      const r = Number(inR.value);
-      if (!w || !r) return toast("ENTER LBS + REPS.");
-
-      await submitLog(ex, w, r, {
-        source: "plan",
-        planId: info.plan.id,
-        planDayIndex: info.planIndex,
-        muscle: it.muscle || null,
-        setNumber: setNum,
-        targetSets,
-        targetReps: it.reps || null
-      });
-
-      inW.value = "";
-      inR.value = "";
-
-      // auto-advance set number until you reach target sets (then keeps going if you want)
-      if (targetSets && setNum < targetSets) setNum += 1;
-      else setNum += 1;
-      refreshSetBtn();
-
-      toast("CARVING_RECORDED.");
-    };
-
-    box.appendChild(line);
-  });
-}
-
-/* =========================
-   SPLIT BUILDER (kept, but stores items as plain lines)
-========================= */
-function openBuilder() {
-  $("builder-modal").classList.remove("hidden");
-  $("builder-warn").textContent = "";
-  $("builder-name").value = "";
-  $("builder-days").value = "5";
-  buildBuilderDays();
-}
-
-function closeBuilder() {
-  $("builder-modal").classList.add("hidden");
-}
-
-function buildBuilderDays() {
-  const count = Number($("builder-days").value || 5);
-  const wrap = $("builder-days-wrap");
-  wrap.innerHTML = "";
-
-  for (let i = 0; i < count; i++) {
-    const day = document.createElement("div");
-    day.className = "builder-day";
-    day.innerHTML = `
-      <div class="builder-day-title">DAY_${i + 1}</div>
-      <div class="small-label">EXERCISES (ONE PER LINE)</div>
-      <textarea data-day="${i}" placeholder="Bench Press&#10;Overhead Press&#10;..."></textarea>
-    `;
-    wrap.appendChild(day);
-  }
-}
-
-async function saveCustomSplit() {
-  const name = $("builder-name").value.trim();
-  const count = Number($("builder-days").value || 5);
-  $("builder-warn").textContent = "";
-
-  if (!name || name.length < 4) {
-    $("builder-warn").textContent = "NAME TOO SHORT.";
-    return;
-  }
-
-  const days = [];
-  for (let i = 0; i < count; i++) {
-    const ta = document.querySelector(`textarea[data-day="${i}"]`);
-    const lines = (ta?.value || "")
-      .split("\n")
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .slice(0, 12);
-
-    if (lines.length < 3) {
-      $("builder-warn").textContent = `DAY_${i + 1} NEEDS 3+ EXERCISES.`;
+    if(snap.empty){
+      wrap.innerHTML = `<div class="index-row"><span class="dim">NO CARVINGS YET.</span></div>`;
       return;
     }
 
-    // store as items with defaults (no sets/reps targets in builder mode)
-    days.push({
-      name: `DAY_${i + 1} ${name.toUpperCase().replaceAll(" ", "_")}`,
-      items: lines.map((ln) => ({ muscle: "CUSTOM", options: [ln], sets: null, reps: null }))
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span>${esc(d.exercise)} <span class="dim">(${esc(d.dayKey || "")})</span></span>
+        <span class="dim">${esc(d.weight)} x ${esc(d.reps)} = ${Math.round(Number(d.volume||0))}</span>
+        <button class="mini-btn danger" style="margin-left:auto;" data-del="1">DEL</button>
+      `;
+      row.querySelector('button[data-del="1"]').onclick = async () => {
+        if(!confirm("Delete this carving?")) return;
+        await deleteLog(docSnap.id, d);
+      };
+      wrap.appendChild(row);
     });
+  });
+}
+
+/* =========================
+   PR UI
+========================= */
+function loadPRStream(){
+  const wrap = $("prList");
+  const prs = currentUserData.prs || {};
+  const entries = Object.entries(prs)
+    .sort((a,b)=> (b[1].bestE1RM||0) - (a[1].bestE1RM||0))
+    .slice(0, 50);
+
+  wrap.innerHTML = "";
+  if(!entries.length){
+    wrap.innerHTML = `<div class="index-row"><span class="dim">NO PRS YET.</span></div>`;
+    return;
   }
 
-  const id = `custom_${Date.now()}`;
-  const custom = { id, name, vibe: "FORGED IN THE GRAVE.", days };
-
-  const nextPlans = [...(currentUserData.customPlans || []), custom];
-
-  await updateDoc(doc(db, "users", auth.currentUser.uid), {
-    customPlans: nextPlans,
-    updatedAt: serverTimestamp()
+  entries.forEach(([ex, data]) => {
+    const row = document.createElement("div");
+    row.className = "index-row";
+    row.innerHTML = `
+      <span>${esc(ex)}</span>
+      <span class="dim">e1RM ${esc(data.bestE1RM || 0)} | best ${esc(data.bestWeight || 0)} x ${esc(data.bestReps || 0)}</span>
+    `;
+    wrap.appendChild(row);
   });
-
-  currentUserData.customPlans = nextPlans;
-  toast("CUSTOM SPLIT SAVED.");
-  closeBuilder();
-  renderPlansIndex();
 }
 
 /* =========================
-   SETTINGS ACTIONS
+   TROPHIES UI
 ========================= */
-async function renameEntity() {
-  const newName = $("new-username").value.trim();
-  if (!newName || newName.length < 3) return toast("CALLSIGN TOO SHORT.");
+function renderTrophies(){
+  const wrap = $("trophy-list");
+  const trophies = currentUserData.trophies || {};
+  const got = Object.keys(trophies).filter(k => trophies[k]).length;
+  $("trophy-count").textContent = String(got);
 
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { username: newName, updatedAt: serverTimestamp() });
-  currentUserData.username = newName;
-  $("header-callsign").textContent = newName;
-  $("profileUsername").textContent = newName;
-  toast("IDENTITY_UPDATED.");
-}
-
-async function updateTag() {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { tag: selectedTagCss, updatedAt: serverTimestamp() });
-  currentUserData.tag = selectedTagCss;
-  $("user-grave-tag").className = `grave-tag ${selectedTagCss}`;
-  $("tag-text").textContent = TAGS.find((t) => t.css === selectedTagCss)?.label || "CADAVER";
-  toast("TAG_UPDATED.");
-}
-
-async function updateAvatar() {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: selectedAvatar, updatedAt: serverTimestamp() });
-  currentUserData.avatar = selectedAvatar;
-  renderAvatarInto($("avatar-frame"), selectedAvatar, currentUserData.uid);
-  toast("AVATAR_BOUND.");
-}
-
-async function updateCallingCard() {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), { callingCard: selectedCard, updatedAt: serverTimestamp() });
-  currentUserData.callingCard = selectedCard;
-  toast("CALLING_CARD_EQUIPPED.");
-}
-
-async function purgeMyLogs() {
-  if (!confirm("PURGE ALL YOUR LOGS?")) return;
-  const uid = auth.currentUser.uid;
-  const snap = await getDocs(query(collection(db, "logs"), where("uid", "==", uid), limit(200)));
-  const batch = [];
-  snap.forEach((d) => batch.push(deleteDoc(doc(db, "logs", d.id))));
-  await Promise.all(batch);
-  toast("LOGS PURGED (UP TO 200).");
-}
-
-async function purgeMyPosts() {
-  if (!confirm("PURGE ALL YOUR POSTS?")) return;
-  const uid = auth.currentUser.uid;
-  const snap = await getDocs(query(collection(db, "posts"), where("uid", "==", uid), limit(200)));
-  const batch = [];
-  snap.forEach((d) => batch.push(deleteDoc(doc(db, "posts", d.id))));
-  await Promise.all(batch);
-  toast("POSTS PURGED (UP TO 200).");
+  wrap.innerHTML = "";
+  TROPHIES.forEach(t => {
+    const row = document.createElement("div");
+    row.className = "index-row";
+    row.innerHTML = `
+      <span>${esc(t.label)}</span>
+      <span class="dim">${trophies[t.id] ? "CLAIMED" : `TARGET ${t.min}`}</span>
+    `;
+    wrap.appendChild(row);
+  });
 }
 
 /* =========================
-   WIRE ALL BUTTONS
+   FEED / FRIENDS / LEADERBOARD (minimal working versions)
 ========================= */
-document.addEventListener("DOMContentLoaded", () => {
-  $("showRegBtn").onclick = () => {
+async function loadLeaderboardStream(){
+  const wrap = $("leaderboard");
+  const qy = query(collection(db,"users"), orderBy("carvingCount","desc"), limit(10));
+  onSnapshot(qy, (snap) => {
+    wrap.innerHTML = "";
+    snap.forEach(s => {
+      const u = s.data();
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span style="cursor:pointer; color: rgba(0,255,65,0.85)">${esc(u.username || "UNKNOWN")}</span>
+        <span class="dim">${esc(u.carvingCount || 0)} carvings</span>
+      `;
+      row.onclick = () => openProfile(u.uid);
+      wrap.appendChild(row);
+    });
+  });
+}
+
+async function loadFeedStream(){
+  const wrap = $("feed-content");
+  wrap.innerHTML = `<div class="index-row"><span class="dim">FEED LOADING…</span></div>`;
+  // If you already have a posts system in your Firestore rules, wire it here.
+  wrap.innerHTML = `<div class="index-row"><span class="dim">FEED SYSTEM READY (hook your posts collection here).</span></div>`;
+}
+
+async function loadFriendsUI(){
+  $("userSearch").oninput = async () => {
+    const term = $("userSearch").value.trim();
+    const out = $("search-results");
+    out.innerHTML = "";
+    if(term.length < 2) return;
+
+    const qy = query(
+      collection(db,"users"),
+      where("username", ">=", term),
+      where("username", "<=", term + "\uf8ff"),
+      limit(10)
+    );
+    const snap = await getDocs(qy);
+    snap.forEach(s => {
+      const u = s.data();
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span style="cursor:pointer; color: rgba(0,255,65,0.85)">${esc(u.username)}</span>
+        <span class="dim">VIEW</span>
+      `;
+      row.onclick = () => openProfile(u.uid);
+      out.appendChild(row);
+    });
+  };
+}
+
+async function openProfile(uid){
+  const snap = await getDoc(doc(db,"users", uid));
+  if(!snap.exists()) return toast("PROFILE NOT FOUND.");
+  const u = snap.data();
+
+  $("modal-name").textContent = u.username || "UNKNOWN";
+  $("modal-rank").textContent = `RANK: ${computeRankName(u.carvingCount || 0)}`;
+  $("modal-stats").textContent = `CARVINGS: ${u.carvingCount || 0}`;
+
+  renderAvatarInto($("modal-avatar"), u.avatar || "skull", u.uid);
+
+  $("profile-modal").classList.remove("hidden");
+}
+
+/* =========================
+   STARTUP WIRING FOR AUTH SCREEN (so buttons always work)
+========================= */
+(function boot(){
+  // Auth screen wiring before auth state resolves
+  if($("loginBtn")) $("loginBtn").onclick = doLogin;
+  if($("showRegBtn")) $("showRegBtn").onclick = () => {
     setScreen("registration-screen");
     $("reg-status-chip").textContent = "STAGE_1";
     $("reg-step-1").classList.remove("hidden");
     $("reg-step-2").classList.add("hidden");
-    buildRegPickers("SEED");
+    $("reg-warn").textContent = "";
+    buildRegPickers("seed");
   };
+  if($("forgotBtn")) $("forgotBtn").onclick = doForgot;
 
-  $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
-  $("loginBtn").onclick = doLogin;
-
-  $("nextStepBtn").onclick = beginRegistration;
-  $("finalizeRegBtn").onclick = finalizeRegistration;
-
-  $("postStatusBtn").onclick = createPost;
-  $("refreshFeedBtn").onclick = loadFeedStream;
-
-  $("logoutBtn").onclick = async () => {
-    await signOut(auth);
-    location.reload();
-  };
-
-  $("renameBtn").onclick = renameEntity;
-  $("updateTagBtn").onclick = updateTag;
-  $("updateAvatarBtn").onclick = updateAvatar;
-  $("updateCardBtn").onclick = updateCallingCard;
-  $("purgeMyLogsBtn").onclick = purgeMyLogs;
-  $("purgeMyPostsBtn").onclick = purgeMyPosts;
-
-  $("closeProfileBtn").onclick = closeProfile;
-  $("profile-modal").onclick = (e) => {
-    if (e.target.id === "profile-modal") closeProfile();
-  };
-
-  $("open-builder-btn").onclick = openBuilder;
-  $("closeBuilderBtn").onclick = closeBuilder;
-  $("builder-modal").onclick = (e) => {
-    if (e.target.id === "builder-modal") closeBuilder();
-  };
-  $("builder-days").onchange = buildBuilderDays;
-  $("builder-create-btn").onclick = saveCustomSplit;
-});
+  if($("nextStepBtn")) $("nextStepBtn").onclick = beginRegistration;
+  if($("finalizeRegBtn")) $("finalizeRegBtn").onclick = finalizeRegistration;
+  if($("returnToLoginBtn")) $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
+})();
