@@ -1,10 +1,5 @@
-/* =========================
-   DEADWEIGHTS // THE_GRAVE
-   app.js (rewritten)
-   - GraveFive split now matches your Monday–Friday worksheet (sets + reps)
-   - Logger supports multiple SETS per exercise (weight + reps per set)
-   - Auto-rotation for missed training days (Mon–Fri) using activePlan.currentDayIndex
-========================= */
+// app.js (FULL REWRITE w/ the new “cool as hell” GraveFive split + auto-rotation + sets/reps targets)
+// Paste this whole file into app.js
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
@@ -74,41 +69,8 @@ function todayKey() {
   return `${y}-${m}-${da}`;
 }
 
-function mon0Weekday(d = new Date()) {
-  // Mon=0..Sun=6
-  const js = d.getDay(); // Sun=0..Sat=6
-  return js === 0 ? 6 : js - 1;
-}
-
-function isTrainingDayMonFri(d = new Date()) {
-  const wd = mon0Weekday(d); // 0..6
-  return wd >= 0 && wd <= 4; // Mon..Fri
-}
-
-function parseDayKeyToDate(dk) {
-  // dk: YYYY-MM-DD
-  const [y, m, d] = (dk || "").split("-").map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 12, 0, 0, 0);
-}
-
-function daysBetweenKeys(fromKey, toKey) {
-  const a = parseDayKeyToDate(fromKey);
-  const b = parseDayKeyToDate(toKey);
-  if (!a || !b) return 0;
-  const ms = b.getTime() - a.getTime();
-  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-}
-
-function addDays(date, n) {
-  const d = new Date(date.getTime());
-  d.setDate(d.getDate() + n);
-  return d;
-}
-
-function computeRankName(carvingCount = 0) {
-  const r = RANKS.filter((x) => carvingCount >= x.min).pop() || RANKS[0];
-  return r.name;
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
 }
 
 /* =========================
@@ -122,6 +84,7 @@ const RANKS = [
   { min: 200, name: "CRYPT_KING", cardUnlock: 4 }
 ];
 
+// trophy thresholds based on estimated 1RM for key lifts
 const TROPHIES = [
   { id: "BENCH_225", label: "BENCH 225+ (e1RM)", key: "Bench Press", min: 225 },
   { id: "SQUAT_315", label: "SQUAT 315+ (e1RM)", key: "Back Squats", min: 315 },
@@ -130,6 +93,7 @@ const TROPHIES = [
   { id: "ROW_225", label: "ROW 225+ (e1RM)", key: "Barbell Rows", min: 225 }
 ];
 
+/* Calling Cards */
 const CALLING_CARDS = [
   { id: "rust_sigils", name: "RUST_SIGILS", req: { rankMin: 0 }, fx: "sigils" },
   { id: "crt_wraith", name: "CRT_WRAITH", req: { rankMin: 10 }, fx: "wraith" },
@@ -138,6 +102,7 @@ const CALLING_CARDS = [
   { id: "trophy_reaper", name: "REAPER_TROPHY", req: { trophy: "DEAD_405" }, fx: "reaper" }
 ];
 
+/* Grave Tags */
 const TAGS = [
   { id: "rust", css: "tag-rust", label: "RUST" },
   { id: "crt", css: "tag-crt", label: "CRT" },
@@ -146,7 +111,7 @@ const TAGS = [
 ];
 
 /* =========================
-   EXERCISES
+   EXERCISE POOLS
 ========================= */
 const EXERCISES = {
   Push: [
@@ -154,18 +119,18 @@ const EXERCISES = {
     "Incline DB Press",
     "Incline Bench Press",
     "Overhead Press",
+    "Machine Shoulder Press",
     "Seated DB Press",
-    "Machine Press",
     "Dips",
     "Close-Grip Bench",
     "Skull Crushers",
     "Rope Pushdowns",
     "Cable Fly",
     "DB Fly",
-    "Pec Deck",
     "Lateral Raises",
-    "Front Raises",
-    "Rear Delt Fly"
+    "Rear Delt Fly",
+    "Machine Chest Press",
+    "Pec Deck"
   ],
   Pull: [
     "Deadlifts",
@@ -174,22 +139,22 @@ const EXERCISES = {
     "Barbell Rows",
     "Cable Rows",
     "Seated Cable Row",
-    "DB Rows",
     "Lat Pulldown",
     "Pull Ups",
     "Chin Ups",
     "Face Pulls",
     "Shrugs",
     "Back Extensions",
-    "EZ-Bar Curls",
     "Bicep Curls",
-    "Hammer Curls"
+    "EZ-Bar Curls",
+    "Hammer Curls",
+    "Preacher Curls",
+    "Incline DB Curls"
   ],
   Legs: [
     "Back Squats",
-    "Squat",
-    "Front Squats",
     "Hack Squat",
+    "Front Squats",
     "Leg Press",
     "Bulgarian Split Squat",
     "Lunges",
@@ -198,10 +163,10 @@ const EXERCISES = {
     "Hip Thrust",
     "Glute Bridge",
     "Calf Raises",
-    "Adductor Machine",
-    "Abductor Machine",
+    "Step Ups",
     "Good Mornings",
-    "Step Ups"
+    "Adductor Machine",
+    "Abductor Machine"
   ],
   Core: ["Hanging Leg Raises", "Cable Crunch", "Ab Wheel", "Plank", "Side Plank", "Russian Twists"],
   Conditioning: ["Row Machine", "Bike Sprint", "Incline Treadmill", "Farmer Walk", "Sled Push"]
@@ -217,19 +182,9 @@ function allExercises() {
 
 /* =========================
    BUILT-IN SPLITS
-   - NEW: supports day.lines[] with sets + repsTarget + exerciseOptions
+   - day.items[] supports:
+     { muscle, options[], sets, reps }
 ========================= */
-function line(muscle, label, options, sets, reps, optional = false) {
-  return {
-    muscle,
-    label, // display label
-    options: Array.isArray(options) ? options : [options],
-    sets,
-    reps, // string like "5–8" or "8–10" or "15"
-    optional
-  };
-}
-
 const BUILT_IN_PLANS = [
   {
     id: "crypt_ppl_3",
@@ -238,32 +193,31 @@ const BUILT_IN_PLANS = [
     days: [
       {
         name: "DAY_1 PUSH",
-        lines: [
-          line("Chest", "Bench Press", ["Bench Press", "Incline Bench Press", "Machine Press"], 3, "6–10"),
-          line("Shoulders", "Overhead Press", ["Overhead Press", "Seated DB Press", "Machine Press"], 3, "6–10"),
-          line("Chest", "Incline Press", ["Incline DB Press", "Incline Bench Press"], 3, "8–12"),
-          line("Delts", "Lateral Raises", ["Lateral Raises"], 3, "12–15"),
-          line("Triceps", "Pushdowns", ["Rope Pushdowns", "Skull Crushers"], 3, "10–12")
+        items: [
+          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–10" },
+          { muscle: "Shoulders", options: ["Overhead Press", "Seated DB Press"], sets: 3, reps: "6–10" },
+          { muscle: "Chest", options: ["Cable Fly", "DB Fly", "Pec Deck"], sets: 3, reps: "10–15" },
+          { muscle: "Triceps", options: ["Skull Crushers", "Rope Pushdowns", "Close-Grip Bench"], sets: 3, reps: "10–12" }
         ]
       },
       {
         name: "DAY_2 PULL",
-        lines: [
-          line("Back", "Deadlift", ["Deadlifts", "RDLs"], 3, "3–6"),
-          line("Back", "Row", ["Barbell Rows", "Cable Rows", "Seated Cable Row"], 3, "6–10"),
-          line("Back", "Pulldown", ["Lat Pulldown", "Pull Ups", "Chin Ups"], 3, "8–12"),
-          line("Rear Delts", "Face Pulls", ["Face Pulls"], 3, "12–15"),
-          line("Biceps", "Curls", ["EZ-Bar Curls", "Hammer Curls"], 3, "8–12")
+        items: [
+          { muscle: "Back", options: ["Deadlifts", "RDLs"], sets: 3, reps: "3–6" },
+          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row", "Cable Rows"], sets: 4, reps: "6–10" },
+          { muscle: "Back", options: ["Lat Pulldown", "Pull Ups", "Chin Ups"], sets: 4, reps: "8–12" },
+          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "12–15" },
+          { muscle: "Biceps", options: ["EZ-Bar Curls", "Hammer Curls"], sets: 3, reps: "8–12" }
         ]
       },
       {
         name: "DAY_3 LEGS",
-        lines: [
-          line("Quads", "Squat", ["Back Squats", "Front Squats", "Hack Squat"], 4, "6–10"),
-          line("Quads", "Leg Press", ["Leg Press"], 3, "8–12"),
-          line("Hamstrings", "RDL", ["RDLs", "Romanian Deadlift"], 3, "6–10"),
-          line("Hamstrings", "Curl", ["Hamstring Curls"], 3, "10–12"),
-          line("Calves", "Calf Raises", ["Calf Raises"], 3, "10–15")
+        items: [
+          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "5–8" },
+          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
+          { muscle: "Hamstrings", options: ["Romanian Deadlift", "Hamstring Curls"], sets: 3, reps: "8–12" },
+          { muscle: "Glutes", options: ["Hip Thrust", "Glute Bridge"], sets: 3, reps: "8–12" },
+          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" }
         ]
       }
     ]
@@ -276,110 +230,107 @@ const BUILT_IN_PLANS = [
     days: [
       {
         name: "DAY_1 UPPER_A",
-        lines: [
-          line("Chest", "Bench", ["Bench Press", "Incline Bench Press"], 4, "6–8"),
-          line("Back", "Row", ["Barbell Rows", "Seated Cable Row", "Cable Rows"], 4, "6–10"),
-          line("Shoulders", "OHP", ["Overhead Press", "Seated DB Press", "Machine Press"], 3, "6–10"),
-          line("Back", "Pulldown", ["Lat Pulldown", "Pull Ups"], 3, "8–12"),
-          line("Triceps", "Skulls", ["Skull Crushers", "Rope Pushdowns"], 3, "10–12")
+        items: [
+          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–8" },
+          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row"], sets: 4, reps: "6–10" },
+          { muscle: "Shoulders", options: ["Overhead Press", "Seated DB Press"], sets: 3, reps: "6–10" },
+          { muscle: "Back", options: ["Lat Pulldown", "Pull Ups"], sets: 3, reps: "8–12" },
+          { muscle: "Arms", options: ["Skull Crushers", "EZ-Bar Curls"], sets: 3, reps: "10–12" }
         ]
       },
       {
         name: "DAY_2 LOWER_A",
-        lines: [
-          line("Quads", "Squat", ["Back Squats", "Hack Squat"], 4, "6–8"),
-          line("Hamstrings", "RDL", ["RDLs", "Romanian Deadlift"], 4, "6–10"),
-          line("Quads", "Leg Press", ["Leg Press"], 3, "10–12"),
-          line("Hamstrings", "Curl", ["Hamstring Curls"], 3, "10–12"),
-          line("Calves", "Calf Raises", ["Calf Raises"], 3, "10–15")
+        items: [
+          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "6–8" },
+          { muscle: "Hamstrings", options: ["Romanian Deadlift", "RDLs"], sets: 4, reps: "6–10" },
+          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
+          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "10–15" },
+          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" }
         ]
       },
       {
         name: "DAY_3 UPPER_B",
-        lines: [
-          line("Chest", "Incline", ["Incline DB Press", "Incline Bench Press"], 4, "6–10"),
-          line("Back", "Row", ["Seated Cable Row", "Cable Rows", "DB Rows"], 4, "8–12"),
-          line("Chest", "Dips", ["Dips", "Close-Grip Bench"], 3, "6–10"),
-          line("Rear Delts", "Face Pulls", ["Face Pulls"], 3, "12–15"),
-          line("Biceps", "Curls", ["Hammer Curls", "EZ-Bar Curls"], 3, "8–12")
+        items: [
+          { muscle: "Chest", options: ["Incline DB Press", "Machine Chest Press"], sets: 4, reps: "8–12" },
+          { muscle: "Back", options: ["Seated Cable Row", "Cable Rows"], sets: 4, reps: "8–12" },
+          { muscle: "Shoulders", options: ["Lateral Raises"], sets: 4, reps: "12–15" },
+          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "12–15" },
+          { muscle: "Arms", options: ["Hammer Curls", "Rope Pushdowns"], sets: 3, reps: "10–12" }
         ]
       },
       {
         name: "DAY_4 LOWER_B",
-        lines: [
-          line("Quads", "Front Squat", ["Front Squats", "Back Squats"], 4, "6–10"),
-          line("Glutes", "Hip Thrust", ["Hip Thrust"], 3, "8–12"),
-          line("Quads", "Leg Ext", ["Leg Extensions"], 3, "12–15"),
-          line("Hamstrings", "Curl", ["Hamstring Curls"], 3, "10–12"),
-          line("Quads", "Lunge", ["Lunges", "Bulgarian Split Squat"], 3, "8–12")
+        items: [
+          { muscle: "Quads", options: ["Front Squats", "Hack Squat"], sets: 4, reps: "6–10" },
+          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "8–12" },
+          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "12–15" },
+          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12–15" },
+          { muscle: "Quads", options: ["Lunges", "Bulgarian Split Squat"], sets: 3, reps: "8–12" }
         ]
       }
     ]
   },
 
-  /* =========================
-     YOUR GRAVEFIVE (Mon–Fri)
-     Exact structure you typed
-  ========================= */
+  /* ✅ YOUR SPLIT (as requested), with a brutal name */
   {
-    id: "gravefive_hybrid_5",
-    name: "GRAVEFIVE // 5-DAY",
-    vibe: "Every muscle 2×/week (weekday friendly).",
+    id: "ironcoffin_gravefive_5",
+    name: "IRON_COFFIN // GRAVEFIVE (5-DAY)",
+    vibe: "Every muscle 2×/week. Miss a day? The coffin rotates—no schedule breaks.",
     days: [
       {
-        name: "MONDAY — FULL BODY COMPOUND",
-        lines: [
-          line("Quads", "Squat / Leg Press", ["Back Squats", "Leg Press", "Hack Squat"], 3, "5–8"),
-          line("Chest", "Bench / Incline", ["Bench Press", "Incline Bench Press", "Incline DB Press"], 3, "5–8"),
-          line("Back", "Row / Pull-ups", ["Barbell Rows", "Cable Rows", "Seated Cable Row", "Pull Ups", "Lat Pulldown"], 3, "6–10"),
-          line("Shoulders", "Overhead Press", ["Overhead Press", "Seated DB Press", "Machine Press"], 2, "6–8"),
-          line("Ham/Glutes", "RDL / Deadlift", ["RDLs", "Romanian Deadlift", "Deadlifts"], 2, "6–8"),
-          line("Arms", "Curl or Pushdown (opt)", ["EZ-Bar Curls", "Hammer Curls", "Bicep Curls", "Rope Pushdowns"], 2, "10–12", true)
+        name: "MONDAY // FULL BODY COMPOUND",
+        items: [
+          { muscle: "Quads", options: ["Back Squats", "Leg Press"], sets: 3, reps: "5–8" },
+          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 3, reps: "5–8" },
+          { muscle: "Back", options: ["Barbell Rows", "Pull Ups", "Lat Pulldown"], sets: 3, reps: "6–10" },
+          { muscle: "Shoulders", options: ["Overhead Press", "Machine Shoulder Press"], sets: 2, reps: "6–8" },
+          { muscle: "Ham/Glutes", options: ["Romanian Deadlift", "RDLs", "Deadlifts"], sets: 2, reps: "6–8" },
+          { muscle: "Arms (opt)", options: ["EZ-Bar Curls", "Hammer Curls", "Rope Pushdowns"], sets: 2, reps: "10–12" }
         ]
       },
       {
-        name: "TUESDAY — LOWER A (FULL LEGS)",
-        lines: [
-          line("Quads", "Squat / Hack Squat", ["Back Squats", "Hack Squat"], 4, "6–8"),
-          line("Quads", "Leg Press", ["Leg Press"], 3, "10"),
-          line("Hamstrings", "Romanian Deadlift", ["Romanian Deadlift", "RDLs"], 4, "8"),
-          line("Hamstrings", "Ham Curl", ["Hamstring Curls"], 3, "12"),
-          line("Glutes", "Hip Thrust", ["Hip Thrust"], 3, "10"),
-          line("Adductors", "Adduction Machine", ["Adductor Machine"], 3, "15"),
-          line("Abductors", "Abduction Machine", ["Abductor Machine"], 3, "15")
+        name: "TUESDAY // LOWER A (FULL LEGS)",
+        items: [
+          { muscle: "Quads", options: ["Back Squats", "Hack Squat"], sets: 4, reps: "6–8" },
+          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "10" },
+          { muscle: "Hamstrings", options: ["Romanian Deadlift", "RDLs"], sets: 4, reps: "8" },
+          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12" },
+          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "10" },
+          { muscle: "Adductors", options: ["Adductor Machine"], sets: 3, reps: "15" },
+          { muscle: "Abductors", options: ["Abductor Machine"], sets: 3, reps: "15" }
         ]
       },
       {
-        name: "WEDNESDAY — UPPER PUSH",
-        lines: [
-          line("Chest", "Bench / Incline Press", ["Bench Press", "Incline Bench Press", "Incline DB Press"], 4, "6–8"),
-          line("Chest", "Fly Variation", ["Cable Fly", "DB Fly", "Pec Deck"], 3, "12"),
-          line("Shoulders", "OHP / Machine Press", ["Overhead Press", "Machine Press", "Seated DB Press"], 3, "8"),
-          line("Shoulders", "Lateral Raises", ["Lateral Raises"], 4, "12–15"),
-          line("Triceps", "Skull Crushers", ["Skull Crushers"], 3, "10"),
-          line("Triceps", "Rope Pushdowns", ["Rope Pushdowns"], 3, "12")
+        name: "WEDNESDAY // UPPER PUSH",
+        items: [
+          { muscle: "Chest", options: ["Bench Press", "Incline Bench Press"], sets: 4, reps: "6–8" },
+          { muscle: "Chest", options: ["Cable Fly", "DB Fly", "Pec Deck"], sets: 3, reps: "12" },
+          { muscle: "Shoulders", options: ["Overhead Press", "Machine Shoulder Press"], sets: 3, reps: "8" },
+          { muscle: "Shoulders", options: ["Lateral Raises"], sets: 4, reps: "12–15" },
+          { muscle: "Triceps", options: ["Skull Crushers"], sets: 3, reps: "10" },
+          { muscle: "Triceps", options: ["Rope Pushdowns"], sets: 3, reps: "12" }
         ]
       },
       {
-        name: "THURSDAY — LOWER B (POSTERIOR)",
-        lines: [
-          line("Ham/Glutes", "Deadlift / RDL", ["Deadlifts", "RDLs", "Romanian Deadlift"], 4, "6"),
-          line("Glutes", "Hip Thrust", ["Hip Thrust"], 3, "8"),
-          line("Quads", "Bulgarian Split Squat", ["Bulgarian Split Squat"], 3, "8"),
-          line("Quads", "Leg Extension", ["Leg Extensions"], 3, "15"),
-          line("Adductors", "Adduction Machine", ["Adductor Machine"], 2, "15"),
-          line("Abductors", "Abduction Machine", ["Abductor Machine"], 2, "15")
+        name: "THURSDAY // LOWER B (POSTERIOR)",
+        items: [
+          { muscle: "Ham/Glutes", options: ["Deadlifts", "Romanian Deadlift", "RDLs"], sets: 4, reps: "6" },
+          { muscle: "Glutes", options: ["Hip Thrust"], sets: 3, reps: "8" },
+          { muscle: "Quads", options: ["Bulgarian Split Squat"], sets: 3, reps: "8" },
+          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "15" },
+          { muscle: "Adductors", options: ["Adductor Machine"], sets: 2, reps: "15" },
+          { muscle: "Abductors", options: ["Abductor Machine"], sets: 2, reps: "15" }
         ]
       },
       {
-        name: "FRIDAY — UPPER PULL + ARMS",
-        lines: [
-          line("Back", "Pull-ups / Pulldowns", ["Pull Ups", "Lat Pulldown", "Chin Ups"], 4, "8–10"),
-          line("Back", "Barbell / Cable Rows", ["Barbell Rows", "Cable Rows", "Seated Cable Row"], 3, "8–10"),
-          line("Rear Delts", "Face Pulls", ["Face Pulls", "Rear Delt Fly"], 3, "15"),
-          line("Biceps", "EZ-Bar Curls", ["EZ-Bar Curls"], 4, "8–10"),
-          line("Biceps", "Hammer Curls", ["Hammer Curls"], 3, "10–12"),
-          line("Triceps", "Close-Grip Bench / Dips", ["Close-Grip Bench", "Dips"], 3, "6–8")
+        name: "FRIDAY // UPPER PULL + ARMS",
+        items: [
+          { muscle: "Back", options: ["Pull Ups", "Lat Pulldown"], sets: 4, reps: "8–10" },
+          { muscle: "Back", options: ["Barbell Rows", "Seated Cable Row", "Cable Rows"], sets: 3, reps: "8–10" },
+          { muscle: "Rear Delts", options: ["Face Pulls", "Rear Delt Fly"], sets: 3, reps: "15" },
+          { muscle: "Biceps", options: ["EZ-Bar Curls"], sets: 4, reps: "8–10" },
+          { muscle: "Biceps", options: ["Hammer Curls"], sets: 3, reps: "10–12" },
+          { muscle: "Triceps", options: ["Close-Grip Bench", "Dips"], sets: 3, reps: "6–8" }
         ]
       }
     ]
@@ -392,52 +343,50 @@ const BUILT_IN_PLANS = [
     days: [
       {
         name: "DAY_1 UPPER_POWER",
-        lines: [
-          line("Chest", "Bench", ["Bench Press"], 5, "3–5"),
-          line("Back", "Row", ["Barbell Rows"], 5, "3–6"),
-          line("Shoulders", "OHP", ["Overhead Press"], 4, "4–6"),
-          line("Back", "Pull Ups", ["Pull Ups", "Lat Pulldown"], 4, "6–10"),
-          line("Triceps", "Close Grip", ["Close-Grip Bench", "Dips"], 3, "6–10")
+        items: [
+          { muscle: "Chest", options: ["Bench Press"], sets: 4, reps: "3–6" },
+          { muscle: "Back", options: ["Barbell Rows"], sets: 4, reps: "3–6" },
+          { muscle: "Shoulders", options: ["Overhead Press"], sets: 3, reps: "4–6" },
+          { muscle: "Back", options: ["Pull Ups", "Lat Pulldown"], sets: 3, reps: "6–10" },
+          { muscle: "Triceps", options: ["Close-Grip Bench"], sets: 3, reps: "6–10" }
         ]
       },
       {
         name: "DAY_2 LOWER_POWER",
-        lines: [
-          line("Quads", "Squat", ["Back Squats"], 5, "3–5"),
-          line("Ham/Back", "Deadlift", ["Deadlifts"], 3, "3–5"),
-          line("Quads", "Leg Press", ["Leg Press"], 4, "6–10"),
-          line("Calves", "Calf Raises", ["Calf Raises"], 4, "10–15"),
-          line("Core", "Plank", ["Plank"], 3, "30–60s")
+        items: [
+          { muscle: "Quads", options: ["Back Squats"], sets: 4, reps: "3–6" },
+          { muscle: "Ham/Glutes", options: ["Deadlifts"], sets: 3, reps: "3–5" },
+          { muscle: "Quads", options: ["Leg Press"], sets: 3, reps: "8–12" },
+          { muscle: "Calves", options: ["Calf Raises"], sets: 4, reps: "10–15" },
+          { muscle: "Core", options: ["Plank"], sets: 3, reps: "30–60s" }
         ]
       },
       {
         name: "DAY_3 UPPER_HYPER",
-        lines: [
-          line("Chest", "Incline", ["Incline DB Press", "Incline Bench Press"], 4, "8–12"),
-          line("Back", "Row", ["Seated Cable Row", "Cable Rows"], 4, "10–12"),
-          line("Chest", "Dips", ["Dips"], 3, "8–12"),
-          line("Rear Delts", "Face Pulls", ["Face Pulls"], 3, "12–15"),
-          line("Biceps", "Curls", ["Hammer Curls", "EZ-Bar Curls"], 3, "10–12")
+        items: [
+          { muscle: "Chest", options: ["Incline DB Press"], sets: 4, reps: "8–12" },
+          { muscle: "Back", options: ["Seated Cable Row"], sets: 4, reps: "8–12" },
+          { muscle: "Chest/Tris", options: ["Dips"], sets: 3, reps: "8–12" },
+          { muscle: "Rear Delts", options: ["Face Pulls"], sets: 3, reps: "12–15" },
+          { muscle: "Biceps", options: ["Hammer Curls"], sets: 3, reps: "10–12" }
         ]
       },
       {
         name: "DAY_4 LOWER_HYPER",
-        lines: [
-          line("Quads", "Front Squat", ["Front Squats"], 4, "6–10"),
-          line("Hamstrings", "RDL", ["RDLs", "Romanian Deadlift"], 4, "8–12"),
-          line("Quads", "Leg Ext", ["Leg Extensions"], 3, "12–15"),
-          line("Hamstrings", "Curl", ["Hamstring Curls"], 3, "10–12"),
-          line("Quads", "Lunges", ["Lunges"], 3, "10–12")
+        items: [
+          { muscle: "Quads", options: ["Front Squats"], sets: 4, reps: "6–10" },
+          { muscle: "Hamstrings", options: ["RDLs", "Romanian Deadlift"], sets: 4, reps: "6–10" },
+          { muscle: "Quads", options: ["Leg Extensions"], sets: 3, reps: "12–15" },
+          { muscle: "Hamstrings", options: ["Hamstring Curls"], sets: 3, reps: "12–15" },
+          { muscle: "Quads", options: ["Lunges"], sets: 3, reps: "8–12" }
         ]
       },
       {
         name: "DAY_5 OPTIONAL_COND",
-        lines: [
-          line("Conditioning", "Row Machine", ["Row Machine"], 1, "10–20 min"),
-          line("Conditioning", "Bike Sprint", ["Bike Sprint"], 1, "10–15 min"),
-          line("Conditioning", "Farmer Walk", ["Farmer Walk"], 4, "30–60s"),
-          line("Conditioning", "Sled Push", ["Sled Push"], 6, "20–40m"),
-          line("Core", "Ab Wheel", ["Ab Wheel"], 3, "8–12")
+        items: [
+          { muscle: "Conditioning", options: ["Row Machine", "Bike Sprint"], sets: 6, reps: "20–40s" },
+          { muscle: "Conditioning", options: ["Farmer Walk", "Sled Push"], sets: 6, reps: "20–40m" },
+          { muscle: "Core", options: ["Ab Wheel"], sets: 4, reps: "8–12" }
         ]
       }
     ]
@@ -452,7 +401,7 @@ let selectedTagCss = "tag-rust";
 let selectedAvatar = "skull";
 let selectedCard = "rust_sigils";
 let selectedPlanId = null;
-let feedUnsub = null;
+let manualCategory = "Push";
 
 /* =========================
    AVATAR FACTORY
@@ -462,7 +411,7 @@ function avatarSVG(style = "skull", seed = "X") {
   for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) % 360;
 
   const glow = `hsla(${(h + 110) % 360}, 100%, 55%, 0.45)`;
-  const rim = `hsla(${h % 360}, 85%, 50%, 0.22)`;
+  const rim = `hsla(${(h + 0) % 360}, 85%, 50%, 0.22)`;
 
   const base = `
     <svg viewBox="0 0 120 120" class="avatar-sigil" xmlns="http://www.w3.org/2000/svg">
@@ -473,10 +422,7 @@ function avatarSVG(style = "skull", seed = "X") {
         </radialGradient>
         <filter id="f">
           <feGaussianBlur stdDeviation="1.2" result="b"/>
-          <feMerge>
-            <feMergeNode in="b"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
       <circle cx="60" cy="60" r="52" fill="rgba(0,0,0,0.35)" stroke="${rim}" stroke-width="2"/>
@@ -528,27 +474,7 @@ function renderAvatarInto(el, style, seed) {
 }
 
 /* =========================
-   UNLOCK HELPERS
-========================= */
-function cardUnlocked(user) {
-  const carvingCount = user?.carvingCount || 0;
-  const trophies = user?.trophies || {};
-  return CALLING_CARDS.map((c) => {
-    const okRank = (c.req?.rankMin ?? -999) <= carvingCount;
-    const okTrophy = c.req?.trophy ? !!trophies[c.req.trophy] : true;
-    return { ...c, unlocked: okRank && okTrophy };
-  });
-}
-
-function planById(id, user) {
-  const built = BUILT_IN_PLANS.find((p) => p.id === id);
-  if (built) return built;
-  const customs = user?.customPlans || [];
-  return customs.find((p) => p.id === id) || null;
-}
-
-/* =========================
-   SCREENS + TABS
+   UI HELPERS
 ========================= */
 function setScreen(which) {
   $("auth-screen").classList.add("hidden");
@@ -562,14 +488,32 @@ function setTab(tabId) {
   $(tabId).classList.remove("hidden");
 }
 
-function hookNavButtons() {
-  document.querySelectorAll(".mini-btn[data-tab]").forEach((btn) => {
-    btn.onclick = () => setTab(btn.getAttribute("data-tab"));
+function computeRankName(carvingCount = 0) {
+  const r = RANKS.filter((x) => carvingCount >= x.min).pop() || RANKS[0];
+  return r.name;
+}
+
+function cardUnlocked(user) {
+  const carvingCount = user?.carvingCount || 0;
+  const rankName = computeRankName(carvingCount);
+  const rankObj = RANKS.find((r) => r.name === rankName) || RANKS[0];
+  const trophies = user?.trophies || {};
+  return CALLING_CARDS.map((c) => {
+    const okRank = (c.req?.rankMin ?? -999) <= carvingCount;
+    const okTrophy = c.req?.trophy ? !!trophies[c.req.trophy] : true;
+    return { ...c, unlocked: okRank && okTrophy, rankObj };
   });
 }
 
+function planById(id, user) {
+  const built = BUILT_IN_PLANS.find((p) => p.id === id);
+  if (built) return built;
+  const customs = user?.customPlans || [];
+  return customs.find((p) => p.id === id) || null;
+}
+
 /* =========================
-   AUTH
+   AUTH FLOW
 ========================= */
 async function doLogin() {
   const em = $("email").value.trim();
@@ -579,7 +523,6 @@ async function doLogin() {
     $("auth-warn").textContent = "MISSING CREDENTIALS.";
     return;
   }
-
   try {
     await signInWithEmailAndPassword(auth, em, pw);
   } catch (e) {
@@ -630,7 +573,6 @@ async function finalizeRegistration() {
     return;
   }
 
-  const nowKey = todayKey();
   const payload = {
     uid: user.uid,
     username: callsign,
@@ -641,11 +583,12 @@ async function finalizeRegistration() {
     friends: [],
     trophies: {},
     prs: {},
-    activePlan: null, // { planId, currentDayIndex, lastWorkoutKey, startKey }
+    // ✅ auto-rotation: nextDayIndex advances only when you log.
+    activePlan: null, // { planId, startPlanIndex, nextDayIndex, activatedKey, lastCompletedKey }
     customPlans: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    lastLoginDayKey: nowKey
+    lastLoginDayKey: todayKey()
   };
 
   try {
@@ -654,61 +597,6 @@ async function finalizeRegistration() {
   } catch (e) {
     $("reg-warn").textContent = (e?.message || "FINALIZE FAILED.").toUpperCase();
   }
-}
-
-/* =========================
-   AUTO-ROTATION (MISSED DAYS)
-   - Only rotates on training days (Mon–Fri)
-   - Uses activePlan.currentDayIndex + activePlan.lastWorkoutKey
-========================= */
-async function applyAutoRotationIfNeeded() {
-  const ap = currentUserData?.activePlan;
-  if (!ap?.planId) return;
-
-  const plan = planById(ap.planId, currentUserData);
-  if (!plan?.days?.length) return;
-
-  // Ensure fields exist
-  ap.currentDayIndex = Number.isFinite(ap.currentDayIndex) ? ap.currentDayIndex : 0;
-  ap.lastWorkoutKey = ap.lastWorkoutKey || ap.startKey || todayKey();
-
-  const tk = todayKey();
-  if (tk === ap.lastWorkoutKey) return;
-
-  // Only rotate on Mon–Fri (your GraveFive intent)
-  if (!isTrainingDayMonFri(new Date())) return;
-
-  const diff = daysBetweenKeys(ap.lastWorkoutKey, tk);
-  if (diff <= 0) return;
-
-  // Count how many TRAINING days happened since lastWorkoutKey (exclusive) up to today (inclusive)
-  const startDate = parseDayKeyToDate(ap.lastWorkoutKey);
-  if (!startDate) return;
-
-  let trainingDaysPassed = 0;
-  for (let i = 1; i <= diff; i++) {
-    const d = addDays(startDate, i);
-    if (isTrainingDayMonFri(d)) trainingDaysPassed++;
-  }
-
-  if (trainingDaysPassed <= 0) return;
-
-  const nextIdx = (ap.currentDayIndex + trainingDaysPassed) % plan.days.length;
-
-  // Persist rotation
-  const nextActive = {
-    ...ap,
-    currentDayIndex: nextIdx,
-    // keep lastWorkoutKey unchanged (still last time you logged/completed)
-    lastComputedKey: tk
-  };
-
-  await updateDoc(doc(db, "users", auth.currentUser.uid), {
-    activePlan: nextActive,
-    updatedAt: serverTimestamp()
-  });
-
-  currentUserData.activePlan = nextActive;
 }
 
 /* =========================
@@ -736,8 +624,7 @@ onAuthStateChanged(auth, async (user) => {
   initApp();
 });
 
-async function initApp() {
-  // Header + profile
+function initApp() {
   $("header-callsign").textContent = currentUserData.username;
   $("profileUsername").textContent = currentUserData.username;
 
@@ -745,40 +632,41 @@ async function initApp() {
   $("user-rank").textContent = rankName;
   $("header-rank").textContent = `// ${rankName}`;
 
-  // Tag
   const tagCss = currentUserData.tag || "tag-rust";
   $("user-grave-tag").className = `grave-tag ${tagCss}`;
   $("tag-text").textContent = TAGS.find((t) => t.css === tagCss)?.label || "CADAVER";
 
-  // Avatar
   renderAvatarInto($("avatar-frame"), currentUserData.avatar || "skull", currentUserData.uid);
 
-  // Active split label
   $("active-split-label").textContent = currentUserData.activePlan?.planId
     ? planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE"
     : "NONE";
 
-  // UI pickers + selects
   buildSettingsPickers();
-  buildStartDaySelect();
+  buildStartDaySelect(); // now = plan day selector (not weekdays)
   buildManualLogger();
-  hookNavButtons();
 
-  // Streams
+  hookNavButtons();
   loadFeedStream();
   loadLeaderboardStream();
   loadPRStream();
   loadFriendsUI();
   loadDailyMassGrave();
-
-  // Plans
   renderPlansIndex();
-  await applyAutoRotationIfNeeded();
   renderActivePlanStatus();
   renderTodayWorkoutLogger();
   renderTrophies();
 
   setTab("feed-panel");
+}
+
+/* =========================
+   NAV BUTTONS
+========================= */
+function hookNavButtons() {
+  document.querySelectorAll(".mini-btn[data-tab]").forEach((btn) => {
+    btn.onclick = () => setTab(btn.getAttribute("data-tab"));
+  });
 }
 
 /* =========================
@@ -814,6 +702,7 @@ function buildRegPickers(seed) {
     aw.appendChild(div);
   });
   selectedAvatar = options[0];
+
   selectedCard = "rust_sigils";
 }
 
@@ -875,7 +764,30 @@ function buildSettingsPickers() {
 }
 
 /* =========================
-   MANUAL LOGGER (now includes SET # optional)
+   START DAY SELECT = PLAN DAY (not weekdays)
+========================= */
+function buildStartDaySelect(planIdMaybe) {
+  const sel = $("start-day-select");
+  const plan = planById(planIdMaybe || selectedPlanId || "ironcoffin_gravefive_5", currentUserData);
+  const dayCount = plan?.days?.length || 5;
+
+  sel.innerHTML = "";
+  for (let i = 0; i < dayCount; i++) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `DAY_${i + 1}`;
+    sel.appendChild(opt);
+  }
+  sel.value = "0";
+
+  $("start-auto-btn").onclick = () => {
+    sel.value = "0";
+    toast("START DAY SET TO DAY_1.");
+  };
+}
+
+/* =========================
+   MANUAL LOGGER
 ========================= */
 function buildManualLogger() {
   const catSel = $("log-category");
@@ -885,10 +797,12 @@ function buildManualLogger() {
     .map((k) => `<option value="${esc(k)}">${esc(k)}</option>`)
     .join("");
   catSel.value = "Push";
+  manualCategory = "Push";
 
   function refreshExercises() {
     const cat = catSel.value;
-    exSel.innerHTML = (EXERCISES[cat] || []).map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+    manualCategory = cat;
+    exSel.innerHTML = EXERCISES[cat].map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
   }
   catSel.onchange = refreshExercises;
   refreshExercises();
@@ -898,14 +812,7 @@ function buildManualLogger() {
     const w = Number($("log-w").value);
     const r = Number($("log-r").value);
     if (!ex || !w || !r) return toast("MISSING LOG FIELDS.");
-    await submitLog(ex, w, r, {
-      source: "manual",
-      setNumber: 1,
-      targetSets: null,
-      targetReps: null,
-      muscle: null,
-      dayName: null
-    });
+    await submitLog(ex, w, r, { source: "manual", setNumber: 1, targetSets: null, targetReps: null, muscle: manualCategory });
     $("log-w").value = "";
     $("log-r").value = "";
   };
@@ -914,6 +821,8 @@ function buildManualLogger() {
 /* =========================
    FEED
 ========================= */
+let feedUnsub = null;
+
 function loadFeedStream() {
   if (feedUnsub) feedUnsub();
 
@@ -957,6 +866,7 @@ function loadFeedStream() {
       }
 
       postEl.querySelector(`[data-cmt="${docSnap.id}"]`).onclick = () => postComment(docSnap.id);
+
       loadCommentsStream(docSnap.id);
     });
   });
@@ -1075,14 +985,13 @@ function loadPRStream() {
       const L = d.data();
       const row = document.createElement("div");
       row.className = "index-row";
+      const setTxt = L.setNumber ? `S${L.setNumber}` : "";
+      const tgtTxt =
+        L.targetSets || L.targetReps
+          ? ` · TARGET ${L.targetSets ? `${L.targetSets}S` : ""}${L.targetReps ? ` @${L.targetReps}` : ""}`
+          : "";
       row.innerHTML = `
-        <span>
-          ${esc(L.exercise)}
-          <span class="dim">
-            ${esc(String(L.weight))}LBS × ${esc(String(L.reps))}
-            ${L.setNumber ? ` // SET_${esc(String(L.setNumber))}` : ``}
-          </span>
-        </span>
+        <span>${esc(L.exercise)} <span class="dim">${esc(setTxt)} ${esc(String(L.weight))}LBS × ${esc(String(L.reps))}${esc(tgtTxt)}</span></span>
         <button class="mini-btn danger">X</button>
       `;
       row.querySelector("button").onclick = async () => {
@@ -1096,13 +1005,13 @@ function loadPRStream() {
 
 /* =========================
    LOGGING + MASSGRAVE
+   ✅ Auto-rotation: first log of a day “completes” the plan day and advances nextDayIndex.
 ========================= */
 async function submitLog(exercise, weight, reps, meta = {}) {
   const uid = auth.currentUser.uid;
   const dk = todayKey();
   const vol = Math.round(weight * reps);
 
-  // add log (per set)
   await addDoc(collection(db, "logs"), {
     uid,
     exercise,
@@ -1114,56 +1023,56 @@ async function submitLog(exercise, weight, reps, meta = {}) {
     source: meta.source || "plan",
     planId: meta.planId || null,
     planDayIndex: meta.planDayIndex ?? null,
+    muscle: meta.muscle || null,
     setNumber: meta.setNumber ?? null,
     targetSets: meta.targetSets ?? null,
-    targetReps: meta.targetReps ?? null,
-    muscle: meta.muscle ?? null,
-    dayName: meta.dayName ?? null
+    targetReps: meta.targetReps ?? null
   });
 
-  // increment user carving count
   await updateDoc(doc(db, "users", uid), {
     carvingCount: increment(1),
     updatedAt: serverTimestamp()
   });
 
-  // update daily massgrave doc
   await updateDoc(doc(db, "dailyTotals", dk), {
     totalVolume: increment(vol),
     updatedAt: serverTimestamp()
   }).catch(async () => {
     await setDoc(
       doc(db, "dailyTotals", dk),
-      {
-        dayKey: dk,
-        totalVolume: vol,
-        updatedAt: serverTimestamp()
-      },
+      { dayKey: dk, totalVolume: vol, updatedAt: serverTimestamp() },
       { merge: true }
     );
   });
 
-  // local reflect
+  // local + PR updates
   currentUserData.carvingCount = (currentUserData.carvingCount || 0) + 1;
-
   await updatePRsAndTrophies(exercise, weight, reps);
+
+  // ✅ auto-rotation advancement (only for plan logs; advances once per calendar day)
+  if (meta.source === "plan" && currentUserData.activePlan?.planId) {
+    const ap = currentUserData.activePlan;
+    if (ap.lastCompletedKey !== dk) {
+      const plan = planById(ap.planId, currentUserData);
+      const len = plan?.days?.length || 1;
+      const next = (Number(ap.nextDayIndex ?? 0) + 1) % len;
+
+      const patched = { ...ap, nextDayIndex: next, lastCompletedKey: dk };
+      await updateDoc(doc(db, "users", uid), { activePlan: patched, updatedAt: serverTimestamp() });
+      currentUserData.activePlan = patched;
+
+      renderActivePlanStatus();
+      renderTodayWorkoutLogger();
+    }
+  }
 
   $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
   $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
   loadDailyMassGrave();
-
-  // mark that you trained today (for auto-rotation)
-  if (currentUserData.activePlan?.planId) {
-    const ap = currentUserData.activePlan;
-    const nextAp = { ...ap, lastWorkoutKey: dk, lastComputedKey: dk };
-    await updateDoc(doc(db, "users", uid), { activePlan: nextAp, updatedAt: serverTimestamp() });
-    currentUserData.activePlan = nextAp;
-  }
 }
 
 async function deleteLog(logId, logData) {
   const uid = auth.currentUser.uid;
-
   await deleteDoc(doc(db, "logs", logId));
 
   await updateDoc(doc(db, "users", uid), {
@@ -1215,7 +1124,6 @@ async function updatePRsAndTrophies(exercise, weight, reps) {
 
   currentUserData.prs = prs;
   currentUserData.trophies = trophies;
-
   renderTrophies();
 }
 
@@ -1228,7 +1136,7 @@ function loadDailyMassGrave() {
 }
 
 /* =========================
-   FRIENDS + SEARCH + PROFILE
+   FRIENDS + SEARCH + PROFILE MODAL
 ========================= */
 function loadFriendsUI() {
   renderFriendsList();
@@ -1364,22 +1272,8 @@ function closeProfile() {
 }
 
 /* =========================
-   PLANS: START DAY SELECT + INDEX + ACTIVATE + STATUS
+   PLANS: INDEX + ACTIVATE + AUTO-ROTATE “MISSED DAYS”
 ========================= */
-function buildStartDaySelect() {
-  const sel = $("start-day-select");
-  sel.innerHTML = "";
-  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
-  days.forEach((d, idx) => {
-    const opt = document.createElement("option");
-    opt.value = String(idx);
-    opt.textContent = d;
-    sel.appendChild(opt);
-  });
-
-  sel.value = String(mon0Weekday(new Date()));
-}
-
 function renderPlansIndex() {
   const wrap = $("plan-index");
   wrap.innerHTML = "";
@@ -1395,13 +1289,16 @@ function renderPlansIndex() {
         <button class="mini-btn">ACTIVATE</button>
       </div>
     `;
+
     const btns = card.querySelectorAll("button");
     btns[0].onclick = () => {
       selectedPlanId = p.id;
       wrap.querySelectorAll(".plan-card").forEach((x) => x.classList.remove("active"));
       card.classList.add("active");
+      buildStartDaySelect(p.id);
     };
     btns[1].onclick = () => activatePlan(p.id);
+
     wrap.appendChild(card);
   });
 
@@ -1424,44 +1321,33 @@ function renderPlansIndex() {
           <button class="mini-btn">ACTIVATE</button>
         </div>
       `;
+
       const btns = card.querySelectorAll("button");
       btns[0].onclick = () => {
         selectedPlanId = p.id;
         wrap.querySelectorAll(".plan-card").forEach((x) => x.classList.remove("active"));
         card.classList.add("active");
+        buildStartDaySelect(p.id);
       };
       btns[1].onclick = () => activatePlan(p.id);
       wrap.appendChild(card);
     });
   }
-
-  $("start-auto-btn").onclick = () => {
-    $("start-day-select").value = String(mon0Weekday(new Date()));
-    toast("START DAY SET TO TODAY.");
-  };
 }
 
 async function activatePlan(planId) {
   const plan = planById(planId, currentUserData);
   if (!plan) return toast("PLAN NOT FOUND.");
 
-  // Your UI "START DAY" is treated as the day that becomes DAY_1 (index 0).
-  // We'll set currentDayIndex based on "today" vs chosen start weekday.
-  const startWeekdayMon0 = Number($("start-day-select").value || 0); // Mon=0..Sun=6
-  const todayMon0 = mon0Weekday(new Date());
-  const offset = (todayMon0 - startWeekdayMon0 + 7) % 7;
-
-  // If plan is 5 days, and you start on Mon–Fri, offset maps naturally.
-  const currentDayIndex = offset % plan.days.length;
-
+  const startPlanIndex = Number($("start-day-select").value || 0);
   const dk = todayKey();
+
   const active = {
     planId,
-    startKey: dk,
-    startWeekdayMon0,
-    currentDayIndex,
-    lastWorkoutKey: dk, // initialize as today so it doesn't jump instantly
-    lastComputedKey: dk
+    startPlanIndex, // where the rotation begins
+    nextDayIndex: startPlanIndex, // ✅ this is what “today” shows until you log
+    activatedKey: dk,
+    lastCompletedKey: null
   };
 
   await updateDoc(doc(db, "users", auth.currentUser.uid), {
@@ -1486,16 +1372,15 @@ function deactivatePlan() {
   renderTodayWorkoutLogger();
 }
 
-function getActivePlanDay() {
+function planDayForToday() {
   const ap = currentUserData.activePlan;
-  if (!ap?.planId) return null;
+  if (!ap) return null;
 
   const plan = planById(ap.planId, currentUserData);
   if (!plan) return null;
 
-  const idx = Number.isFinite(ap.currentDayIndex) ? ap.currentDayIndex : 0;
-  const day = plan.days[idx] || plan.days[0];
-  return { plan, day, planDayIndex: idx };
+  const planIndex = clamp(Number(ap.nextDayIndex ?? 0), 0, Math.max(0, plan.days.length - 1));
+  return { plan, planIndex };
 }
 
 function renderActivePlanStatus() {
@@ -1514,172 +1399,135 @@ function renderActivePlanStatus() {
     return;
   }
 
-  const idx = Number.isFinite(ap.currentDayIndex) ? ap.currentDayIndex : 0;
-  $("active-day-chip").textContent = `DAY_${idx + 1}`;
+  const info = planDayForToday();
+  const todayDay = info ? plan.days[info.planIndex] : null;
 
-  const dayName = plan.days[idx]?.name || "UNKNOWN";
+  $("active-day-chip").textContent = info ? `DAY_${info.planIndex + 1}` : "DAY_?";
 
   wrap.innerHTML = `
     <div class="day-badge">
       <div class="dname">${esc(plan.name)}</div>
       <div class="dlist">
-        <div style="margin-top:8px;"><span class="dim">TODAY:</span> ${esc(dayName)}</div>
-        <div style="margin-top:8px;"><span class="dim">LAST WORKOUT:</span> ${esc(ap.lastWorkoutKey || "UNKNOWN")}</div>
-        <div style="margin-top:8px;"><span class="dim">ACTIVATED:</span> ${esc(ap.startKey || "")}</div>
+        <div style="margin-top:8px;"><span class="dim">TODAY (AUTO-ROTATE):</span> ${esc(todayDay?.name || "UNKNOWN")}</div>
+        <div style="margin-top:8px;"><span class="dim">ACTIVATED:</span> ${esc(ap.activatedKey || "")}</div>
+        <div style="margin-top:8px;"><span class="dim">LAST COMPLETED:</span> ${esc(ap.lastCompletedKey || "—")}</div>
       </div>
     </div>
   `;
 
   $("deactivate-plan-btn").onclick = deactivatePlan;
 
-  // SET_TODAY_DAY => makes currentDayIndex = 0 today
   $("jump-day-btn").onclick = async () => {
-    const newAp = { ...ap, currentDayIndex: 0, lastComputedKey: todayKey() };
-    await updateDoc(doc(db, "users", auth.currentUser.uid), { activePlan: newAp, updatedAt: serverTimestamp() });
-    currentUserData.activePlan = newAp;
+    const patched = { ...ap, nextDayIndex: 0 };
+    await updateDoc(doc(db, "users", auth.currentUser.uid), {
+      activePlan: patched,
+      updatedAt: serverTimestamp()
+    });
+    currentUserData.activePlan = patched;
     toast("TODAY SET TO DAY_1.");
     renderActivePlanStatus();
     renderTodayWorkoutLogger();
   };
 }
 
-/* =========================
-   LOGGER (MULTI-SET)
-========================= */
 function renderTodayWorkoutLogger() {
   const box = $("today-workout-list");
   box.innerHTML = "";
 
-  const info = getActivePlanDay();
+  const info = planDayForToday();
   if (!info) {
     $("logger-sub").textContent = "Activate a split to load today.";
     return;
   }
 
-  const { plan, day, planDayIndex } = info;
-  $("logger-sub").textContent = `${day.name} // Enter LBS+REPS for each SET, then RECORD.`;
+  const day = info.plan.days[info.planIndex];
+  $("logger-sub").textContent = `${day.name} // Log sets to advance the rotation.`;
 
-  // Top controls: COMPLETE DAY (advances day index by 1) + RESET INPUTS
-  const top = document.createElement("div");
-  top.className = "workline";
-  top.innerHTML = `
-    <div class="workline-top">
-      <div class="workline-title">DAY CONTROL</div>
-      <div class="workline-controls">
-        <button class="mini-btn" id="completeDayBtn">COMPLETE_DAY</button>
-        <button class="mini-btn danger" id="clearInputsBtn">CLEAR_INPUTS</button>
-      </div>
-    </div>
-    <div class="hint" style="margin-top:10px;">
-      <span class="hint-dot"></span>
-      COMPLETE_DAY advances the split. Auto-rotation also advances if you miss Mon–Fri training days.
-    </div>
-  `;
-  box.appendChild(top);
+  const items = day.items || [];
+  items.forEach((it, idx) => {
+    const line = document.createElement("div");
+    line.className = "workline";
 
-  $("completeDayBtn").onclick = async () => {
-    const ap = currentUserData.activePlan;
-    if (!ap?.planId) return;
+    const options = (it.options?.length ? it.options : allExercises()).map((e, i) => {
+      const selected = i === 0 ? "selected" : "";
+      return `<option value="${esc(e)}" ${selected}>${esc(e)}</option>`;
+    }).join("");
 
-    const nextIdx = (Number(ap.currentDayIndex || 0) + 1) % plan.days.length;
-    const nextAp = { ...ap, currentDayIndex: nextIdx, lastWorkoutKey: todayKey(), lastComputedKey: todayKey() };
-
-    await updateDoc(doc(db, "users", auth.currentUser.uid), { activePlan: nextAp, updatedAt: serverTimestamp() });
-    currentUserData.activePlan = nextAp;
-
-    toast("DAY ADVANCED.");
-    renderActivePlanStatus();
-    renderTodayWorkoutLogger();
-  };
-
-  $("clearInputsBtn").onclick = () => {
-    box.querySelectorAll("input[type='number']").forEach((i) => (i.value = ""));
-    toast("CLEARED.");
-  };
-
-  const pool = allExercises();
-
-  (day.lines || []).forEach((ln, lineIdx) => {
-    const lineWrap = document.createElement("div");
-    lineWrap.className = "workline";
-
-    // exercise dropdown options: prioritize the line's options, then the full pool
-    const preferred = (ln.options || []).filter(Boolean);
-    const extra = pool.filter((x) => !preferred.includes(x));
-    const merged = [...preferred, ...extra].slice(0, 250);
-
-    const optionsHtml = merged
-      .map((e) => `<option value="${esc(e)}"${preferred[0] === e ? " selected" : ""}>${esc(e)}</option>`)
-      .join("");
-
-    lineWrap.innerHTML = `
+    line.innerHTML = `
       <div class="workline-top">
-        <div class="workline-title">
-          ${esc(ln.muscle || "MUSCLE")} — ${esc(ln.label || "EXERCISE")}
-          <span class="dim"> // ${esc(String(ln.sets || 1))} SETS × ${esc(String(ln.reps || ""))} REPS${ln.optional ? " (OPT)" : ""}</span>
-        </div>
+        <div class="workline-title">${esc(it.muscle || "MUSCLE")} — <span class="dim">${esc(
+      `${it.sets || "?"} SETS @ ${it.reps || "?"}`
+    )}</span></div>
         <div class="workline-controls">
-          <select data-exsel="${lineIdx}">${optionsHtml}</select>
+          <select data-swap="${idx}">${options}</select>
+          <button class="mini-btn" data-quick="${idx}">RECORD</button>
         </div>
       </div>
-      <div class="divider thin"></div>
-      <div class="set-grid" id="sets-${lineIdx}"></div>
+
+      <div class="row3" style="margin-top:10px;">
+        <input type="number" inputmode="decimal" placeholder="LBS" data-w="${idx}">
+        <input type="number" inputmode="numeric" placeholder="REPS" data-r="${idx}">
+        <button class="mini-btn" data-nextset="${idx}">SET #1</button>
+      </div>
     `;
 
-    const setGrid = lineWrap.querySelector(`#sets-${lineIdx}`);
-    setGrid.style.display = "flex";
-    setGrid.style.flexDirection = "column";
-    setGrid.style.gap = "10px";
+    const sel = line.querySelector(`select[data-swap="${idx}"]`);
+    const btnRecord = line.querySelector(`button[data-quick="${idx}"]`);
+    const btnSet = line.querySelector(`button[data-nextset="${idx}"]`);
+    const inW = line.querySelector(`input[data-w="${idx}"]`);
+    const inR = line.querySelector(`input[data-r="${idx}"]`);
 
-    const sets = Math.max(1, Number(ln.sets || 1));
+    let setNum = 1;
+    const targetSets = Number(it.sets || 0) || null;
 
-    for (let s = 1; s <= sets; s++) {
-      const setRow = document.createElement("div");
-      setRow.className = "row3";
-      setRow.innerHTML = `
-        <input type="number" inputmode="decimal" placeholder="LBS (SET ${s})" data-w="${lineIdx}-${s}">
-        <input type="number" inputmode="numeric" placeholder="REPS (SET ${s})" data-r="${lineIdx}-${s}">
-        <button class="mini-btn" data-rec="${lineIdx}-${s}">RECORD</button>
-      `;
-
-      const exSel = lineWrap.querySelector(`select[data-exsel="${lineIdx}"]`);
-
-      setRow.querySelector(`button[data-rec="${lineIdx}-${s}"]`).onclick = async () => {
-        const ex = exSel.value;
-        const w = Number(setRow.querySelector(`input[data-w="${lineIdx}-${s}"]`).value);
-        const r = Number(setRow.querySelector(`input[data-r="${lineIdx}-${s}"]`).value);
-        if (!w || !r) return toast("ENTER LBS + REPS.");
-
-        await submitLog(ex, w, r, {
-          source: "plan",
-          planId: plan.id,
-          planDayIndex,
-          setNumber: s,
-          targetSets: sets,
-          targetReps: ln.reps || null,
-          muscle: ln.muscle || null,
-          dayName: day.name || null
-        });
-
-        setRow.querySelector(`input[data-w="${lineIdx}-${s}"]`).value = "";
-        setRow.querySelector(`input[data-r="${lineIdx}-${s}"]`).value = "";
-        toast(`CARVING_RECORDED // SET_${s}`);
-      };
-
-      setGrid.appendChild(setRow);
+    function refreshSetBtn() {
+      btnSet.textContent = `SET #${setNum}`;
     }
+    refreshSetBtn();
 
-    box.appendChild(lineWrap);
+    btnSet.onclick = () => {
+      // manual bump if you want
+      setNum = clamp(setNum + 1, 1, 99);
+      refreshSetBtn();
+    };
+
+    btnRecord.onclick = async () => {
+      const ex = sel.value;
+      const w = Number(inW.value);
+      const r = Number(inR.value);
+      if (!w || !r) return toast("ENTER LBS + REPS.");
+
+      await submitLog(ex, w, r, {
+        source: "plan",
+        planId: info.plan.id,
+        planDayIndex: info.planIndex,
+        muscle: it.muscle || null,
+        setNumber: setNum,
+        targetSets,
+        targetReps: it.reps || null
+      });
+
+      inW.value = "";
+      inR.value = "";
+
+      // auto-advance set number until you reach target sets (then keeps going if you want)
+      if (targetSets && setNum < targetSets) setNum += 1;
+      else setNum += 1;
+      refreshSetBtn();
+
+      toast("CARVING_RECORDED.");
+    };
+
+    box.appendChild(line);
   });
 }
 
 /* =========================
-   SPLIT BUILDER (kept, still works)
+   SPLIT BUILDER (kept, but stores items as plain lines)
 ========================= */
 function openBuilder() {
   $("builder-modal").classList.remove("hidden");
   $("builder-warn").textContent = "";
-
   $("builder-name").value = "";
   $("builder-days").value = "5";
   buildBuilderDays();
@@ -1723,18 +1571,17 @@ async function saveCustomSplit() {
       .split("\n")
       .map((x) => x.trim())
       .filter(Boolean)
-      .slice(0, 16);
+      .slice(0, 12);
 
     if (lines.length < 3) {
       $("builder-warn").textContent = `DAY_${i + 1} NEEDS 3+ EXERCISES.`;
       return;
     }
 
-    // Custom: each line becomes 3 sets @ 8–12 (default)
-    const dayLines = lines.map((ex) => line("Custom", ex, [ex], 3, "8–12"));
+    // store as items with defaults (no sets/reps targets in builder mode)
     days.push({
       name: `DAY_${i + 1} ${name.toUpperCase().replaceAll(" ", "_")}`,
-      lines: dayLines
+      items: lines.map((ln) => ({ muscle: "CUSTOM", options: [ln], sets: null, reps: null }))
     });
   }
 
@@ -1792,11 +1639,11 @@ async function updateCallingCard() {
 async function purgeMyLogs() {
   if (!confirm("PURGE ALL YOUR LOGS?")) return;
   const uid = auth.currentUser.uid;
-  const snap = await getDocs(query(collection(db, "logs"), where("uid", "==", uid), limit(250)));
+  const snap = await getDocs(query(collection(db, "logs"), where("uid", "==", uid), limit(200)));
   const batch = [];
   snap.forEach((d) => batch.push(deleteDoc(doc(db, "logs", d.id))));
   await Promise.all(batch);
-  toast("LOGS PURGED (UP TO 250).");
+  toast("LOGS PURGED (UP TO 200).");
 }
 
 async function purgeMyPosts() {
@@ -1810,10 +1657,9 @@ async function purgeMyPosts() {
 }
 
 /* =========================
-   WIRE BUTTONS
+   WIRE ALL BUTTONS
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
-  // Auth/Reg navigation
   $("showRegBtn").onclick = () => {
     setScreen("registration-screen");
     $("reg-status-chip").textContent = "STAGE_1";
@@ -1823,13 +1669,11 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
-
   $("loginBtn").onclick = doLogin;
 
   $("nextStepBtn").onclick = beginRegistration;
   $("finalizeRegBtn").onclick = finalizeRegistration;
 
-  // App buttons
   $("postStatusBtn").onclick = createPost;
   $("refreshFeedBtn").onclick = loadFeedStream;
 
@@ -1838,7 +1682,6 @@ document.addEventListener("DOMContentLoaded", () => {
     location.reload();
   };
 
-  // Settings
   $("renameBtn").onclick = renameEntity;
   $("updateTagBtn").onclick = updateTag;
   $("updateAvatarBtn").onclick = updateAvatar;
@@ -1846,13 +1689,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("purgeMyLogsBtn").onclick = purgeMyLogs;
   $("purgeMyPostsBtn").onclick = purgeMyPosts;
 
-  // Profile modal close
   $("closeProfileBtn").onclick = closeProfile;
   $("profile-modal").onclick = (e) => {
     if (e.target.id === "profile-modal") closeProfile();
   };
 
-  // Builder modal
   $("open-builder-btn").onclick = openBuilder;
   $("closeBuilderBtn").onclick = closeBuilder;
   $("builder-modal").onclick = (e) => {
