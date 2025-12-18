@@ -157,7 +157,6 @@
               </div>
             </div>
           </div>
-
           <div id="feed-content"></div>
         </section>
 
@@ -176,9 +175,9 @@
                 </div>
 
                 <div>
-                  <p class="small-label">START DAY:</p>
+                  <p class="small-label">START DAY (PLAN DAY NUMBER):</p>
                   <div class="start-controls">
-                    <button class="mini-btn" id="start-auto-btn">AUTO (TODAY)</button>
+                    <button class="mini-btn" id="start-auto-btn">AUTO (DAY_1)</button>
                     <select id="start-day-select"></select>
                   </div>
 
@@ -191,7 +190,7 @@
 
                   <div class="hint">
                     <span class="hint-dot"></span>
-                    Once activated, today’s plan shows on the right logger. You can swap exercises beside each line.
+                    Auto-rotation: the plan advances only after a new calendar day begins AND you logged at least one plan entry on your last workout day.
                   </div>
                 </div>
               </div>
@@ -207,7 +206,7 @@
               <div id="active-plan-readout" class="active-plan-readout"></div>
               <div class="btn-row">
                 <button id="deactivate-plan-btn" class="mini-btn danger">DEACTIVATE_SPLIT</button>
-                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY</button>
+                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY_1</button>
               </div>
             </div>
           </div>
@@ -303,7 +302,6 @@
                 <button id="manualLogBtn" class="mini-btn">RECORD</button>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -351,7 +349,6 @@
         <span>SPLIT_FORGE</span>
         <button id="closeBuilderBtn" class="mini-btn danger">X</button>
       </div>
-
       <div class="grave-body">
         <div class="row-split">
           <div>
@@ -381,7 +378,6 @@
             <div id="builder-days-wrap" class="builder-days-wrap"></div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
