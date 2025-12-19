@@ -62,6 +62,7 @@
         <input id="password" type="password" placeholder="PASS_CODE" autocomplete="current-password">
         <button id="loginBtn" class="grave-btn">RESURRECT</button>
         <button id="showRegBtn" class="grave-btn-alt">NEW_RECRUIT_ENTRY</button>
+        <button id="forgotBtn" class="grave-btn-alt">FORGOT_PASSCODE</button>
         <div class="tiny-warn" id="auth-warn"></div>
       </div>
     </div>
@@ -96,7 +97,9 @@
 
           <div class="grave-body">
             <div class="profile-top">
-              <div class="avatar-frame" id="avatar-frame"></div>
+              <div class="avatar-frame" id="avatar-frame">
+                <div class="relic-chip" id="equipped-relic-chip">RUSTED_PLATE</div>
+              </div>
 
               <div class="profile-meta">
                 <h2 id="profileUsername" class="cadaver-name">SUBJECT</h2>
@@ -124,7 +127,7 @@
             <div class="massgrave">
               <div class="massgrave-title">DAILY MASSGRAVE</div>
               <div class="massgrave-value" id="massgrave-value">0</div>
-              <div class="massgrave-sub">Total volume lifted today (all entities)</div>
+              <div class="massgrave-sub">Total volume lifted today (your account)</div>
             </div>
           </div>
         </div>
@@ -205,8 +208,8 @@
             <div class="grave-body">
               <div id="active-plan-readout" class="active-plan-readout"></div>
               <div class="btn-row">
-                <button id="deactivate-plan-btn" class="mini-btn danger">DEACTIVATE_SPLIT</button>
-                <button id="jump-day-btn" class="mini-btn">SET_TODAY_DAY</button>
+                <button id="deactivate-plan-btn" class="mini-btn danger">SEVER_RITUAL</button>
+                <button id="jump-day-btn" class="mini-btn">REALIGN_CYCLE</button>
               </div>
             </div>
           </div>
@@ -247,21 +250,15 @@
                 </div>
 
                 <div>
-                  <p>AVATAR + CALLING CARD:</p>
+                  <p>AVATAR + RELIC:</p>
                   <div id="settings-avatar-picker" class="avatar-grid"></div>
                   <button class="grave-btn" id="updateAvatarBtn">BIND_AVATAR</button>
-                  <button class="grave-btn-alt" id="openAvatarForgeBtn">OPEN_AVATAR_FORGE</button>
+                  <button class="grave-btn-alt" id="openRelicVaultBtn">OPEN_RELIC_VAULT</button>
 
                   <div class="divider"></div>
 
-                  <p>CALLING CARD (ANIMATED):</p>
+                  <p>CALLING CARD:</p>
                   <div id="card-picker" class="card-grid"></div>
-                  <button class="grave-btn" id="updateCardBtn">EQUIP_CARD</button>
-
-                  <div class="hint">
-                    <span class="hint-dot"></span>
-                    Cards unlock with ranks + trophies. Some are locked until you earn them.
-                  </div>
                 </div>
               </div>
 
@@ -269,7 +266,7 @@
 
               <div class="admin-box">
                 <div class="admin-title">ADMIN_CONSOLE (OPTIONAL)</div>
-                <div class="small-label">If you later add admin claims, this panel can expand. For now: local controls only.</div>
+                <div class="small-label">Local controls only.</div>
                 <button id="purgeMyLogsBtn" class="mini-btn danger">PURGE_MY_LOGS</button>
                 <button id="purgeMyPostsBtn" class="mini-btn danger">PURGE_MY_POSTS</button>
               </div>
@@ -290,8 +287,6 @@
             </div>
 
             <div id="today-workout-list" class="today-workout-list"></div>
-
-            <div id="today-exercises" class="today-exercises"></div>
 
             <div class="divider thin"></div>
 
@@ -385,72 +380,42 @@
     </div>
   </div>
 
-  
-  <!-- AVATAR BUILDER (CUSTOM SIGIL) -->
-  <div id="avatar-builder-screen" class="screen hidden">
-    <div class="morbid-title-main pulse">DEADWEIGHTS</div>
-    <div class="grave-box" style="max-width:1100px;margin:18px auto;">
+  <!-- THE RELIC VAULT MODAL -->
+  <div id="relic-vault-modal" class="modal hidden">
+    <div class="modal-inner grave-box relic-vault">
       <div class="grave-header">
-        <span>AVATAR_FORGE</span>
-        <button id="closeAvatarForgeBtn" class="mini-btn">CLOSE</button>
+        <span>THE_RELIC_VAULT</span>
+        <button id="closeRelicVaultBtn" class="mini-btn danger">X</button>
       </div>
+
       <div class="grave-body">
-        <div class="hint">
-          <span class="hint-dot"></span>
-          Build a simple sigil with shapes + lines. Save it as CUSTOM_SIGIL for your profile.
+        <div class="vault-top">
+          <div>
+            <div class="vault-title">ARTIFACT_GALLERY</div>
+            <div class="vault-sub">
+              Start with a Common relic. Unlock more through PRs, total volume, carvings, and logged days.
+              Click an unlocked relic to bind it.
+            </div>
+          </div>
+          <div class="vault-stats">
+            <div class="vault-stat"><small>LIFETIME_VOLUME</small><b id="vault-vol">0</b></div>
+            <div class="vault-stat"><small>DAYS_LOGGED</small><b id="vault-days">0</b></div>
+          </div>
         </div>
 
-        <div class="row-split">
-          <div>
-            <canvas id="avatarCanvas" width="420" height="420" class="avatar-canvas"></canvas>
+        <div class="divider thin"></div>
 
-            <div class="divider thin"></div>
+        <div id="relic-grid" class="relic-grid"></div>
 
-            <div class="row3">
-              <button id="toolSelectBtn" class="mini-btn">MOVE</button>
-              <button id="toolCircleBtn" class="mini-btn">CIRCLE</button>
-              <button id="toolSquareBtn" class="mini-btn">SQUARE</button>
-            </div>
-            <div class="row3" style="margin-top:10px;">
-              <button id="toolLineBtn" class="mini-btn">LINE</button>
-              <button id="toolDeleteBtn" class="mini-btn danger">DELETE</button>
-              <button id="toolClearBtn" class="mini-btn danger">CLEAR</button>
-            </div>
+        <div class="divider thin"></div>
 
-            <div class="row3" style="margin-top:10px;">
-              <input id="toolColor" type="color" value="#b30000" class="color-input">
-              <input id="toolStroke" type="number" min="1" max="18" value="4" class="num-input" placeholder="STROKE">
-              <input id="toolSize" type="number" min="8" max="220" value="70" class="num-input" placeholder="SIZE">
-            </div>
-
-            <div class="divider thin"></div>
-
-            <div class="btn-row">
-              <button id="saveCustomAvatarBtn" class="grave-btn">SAVE_CUSTOM_SIGIL</button>
-              <button id="exportAvatarBtn" class="grave-btn-alt">EXPORT_PNG</button>
-              <a id="downloadAvatarLink" class="hidden" download="deadweights_avatar.png">download</a>
-            </div>
-          </div>
-
-          <div>
-            <p class="small-label">PREVIEW:</p>
-            <div id="avatarPreview" class="avatar-preview"></div>
-
-            <div class="divider thin"></div>
-
-            <p class="small-label">TIPS:</p>
-            <ul class="mini-list">
-              <li>Click to add shapes.</li>
-              <li>MOVE lets you drag items.</li>
-              <li>LINE: click start, then click end.</li>
-              <li>Saved sigil follows your account on any device.</li>
-            </ul>
-          </div>
+        <div class="hint">
+          <span class="hint-dot"></span>
+          Locked relics show requirements. Unlocked relics can be equipped instantly.
         </div>
       </div>
     </div>
   </div>
-
 
   <script type="module" src="app.js"></script>
 </body>
