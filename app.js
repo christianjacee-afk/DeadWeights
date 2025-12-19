@@ -24,9 +24,7 @@ import {
   onSnapshot,
   getDocs,
   serverTimestamp,
-  increment,
-  arrayUnion,
-  arrayRemove
+  increment
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 /* =========================
@@ -119,7 +117,62 @@ function cardsForUser(user){
 }
 
 /* =========================
-   EXERCISE POOLS (expanded + dumbbell-friendly)
+   RELIC VAULT (Loot Artifacts)
+========================= */
+const RELICS = [
+  { id:"rusted_plate", tier:"COMMON", name:"RUSTED_PLATE", reqText:"ACCOUNT_CREATED",
+    unlocked:(u)=>true },
+
+  { id:"chain_sigil", tier:"UNCOMMON", name:"CHAIN_SIGIL", reqText:"25 CARVINGS",
+    unlocked:(u)=>(u?.carvingCount||0) >= 25 },
+
+  { id:"cracked_skull", tier:"UNCOMMON", name:"CRACKED_SKULL", reqText:"ANY PR RECORDED",
+    unlocked:(u)=>Object.keys(u?.prs||{}).length >= 1 },
+
+  { id:"blood_jar", tier:"RARE", name:"BLOOD_JAR", reqText:"LIFETIME_VOLUME ≥ 50,000",
+    unlocked:(u)=>(u?.lifetimeVolume||0) >= 50000 },
+
+  { id:"iron_circlet", tier:"RARE", name:"IRON_CIRCLET", reqText:"BENCH 185+ OR SQUAT 225+ OR DEAD 275+ (e1RM)",
+    unlocked:(u)=>{
+      const prs=u?.prs||{};
+      const b=prs["Bench Press"]?.bestE1RM||0;
+      const s=prs["Back Squat"]?.bestE1RM||0;
+      const d=prs["Deadlift"]?.bestE1RM||0;
+      return b>=185 || s>=225 || d>=275;
+    }},
+
+  { id:"crown_of_iron", tier:"EPIC", name:"CROWN_OF_IRON", reqText:"100 CARVINGS + 2 COMPOUND PRS (bench/squat/dead)",
+    unlocked:(u)=>{
+      if((u?.carvingCount||0) < 100) return false;
+      const prs=u?.prs||{};
+      let count=0;
+      if((prs["Bench Press"]?.bestE1RM||0)>0) count++;
+      if((prs["Back Squat"]?.bestE1RM||0)>0) count++;
+      if((prs["Deadlift"]?.bestE1RM||0)>0) count++;
+      return count>=2;
+    }},
+
+  { id:"void_reliquary", tier:"EPIC", name:"VOID_RELIQUARY", reqText:"7 DISTINCT DAYS LOGGED",
+    unlocked:(u)=>(u?.daysLoggedCount||0) >= 7 },
+
+  { id:"grave_helm", tier:"MYTHIC", name:"GRAVE_HELM", reqText:"225 BENCH + 315 SQUAT + 405 DEAD (e1RM) + 250 CARVINGS",
+    unlocked:(u)=>{
+      const prs=u?.prs||{};
+      const b=prs["Bench Press"]?.bestE1RM||0;
+      const s=prs["Back Squat"]?.bestE1RM||0;
+      const d=prs["Deadlift"]?.bestE1RM||0;
+      return (u?.carvingCount||0) >= 250 && b>=225 && s>=315 && d>=405;
+    }},
+];
+
+function computeUnlockedRelics(u){
+  const out = {};
+  RELICS.forEach(r => out[r.id] = !!r.unlocked(u));
+  return out;
+}
+
+/* =========================
+   EXERCISE POOLS
 ========================= */
 const EXERCISES = {
   "Push": [
@@ -158,10 +211,8 @@ function allExercises(){
 }
 
 /* =========================
-   BUILT-IN SPLITS (3–7 day support)
+   BUILT-IN SPLITS
 ========================= */
-
-/* Helper for plan exercise rows */
 const exRow = (muscle, name, sets, reps) => ({ muscle, name, sets, reps });
 
 const BUILT_IN_PLANS = [
@@ -193,7 +244,6 @@ const BUILT_IN_PLANS = [
       ]}
     ]
   },
-
   {
     id: "wraith_ul_4",
     name: "WRAITH_U/L // 4-DAY",
@@ -229,69 +279,52 @@ const BUILT_IN_PLANS = [
       ]}
     ]
   },
-
-  /* ✅ YOUR EXACT GRAVEFIVE WORKSHEET */
   {
     id: "gravefive_hybrid_5",
     name: "GRAVEFIVE // 5-DAY",
     vibe: "Every muscle 2×/week (weekday friendly).",
     days: [
-      {
-        name:"MONDAY – FULL BODY COMPOUND",
-        exercises:[
-          exRow("Quads","Squat / Leg Press",3,"5–8"),
-          exRow("Chest","Bench / Incline",3,"5–8"),
-          exRow("Back","Row / Pull-ups",3,"6–10"),
-          exRow("Shoulders","Overhead Press",2,"6–8"),
-          exRow("Ham/Glutes","RDL / Deadlift",2,"6–8"),
-          exRow("Arms","Curl or Pushdown (opt)",2,"10–12"),
-        ]
-      },
-      {
-        name:"TUESDAY – LOWER A (FULL LEGS)",
-        exercises:[
-          exRow("Quads","Squat / Hack Squat",4,"6–8"),
-          exRow("Quads","Leg Press",3,"10"),
-          exRow("Hamstrings","Romanian Deadlift",4,"8"),
-          exRow("Hamstrings","Ham Curl",3,"12"),
-          exRow("Glutes","Hip Thrust",3,"10"),
-          exRow("Adductors","Adduction Machine",3,"15"),
-          exRow("Abductors","Abduction Machine",3,"15"),
-        ]
-      },
-      {
-        name:"WEDNESDAY – UPPER PUSH",
-        exercises:[
-          exRow("Chest","Bench / Incline Press",4,"6–8"),
-          exRow("Chest","Fly Variation",3,"12"),
-          exRow("Shoulders","OHP / Machine Press",3,"8"),
-          exRow("Shoulders","Lateral Raises",4,"12–15"),
-          exRow("Triceps","Skull Crushers",3,"10"),
-          exRow("Triceps","Rope Pushdowns",3,"12"),
-        ]
-      },
-      {
-        name:"THURSDAY – LOWER B (POSTERIOR)",
-        exercises:[
-          exRow("Ham/Glutes","Deadlift / RDL",4,"6"),
-          exRow("Glutes","Hip Thrust",3,"8"),
-          exRow("Quads","Bulgarian Split Squat",3,"8"),
-          exRow("Quads","Leg Extension",3,"15"),
-          exRow("Adductors","Adduction Machine",2,"15"),
-          exRow("Abductors","Abduction Machine",2,"15"),
-        ]
-      },
-      {
-        name:"FRIDAY – UPPER PULL + ARMS",
-        exercises:[
-          exRow("Back","Pull-ups / Pulldowns",4,"8–10"),
-          exRow("Back","Barbell / Cable Rows",3,"8–10"),
-          exRow("Rear Delts","Face Pulls",3,"15"),
-          exRow("Biceps","EZ-Bar Curls",4,"8–10"),
-          exRow("Biceps","Hammer Curls",3,"10–12"),
-          exRow("Triceps","Close-Grip Bench / Dips",3,"6–8"),
-        ]
-      }
+      { name:"MONDAY – FULL BODY COMPOUND", exercises:[
+        exRow("Quads","Squat / Leg Press",3,"5–8"),
+        exRow("Chest","Bench / Incline",3,"5–8"),
+        exRow("Back","Row / Pull-ups",3,"6–10"),
+        exRow("Shoulders","Overhead Press",2,"6–8"),
+        exRow("Ham/Glutes","RDL / Deadlift",2,"6–8"),
+        exRow("Arms","Curl or Pushdown (opt)",2,"10–12"),
+      ]},
+      { name:"TUESDAY – LOWER A (FULL LEGS)", exercises:[
+        exRow("Quads","Squat / Hack Squat",4,"6–8"),
+        exRow("Quads","Leg Press",3,"10"),
+        exRow("Hamstrings","Romanian Deadlift",4,"8"),
+        exRow("Hamstrings","Ham Curl",3,"12"),
+        exRow("Glutes","Hip Thrust",3,"10"),
+        exRow("Adductors","Adduction Machine",3,"15"),
+        exRow("Abductors","Abduction Machine",3,"15"),
+      ]},
+      { name:"WEDNESDAY – UPPER PUSH", exercises:[
+        exRow("Chest","Bench / Incline Press",4,"6–8"),
+        exRow("Chest","Fly Variation",3,"12"),
+        exRow("Shoulders","OHP / Machine Press",3,"8"),
+        exRow("Shoulders","Lateral Raises",4,"12–15"),
+        exRow("Triceps","Skull Crushers",3,"10"),
+        exRow("Triceps","Rope Pushdowns",3,"12"),
+      ]},
+      { name:"THURSDAY – LOWER B (POSTERIOR)", exercises:[
+        exRow("Ham/Glutes","Deadlift / RDL",4,"6"),
+        exRow("Glutes","Hip Thrust",3,"8"),
+        exRow("Quads","Bulgarian Split Squat",3,"8"),
+        exRow("Quads","Leg Extension",3,"15"),
+        exRow("Adductors","Adduction Machine",2,"15"),
+        exRow("Abductors","Abduction Machine",2,"15"),
+      ]},
+      { name:"FRIDAY – UPPER PULL + ARMS", exercises:[
+        exRow("Back","Pull-ups / Pulldowns",4,"8–10"),
+        exRow("Back","Barbell / Cable Rows",3,"8–10"),
+        exRow("Rear Delts","Face Pulls",3,"15"),
+        exRow("Biceps","EZ-Bar Curls",4,"8–10"),
+        exRow("Biceps","Hammer Curls",3,"10–12"),
+        exRow("Triceps","Close-Grip Bench / Dips",3,"6–8"),
+      ]}
     ]
   }
 ];
@@ -305,7 +338,6 @@ let selectedAvatar = "skull";
 let selectedCard = "rust_sigils";
 let selectedPlanId = null;
 let manualCategory = "Push";
-
 let unsubMyLogs = null;
 let unsubMassGrave = null;
 
@@ -379,6 +411,7 @@ function avatarSVG(style="skull", seed="X"){
 }
 
 function renderAvatarInto(el, style, seed){
+  if(!el) return;
   el.innerHTML = avatarSVG(style, seed);
 }
 
@@ -386,15 +419,15 @@ function renderAvatarInto(el, style, seed){
    UI HELPERS
 ========================= */
 function setScreen(which){
-  $("auth-screen").classList.add("hidden");
-  $("registration-screen").classList.add("hidden");
-  $("app").classList.add("hidden");
-  $(which).classList.remove("hidden");
+  $("auth-screen")?.classList.add("hidden");
+  $("registration-screen")?.classList.add("hidden");
+  $("app")?.classList.add("hidden");
+  $(which)?.classList.remove("hidden");
 }
 
 function setTab(tabId){
-  ["feed-panel","plans-panel","friends-panel","settings-panel"].forEach(id => $(id).classList.add("hidden"));
-  $(tabId).classList.remove("hidden");
+  ["feed-panel","plans-panel","friends-panel","settings-panel"].forEach(id => $(id)?.classList.add("hidden"));
+  $(tabId)?.classList.remove("hidden");
 }
 
 function planById(id, user){
@@ -408,27 +441,27 @@ function planById(id, user){
    AUTH FLOW
 ========================= */
 async function doLogin(){
-  const em = $("email").value.trim();
-  const pw = $("password").value.trim();
-  $("auth-warn").textContent = "";
-  if(!em || !pw){ $("auth-warn").textContent = "MISSING CREDENTIALS."; return; }
+  const em = $("email")?.value.trim();
+  const pw = $("password")?.value.trim();
+  if($("auth-warn")) $("auth-warn").textContent = "";
+  if(!em || !pw){ if($("auth-warn")) $("auth-warn").textContent = "MISSING CREDENTIALS."; return; }
 
   try{
     await signInWithEmailAndPassword(auth, em, pw);
   }catch(e){
-    $("auth-warn").textContent = (e?.message || "LOGIN FAILED.").toUpperCase();
+    if($("auth-warn")) $("auth-warn").textContent = (e?.message || "LOGIN FAILED.").toUpperCase();
   }
 }
 
 async function beginRegistration(){
-  const em = $("reg-email").value.trim();
-  const pw = $("reg-pass").value.trim();
-  const c  = $("reg-confirm").value.trim();
-  $("reg-warn").textContent = "";
+  const em = $("reg-email")?.value.trim();
+  const pw = $("reg-pass")?.value.trim();
+  const c  = $("reg-confirm")?.value.trim();
+  if($("reg-warn")) $("reg-warn").textContent = "";
 
-  if(!em || !pw){ $("reg-warn").textContent = "EMAIL/PASSCODE REQUIRED."; return; }
-  if(pw.length < 6){ $("reg-warn").textContent = "PASSCODE MUST BE 6+ CHARS."; return; }
-  if(pw !== c){ $("reg-warn").textContent = "PASSCODES DO NOT MATCH."; return; }
+  if(!em || !pw){ if($("reg-warn")) $("reg-warn").textContent = "EMAIL/PASSCODE REQUIRED."; return; }
+  if(pw.length < 6){ if($("reg-warn")) $("reg-warn").textContent = "PASSCODE MUST BE 6+ CHARS."; return; }
+  if(pw !== c){ if($("reg-warn")) $("reg-warn").textContent = "PASSCODES DO NOT MATCH."; return; }
 
   try{
     await createUserWithEmailAndPassword(auth, em, pw);
@@ -437,17 +470,17 @@ async function beginRegistration(){
     $("reg-step-2").classList.remove("hidden");
     buildRegPickers(auth.currentUser.uid);
   }catch(e){
-    $("reg-warn").textContent = (e?.message || "REG FAILED.").toUpperCase();
+    if($("reg-warn")) $("reg-warn").textContent = (e?.message || "REG FAILED.").toUpperCase();
   }
 }
 
 async function finalizeRegistration(){
   const user = auth.currentUser;
-  const callsign = $("reg-username").value.trim();
-  $("reg-warn").textContent = "";
+  const callsign = $("reg-username")?.value.trim();
+  if($("reg-warn")) $("reg-warn").textContent = "";
 
-  if(!user){ $("reg-warn").textContent = "NO AUTH USER FOUND."; return; }
-  if(!callsign || callsign.length < 3){ $("reg-warn").textContent = "CALLSIGN 3+ CHARS."; return; }
+  if(!user){ if($("reg-warn")) $("reg-warn").textContent = "NO AUTH USER FOUND."; return; }
+  if(!callsign || callsign.length < 3){ if($("reg-warn")) $("reg-warn").textContent = "CALLSIGN 3+ CHARS."; return; }
 
   const payload = {
     uid: user.uid,
@@ -455,13 +488,26 @@ async function finalizeRegistration(){
     tag: selectedTagCss || "tag-rust",
     avatar: selectedAvatar || "skull",
     callingCard: selectedCard || "rust_sigils",
+
+    // progression
     carvingCount: 0,
-    friends: [],
     trophies: {},
     prs: {},
+
+    // Relic Vault
+    equippedRelic: "rusted_plate",
+    lifetimeVolume: 0,
+    daysLoggedCount: 0,
+    lastLoggedDayKey: null,
+
+    // plans
     activePlan: null,
     customPlans: [],
     exerciseLibrary: [],
+
+    // social placeholders
+    friends: [],
+
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   };
@@ -470,12 +516,12 @@ async function finalizeRegistration(){
     await setDoc(doc(db,"users", user.uid), payload, { merge:true });
     toast("ENTITY_BOUND. WELCOME TO THE GRAVE.");
   }catch(e){
-    $("reg-warn").textContent = (e?.message || "FINALIZE FAILED.").toUpperCase();
+    if($("reg-warn")) $("reg-warn").textContent = (e?.message || "FINALIZE FAILED.").toUpperCase();
   }
 }
 
 async function doForgot(){
-  const em = $("email").value.trim();
+  const em = $("email")?.value.trim();
   if(!em) return toast("ENTER EMAIL FIRST.");
   try{
     await sendPasswordResetEmail(auth, em);
@@ -528,6 +574,9 @@ function initApp(){
   $("tag-text").textContent = (TAGS.find(t => t.css===tagCss)?.label || "CADAVER");
 
   renderAvatarInto($("avatar-frame"), currentUserData.avatar || "skull", currentUserData.uid);
+
+  // relic chip
+  $("equipped-relic-chip").textContent = String(currentUserData.equippedRelic || "rusted_plate").toUpperCase();
 
   $("active-split-label").textContent = currentUserData.activePlan?.planId
     ? (planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE")
@@ -593,10 +642,22 @@ function hookCoreButtons(){
   $("jump-day-btn").onclick = jumpTodayDay;
 
   $("manualLogBtn").onclick = manualLog;
-
-  $("addExerciseBtn").onclick = addExerciseToLibrary;
+  $("addExerciseBtn")?.addEventListener("click", addExerciseToLibrary);
 
   $("closeProfileBtn").onclick = () => $("profile-modal").classList.add("hidden");
+
+  // Settings wiring
+  $("renameBtn").onclick = renameEntity;
+  $("updateTagBtn").onclick = updateTag;
+  $("updateAvatarBtn").onclick = updateAvatar;
+
+  // Relic Vault wiring
+  $("openRelicVaultBtn").onclick = openRelicVault;
+  $("closeRelicVaultBtn").onclick = closeRelicVault;
+
+  // Admin local tools
+  $("purgeMyLogsBtn").onclick = purgeMyLogs;
+  $("purgeMyPostsBtn").onclick = purgeMyPosts;
 }
 
 /* =========================
@@ -672,7 +733,7 @@ function buildSettingsPickers(){
   });
   selectedAvatar = currentUserData.avatar || "skull";
 
-  // Card picker
+  // Card picker (click-to-equip if unlocked)
   const cards = cardsForUser(currentUserData);
   const cardWrap = $("card-picker");
   cardWrap.innerHTML = "";
@@ -698,18 +759,89 @@ function buildSettingsPickers(){
   });
 }
 
-async function addExerciseToLibrary(){
-  const val = $("new-exercise").value.trim();
-  if(!val || val.length < 3) return toast("TYPE AN EXERCISE NAME.");
-  const uid = auth.currentUser.uid;
+async function renameEntity(){
+  const val = $("new-username").value.trim();
+  if(!val || val.length < 3) return toast("CALLSIGN 3+ CHARS.");
+  await updateDoc(doc(db,"users", auth.currentUser.uid), { username: val, updatedAt: serverTimestamp() });
+  currentUserData.username = val;
+  $("header-callsign").textContent = val;
+  $("profileUsername").textContent = val;
+  toast("ENTITY_RENAMED.");
+  $("new-username").value = "";
+}
 
-  const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), val]));
-  await updateDoc(doc(db,"users", uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
-  currentUserData.exerciseLibrary = next;
-  $("new-exercise").value = "";
-  buildManualLogger();
-  renderTodayWorkoutLogger();
-  toast("ADDED_TO_LIBRARY.");
+async function updateTag(){
+  const uid = auth.currentUser.uid;
+  const next = selectedTagCss || currentUserData.tag || "tag-rust";
+  await updateDoc(doc(db,"users", uid), { tag: next, updatedAt: serverTimestamp() });
+  currentUserData.tag = next;
+  $("user-grave-tag").className = `grave-tag ${next}`;
+  $("tag-text").textContent = (TAGS.find(t => t.css===next)?.label || "CADAVER");
+  toast("TAG_UPDATED.");
+}
+
+async function updateAvatar(){
+  const uid = auth.currentUser.uid;
+  const next = selectedAvatar || currentUserData.avatar || "skull";
+  await updateDoc(doc(db,"users", uid), { avatar: next, updatedAt: serverTimestamp() });
+  currentUserData.avatar = next;
+  renderAvatarInto($("avatar-frame"), next, currentUserData.uid);
+  toast("AVATAR_BOUND.");
+}
+
+/* =========================
+   RELIC VAULT UI
+========================= */
+function openRelicVault(){
+  renderRelicVault();
+  $("relic-vault-modal").classList.remove("hidden");
+}
+function closeRelicVault(){
+  $("relic-vault-modal").classList.add("hidden");
+}
+
+function renderRelicVault(){
+  const grid = $("relic-grid");
+  if(!grid) return;
+
+  $("vault-vol").textContent = String(Math.round(currentUserData.lifetimeVolume || 0));
+  $("vault-days").textContent = String(currentUserData.daysLoggedCount || 0);
+
+  const unlockedMap = computeUnlockedRelics(currentUserData);
+  const equipped = currentUserData.equippedRelic || "rusted_plate";
+
+  grid.innerHTML = "";
+  RELICS.forEach(r => {
+    const isUnlocked = !!unlockedMap[r.id];
+    const card = document.createElement("div");
+    card.className = `relic-card ${isUnlocked ? "" : "locked"} ${equipped===r.id ? "equipped" : ""}`.trim();
+
+    card.innerHTML = `
+      <div class="relic-art"></div>
+      <div class="relic-meta">
+        <div class="relic-name">${esc(r.name)}</div>
+        <div class="relic-tier">${esc(r.tier)}</div>
+        <div class="relic-req">${isUnlocked ? "UNLOCKED" : ("LOCKED — " + esc(r.reqText))}</div>
+      </div>
+      ${isUnlocked ? "" : `<div class="relic-lock"><span>LOCKED</span></div>`}
+    `;
+
+    card.onclick = async () => {
+      if(!isUnlocked) return;
+      await equipRelic(r.id);
+      renderRelicVault();
+    };
+
+    grid.appendChild(card);
+  });
+}
+
+async function equipRelic(relicId){
+  const uid = auth.currentUser.uid;
+  await updateDoc(doc(db,"users", uid), { equippedRelic: relicId, updatedAt: serverTimestamp() });
+  currentUserData.equippedRelic = relicId;
+  $("equipped-relic-chip").textContent = relicId.toUpperCase();
+  toast("RELIC_BOUND.");
 }
 
 /* =========================
@@ -718,6 +850,7 @@ async function addExerciseToLibrary(){
 function buildManualLogger(){
   const catSel = $("log-category");
   const exSel = $("log-ex");
+  if(!catSel || !exSel) return;
 
   catSel.innerHTML = Object.keys(EXERCISES)
     .map(k => `<option value="${esc(k)}" ${k===manualCategory ? "selected":""}>${esc(k)}</option>`)
@@ -969,7 +1102,7 @@ function renderTodayWorkoutLogger(){
 }
 
 /* =========================
-   SPLIT BUILDER (3–7 days)
+   SPLIT BUILDER
 ========================= */
 function openBuilder(){
   $("builder-modal").classList.remove("hidden");
@@ -978,10 +1111,7 @@ function openBuilder(){
   $("builder-days").value = "5";
   buildBuilderDays();
 }
-
-function closeBuilder(){
-  $("builder-modal").classList.add("hidden");
-}
+function closeBuilder(){ $("builder-modal").classList.add("hidden"); }
 
 function buildBuilderDays(){
   const count = Number($("builder-days").value || 5);
@@ -1047,7 +1177,7 @@ async function saveCustomSplit(){
 }
 
 /* =========================
-   LOGGING + AUTO ROTATION
+   LOGGING + AUTO ROTATION + RELIC STATS
 ========================= */
 function userDailyDoc(uid, dayKey){
   return doc(db, "users", uid, "dailyTotals", dayKey);
@@ -1069,17 +1199,37 @@ async function submitLog(exercise, weight, reps, meta={}){
     createdAt: serverTimestamp()
   });
 
+  // carvings
   await updateDoc(doc(db,"users", uid), {
     carvingCount: increment(1),
     updatedAt: serverTimestamp()
   });
-
   currentUserData.carvingCount = (currentUserData.carvingCount || 0) + 1;
   $("stat-count").textContent = String(currentUserData.carvingCount || 0);
 
-  $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
-  $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
+  const rn = computeRankName(currentUserData.carvingCount);
+  $("user-rank").textContent = rn;
+  $("header-rank").textContent = `// ${rn}`;
 
+  // lifetime volume (Relic Vault trigger)
+  await updateDoc(doc(db,"users", uid), {
+    lifetimeVolume: increment(volume),
+    updatedAt: serverTimestamp()
+  });
+  currentUserData.lifetimeVolume = (currentUserData.lifetimeVolume || 0) + volume;
+
+  // distinct days logged (Relic Vault trigger)
+  if((currentUserData.lastLoggedDayKey || null) !== dk){
+    await updateDoc(doc(db,"users", uid), {
+      daysLoggedCount: increment(1),
+      lastLoggedDayKey: dk,
+      updatedAt: serverTimestamp()
+    });
+    currentUserData.daysLoggedCount = (currentUserData.daysLoggedCount || 0) + 1;
+    currentUserData.lastLoggedDayKey = dk;
+  }
+
+  // daily total (for UI)
   await setDoc(userDailyDoc(uid, dk), {
     uid,
     dayKey: dk,
@@ -1087,6 +1237,7 @@ async function submitLog(exercise, weight, reps, meta={}){
     updatedAt: serverTimestamp()
   }, { merge:true });
 
+  // auto-advance plan day once per day
   if(meta?.source === "plan" && currentUserData.activePlan?.planId){
     const ap = currentUserData.activePlan;
     if(ap.lastAdvancedDayKey !== dk){
@@ -1105,6 +1256,11 @@ async function submitLog(exercise, weight, reps, meta={}){
   }
 
   await updatePRsAndTrophies(exercise, weight, reps);
+
+  // live refresh Vault if open
+  if(!$("relic-vault-modal").classList.contains("hidden")){
+    renderRelicVault();
+  }
 }
 
 async function deleteLog(logId, logData){
@@ -1128,8 +1284,10 @@ async function deleteLog(logId, logData){
 
   currentUserData.carvingCount = Math.max(0, (currentUserData.carvingCount||0) - 1);
   $("stat-count").textContent = String(currentUserData.carvingCount || 0);
-  $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
-  $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
+
+  const rn = computeRankName(currentUserData.carvingCount);
+  $("user-rank").textContent = rn;
+  $("header-rank").textContent = `// ${rn}`;
 }
 
 /* =========================
@@ -1165,6 +1323,11 @@ async function updatePRsAndTrophies(exercise, weight, reps){
   currentUserData.prs = prs;
   currentUserData.trophies = trophies;
   renderTrophies();
+
+  // PR unlocks affect Relic Vault — refresh if open
+  if(!$("relic-vault-modal").classList.contains("hidden")){
+    renderRelicVault();
+  }
 }
 
 /* =========================
@@ -1182,11 +1345,12 @@ function loadDailyMassGrave(){
 }
 
 /* =========================
-   MY LOGS (visible list)
+   MY LOGS
 ========================= */
 function loadMyLogs(){
   const uid = auth.currentUser.uid;
   const wrap = $("my-logs");
+  if(!wrap) return;
 
   if(unsubMyLogs) unsubMyLogs();
 
@@ -1271,7 +1435,7 @@ function renderTrophies(){
 }
 
 /* =========================
-   FEED / FRIENDS / LEADERBOARD
+   FEED / FRIENDS / LEADERBOARD (placeholders)
 ========================= */
 async function loadLeaderboardStream(){
   const wrap = $("leaderboard");
@@ -1294,7 +1458,6 @@ async function loadLeaderboardStream(){
 
 async function loadFeedStream(){
   const wrap = $("feed-content");
-  wrap.innerHTML = `<div class="index-row"><span class="dim">FEED LOADING…</span></div>`;
   wrap.innerHTML = `<div class="index-row"><span class="dim">FEED SYSTEM READY (hook your posts collection here).</span></div>`;
 }
 
@@ -1336,12 +1499,21 @@ async function openProfile(uid){
   $("modal-stats").textContent = `CARVINGS: ${u.carvingCount || 0}`;
 
   renderAvatarInto($("modal-avatar"), u.avatar || "skull", u.uid);
-
   $("profile-modal").classList.remove("hidden");
 }
 
 /* =========================
-   STARTUP WIRING FOR AUTH SCREEN
+   ADMIN (LOCAL ONLY)
+========================= */
+async function purgeMyLogs(){
+  toast("PURGE LOGS NOT IMPLEMENTED YET (needs batch delete).");
+}
+async function purgeMyPosts(){
+  toast("PURGE POSTS NOT IMPLEMENTED YET (feed not wired).");
+}
+
+/* =========================
+   STARTUP WIRING (AUTH SCREEN)
 ========================= */
 (function boot(){
   if($("loginBtn")) $("loginBtn").onclick = doLogin;
