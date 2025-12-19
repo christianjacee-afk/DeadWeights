@@ -45,6 +45,16 @@ const db = getFirestore(app);
    UTIL
 ========================= */
 const $ = (id) => document.getElementById(id);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+// Safe DOM helpers (prevents one missing element from crashing the whole app)
+const setText = (id, value) => { const el = $(id); if(el) el.textContent = value; };
+const setHTML = (id, value) => { const el = $(id); if(el) el.innerHTML = value; };
+const setClass = (id, className) => { const el = $(id); if(el) el.className = className; };
+const show = (id) => { const el = $(id); if(el) el.classList.remove("hidden"); };
+const hide = (id) => { const el = $(id); if(el) el.classList.add("hidden"); };
+const on = (id, evt, fn) => { const el = $(id); if(el) el.addEventListener(evt, fn); };
+
 const esc = (s="") => String(s)
   .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
   .replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -465,9 +475,9 @@ async function beginRegistration(){
 
   try{
     await createUserWithEmailAndPassword(auth, em, pw);
-    $("reg-status-chip").textContent = "STAGE_2";
-    $("reg-step-1").classList.add("hidden");
-    $("reg-step-2").classList.remove("hidden");
+    setText("reg-status-chip","STAGE_2");
+    $("reg-step-1")?.classList.add("hidden");
+    $("reg-step-2")?.classList.remove("hidden");
     buildRegPickers(auth.currentUser.uid);
   }catch(e){
     if($("reg-warn")) $("reg-warn").textContent = (e?.message || "REG FAILED.").toUpperCase();
@@ -544,9 +554,9 @@ onAuthStateChanged(auth, async (user) => {
   const snap = await getDoc(doc(db,"users", user.uid));
   if(!snap.exists()){
     setScreen("registration-screen");
-    $("reg-status-chip").textContent = "STAGE_2";
-    $("reg-step-1").classList.add("hidden");
-    $("reg-step-2").classList.remove("hidden");
+    setText("reg-status-chip","STAGE_2");
+    $("reg-step-1")?.classList.add("hidden");
+    $("reg-step-2")?.classList.remove("hidden");
     buildRegPickers(user.uid);
     return;
   }
@@ -560,48 +570,57 @@ onAuthStateChanged(auth, async (user) => {
    INIT APP
 ========================= */
 function initApp(){
-  $("header-callsign").textContent = currentUserData.username;
-  $("profileUsername").textContent = currentUserData.username;
+  // Defensive: never let a missing element brick the entire UI.
+  try{
+    setText("header-callsign", currentUserData?.username || "UNKNOWN");
+    setText("profileUsername", currentUserData?.username || "UNKNOWN");
 
-  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
+    setText("stat-count", String(currentUserData?.carvingCount || 0));
 
-  const rankName = computeRankName(currentUserData.carvingCount || 0);
-  $("user-rank").textContent = rankName;
-  $("header-rank").textContent = `// ${rankName}`;
+    const rankName = computeRankName(currentUserData?.carvingCount || 0);
+    setText("user-rank", rankName);
+    setText("header-rank", `// ${rankName}`);
 
-  const tagCss = currentUserData.tag || "tag-rust";
-  $("user-grave-tag").className = `grave-tag ${tagCss}`;
-  $("tag-text").textContent = (TAGS.find(t => t.css===tagCss)?.label || "CADAVER");
+    const tagCss = currentUserData?.tag || "tag-rust";
+    setClass("user-grave-tag", `grave-tag ${tagCss}`);
+    setText("tag-text", (TAGS.find(t => t.css===tagCss)?.label || "CADAVER"));
 
-  renderAvatarInto($("avatar-frame"), currentUserData.avatar || "skull", currentUserData.uid);
+    renderAvatarInto($("avatar-frame"), currentUserData?.avatar || "skull", currentUserData?.uid || "seed");
 
-  // relic chip
-  $("equipped-relic-chip").textContent = String(currentUserData.equippedRelic || "rusted_plate").toUpperCase();
+    // relic chip
+    setText("equipped-relic-chip", String(currentUserData?.equippedRelic || "rusted_plate").toUpperCase());
 
-  $("active-split-label").textContent = currentUserData.activePlan?.planId
-    ? (planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE")
-    : "NONE";
+    const activeLabel = currentUserData?.activePlan?.planId
+      ? (planById(currentUserData.activePlan.planId, currentUserData)?.name || "ACTIVE")
+      : "NONE";
+    setText("active-split-label", activeLabel);
 
-  hookNavButtons();
-  hookCoreButtons();
+    // Always attach handlers, even if some render functions fail.
+    hookNavButtons();
+    hookCoreButtons();
 
-  buildSettingsPickers();
-  buildStartDaySelect();
-  buildManualLogger();
+    buildSettingsPickers();
+    buildStartDaySelect();
+    buildManualLogger();
 
-  renderPlansIndex();
-  renderActivePlanStatus();
-  renderTodayWorkoutLogger();
+    renderPlansIndex();
+    renderActivePlanStatus();
+    renderTodayWorkoutLogger();
 
-  loadDailyMassGrave();
-  loadMyLogs();
-  loadPRStream();
-  loadLeaderboardStream();
-  loadFeedStream();
-  loadFriendsUI();
-  renderTrophies();
+    loadDailyMassGrave();
+    loadMyLogs();
+    loadPRStream();
+    loadLeaderboardStream();
+    loadFeedStream();
+    loadFriendsUI();
+    renderTrophies();
 
-  setTab("feed-panel");
+    setTab("feed-panel");
+  }catch(e){
+    console.error("initApp crash:", e);
+    // Still try to wire core buttons so the user can navigate/logout.
+    try{ hookNavButtons(); hookCoreButtons(); }catch(_){}
+  }
 }
 
 function hookNavButtons(){
@@ -611,53 +630,64 @@ function hookNavButtons(){
 }
 
 function hookCoreButtons(){
-  $("loginBtn").onclick = doLogin;
-  $("showRegBtn").onclick = () => {
+  // Auth screen
+  if($("loginBtn")) $("loginBtn").onclick = doLogin;
+  if($("showRegBtn")) $("showRegBtn").onclick = () => {
     setScreen("registration-screen");
-    $("reg-status-chip").textContent = "STAGE_1";
-    $("reg-step-1").classList.remove("hidden");
-    $("reg-step-2").classList.add("hidden");
-    $("reg-warn").textContent = "";
+    setText("reg-status-chip", "STAGE_1");
+    $("reg-step-1")?.classList.remove("hidden");
+    $("reg-step-2")?.classList.add("hidden");
+    setText("reg-warn", "");
     buildRegPickers("seed");
   };
-  $("forgotBtn").onclick = doForgot;
+  if($("forgotBtn")) $("forgotBtn").onclick = doForgot;
 
-  $("nextStepBtn").onclick = beginRegistration;
-  $("finalizeRegBtn").onclick = finalizeRegistration;
-  $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
+  // Registration screen
+  if($("nextStepBtn")) $("nextStepBtn").onclick = beginRegistration;
+  if($("finalizeRegBtn")) $("finalizeRegBtn").onclick = finalizeRegistration;
+  if($("returnToLoginBtn")) $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
 
-  $("logoutBtn").onclick = async () => {
-    if(unsubMyLogs) unsubMyLogs();
-    if(unsubMassGrave) unsubMassGrave();
+  // App / nav
+  if($("logoutBtn")) $("logoutBtn").onclick = async () => {
+    try{
+      if(unsubMyLogs) unsubMyLogs();
+      if(unsubMassGrave) unsubMassGrave();
+    }catch(_){}
     await signOut(auth);
   };
 
-  $("open-builder-btn").onclick = openBuilder;
-  $("closeBuilderBtn").onclick = closeBuilder;
-  $("builder-days").onchange = buildBuilderDays;
-  $("builder-create-btn").onclick = saveCustomSplit;
+  // Plans + builder
+  if($("open-builder-btn")) $("open-builder-btn").onclick = openBuilder;
+  if($("closeBuilderBtn")) $("closeBuilderBtn").onclick = closeBuilder;
+  if($("builder-days")) $("builder-days").onchange = buildBuilderDays;
+  if($("builder-create-btn")) $("builder-create-btn").onclick = saveCustomSplit;
 
-  $("start-auto-btn").onclick = async () => activateSelectedPlanAuto();
-  $("deactivate-plan-btn").onclick = deactivatePlan;
-  $("jump-day-btn").onclick = jumpTodayDay;
+  if($("start-auto-btn")) $("start-auto-btn").onclick = () => activateSelectedPlanAuto();
+  if($("deactivate-plan-btn")) $("deactivate-plan-btn").onclick = deactivatePlan;
+  if($("jump-day-btn")) $("jump-day-btn").onclick = jumpTodayDay;
 
-  $("manualLogBtn").onclick = manualLog;
-  $("addExerciseBtn")?.addEventListener("click", addExerciseToLibrary);
+  // Logger
+  if($("manualLogBtn")) $("manualLogBtn").onclick = manualLog;
 
-  $("closeProfileBtn").onclick = () => $("profile-modal").classList.add("hidden");
+  // Feed buttons (placeholder until you wire a posts collection)
+  if($("postStatusBtn")) $("postStatusBtn").onclick = () => toast("FEED NOT WIRED YET.");
+  if($("refreshFeedBtn")) $("refreshFeedBtn").onclick = () => loadFeedStream();
 
-  // Settings wiring
-  $("renameBtn").onclick = renameEntity;
-  $("updateTagBtn").onclick = updateTag;
-  $("updateAvatarBtn").onclick = updateAvatar;
+  // Profile modal
+  if($("closeProfileBtn")) $("closeProfileBtn").onclick = () => $("profile-modal")?.classList.add("hidden");
 
-  // Relic Vault wiring
-  $("openRelicVaultBtn").onclick = openRelicVault;
-  $("closeRelicVaultBtn").onclick = closeRelicVault;
+  // Settings
+  if($("renameBtn")) $("renameBtn").onclick = renameEntity;
+  if($("updateTagBtn")) $("updateTagBtn").onclick = updateTag;
+  if($("updateAvatarBtn")) $("updateAvatarBtn").onclick = updateAvatar;
 
-  // Admin local tools
-  $("purgeMyLogsBtn").onclick = purgeMyLogs;
-  $("purgeMyPostsBtn").onclick = purgeMyPosts;
+  // Relic Vault
+  if($("openRelicVaultBtn")) $("openRelicVaultBtn").onclick = openRelicVault;
+  if($("closeRelicVaultBtn")) $("closeRelicVaultBtn").onclick = closeRelicVault;
+
+  // Admin local tools (placeholders)
+  if($("purgeMyLogsBtn")) $("purgeMyLogsBtn").onclick = purgeMyLogs;
+  if($("purgeMyPostsBtn")) $("purgeMyPostsBtn").onclick = purgeMyPosts;
 }
 
 /* =========================
@@ -665,34 +695,38 @@ function hookCoreButtons(){
 ========================= */
 function buildRegPickers(seed){
   const wrap = $("initial-tag-picker");
-  wrap.innerHTML = "";
-  TAGS.forEach((t, idx) => {
-    const div = document.createElement("div");
-    div.className = `tag-opt ${t.css} ${idx===0 ? "active":""}`;
-    div.onclick = () => {
-      selectedTagCss = t.css;
-      wrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
-      div.classList.add("active");
-    };
-    wrap.appendChild(div);
-  });
-  selectedTagCss = TAGS[0].css;
+  if(wrap){
+    wrap.innerHTML = "";
+    TAGS.forEach((t, idx) => {
+      const div = document.createElement("div");
+      div.className = `tag-opt ${t.css} ${idx===0 ? "active":""}`;
+      div.onclick = () => {
+        selectedTagCss = t.css;
+        wrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
+        div.classList.add("active");
+      };
+      wrap.appendChild(div);
+    });
+    selectedTagCss = TAGS[0].css;
+  }
 
   const aw = $("avatar-picker");
-  aw.innerHTML = "";
-  const options = ["skull","wraith","reaper","skull"];
-  options.forEach((a, idx) => {
-    const div = document.createElement("div");
-    div.className = `avatar-opt ${idx===0 ? "active":""}`;
-    div.innerHTML = avatarSVG(a, seed);
-    div.onclick = () => {
-      selectedAvatar = a;
-      aw.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
-      div.classList.add("active");
-    };
-    aw.appendChild(div);
-  });
-  selectedAvatar = options[0];
+  if(aw){
+    aw.innerHTML = "";
+    const options = ["skull","wraith","reaper","skull"];
+    options.forEach((a, idx) => {
+      const div = document.createElement("div");
+      div.className = `avatar-opt ${idx===0 ? "active":""}`;
+      div.innerHTML = avatarSVG(a, seed);
+      div.onclick = () => {
+        selectedAvatar = a;
+        aw.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
+        div.classList.add("active");
+      };
+      aw.appendChild(div);
+    });
+    selectedAvatar = options[0];
+  }
 
   selectedCard = "rust_sigils";
 }
@@ -703,71 +737,77 @@ function buildRegPickers(seed){
 function buildSettingsPickers(){
   // TAG picker
   const tagWrap = $("settings-tag-picker");
-  tagWrap.innerHTML = "";
-  TAGS.forEach(t => {
-    const div = document.createElement("div");
-    div.className = `tag-opt ${t.css} ${currentUserData.tag===t.css ? "active":""}`;
-    div.onclick = () => {
-      selectedTagCss = t.css;
-      tagWrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
-      div.classList.add("active");
-    };
-    tagWrap.appendChild(div);
-  });
-  selectedTagCss = currentUserData.tag || "tag-rust";
+  if(tagWrap){
+    tagWrap.innerHTML = "";
+    TAGS.forEach(t => {
+      const div = document.createElement("div");
+      div.className = `tag-opt ${t.css} ${currentUserData.tag===t.css ? "active":""}`;
+      div.onclick = () => {
+        selectedTagCss = t.css;
+        tagWrap.querySelectorAll(".tag-opt").forEach(x => x.classList.remove("active"));
+        div.classList.add("active");
+      };
+      tagWrap.appendChild(div);
+    });
+    selectedTagCss = currentUserData.tag || "tag-rust";
+  }
 
   // Avatar picker
   const avWrap = $("settings-avatar-picker");
-  avWrap.innerHTML = "";
-  const avatarOptions = ["skull","wraith","reaper","skull"];
-  avatarOptions.forEach(a => {
-    const div = document.createElement("div");
-    div.className = `avatar-opt ${(currentUserData.avatar||"skull")===a ? "active":""}`;
-    div.innerHTML = avatarSVG(a, currentUserData.uid);
-    div.onclick = () => {
-      selectedAvatar = a;
-      avWrap.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
-      div.classList.add("active");
-    };
-    avWrap.appendChild(div);
-  });
-  selectedAvatar = currentUserData.avatar || "skull";
+  if(avWrap){
+    avWrap.innerHTML = "";
+    const avatarOptions = ["skull","wraith","reaper","skull"];
+    avatarOptions.forEach(a => {
+      const div = document.createElement("div");
+      div.className = `avatar-opt ${(currentUserData.avatar||"skull")===a ? "active":""}`;
+      div.innerHTML = avatarSVG(a, currentUserData.uid);
+      div.onclick = () => {
+        selectedAvatar = a;
+        avWrap.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("active"));
+        div.classList.add("active");
+      };
+      avWrap.appendChild(div);
+    });
+    selectedAvatar = currentUserData.avatar || "skull";
+  }
 
   // Card picker (click-to-equip if unlocked)
-  const cards = cardsForUser(currentUserData);
   const cardWrap = $("card-picker");
-  cardWrap.innerHTML = "";
-  cards.forEach(c => {
-    const div = document.createElement("div");
-    div.className = `plan-card ${currentUserData.callingCard===c.id ? "active":""}`;
-    div.style.cursor = c.unlocked ? "pointer" : "not-allowed";
-    div.style.opacity = c.unlocked ? "1" : "0.55";
-    div.innerHTML = `
-      <div class="plan-name">${esc(c.name)}</div>
-      <div class="plan-sub">${c.unlocked ? "UNLOCKED" : "LOCKED"}</div>
-    `;
-    div.onclick = async () => {
-      if(!c.unlocked) return;
-      selectedCard = c.id;
-      cardWrap.querySelectorAll(".plan-card").forEach(x => x.classList.remove("active"));
-      div.classList.add("active");
-      await updateDoc(doc(db,"users", auth.currentUser.uid), { callingCard: selectedCard, updatedAt: serverTimestamp() });
-      currentUserData.callingCard = selectedCard;
-      toast("CARD_EQUIPPED.");
-    };
-    cardWrap.appendChild(div);
-  });
+  if(cardWrap){
+    const cards = cardsForUser(currentUserData);
+    cardWrap.innerHTML = "";
+    cards.forEach(c => {
+      const div = document.createElement("div");
+      div.className = `plan-card ${currentUserData.callingCard===c.id ? "active":""}`;
+      div.style.cursor = c.unlocked ? "pointer" : "not-allowed";
+      div.style.opacity = c.unlocked ? "1" : "0.55";
+      div.innerHTML = `
+        <div class="plan-name">${esc(c.name)}</div>
+        <div class="plan-sub">${c.unlocked ? "UNLOCKED" : "LOCKED"}</div>
+      `;
+      div.onclick = async () => {
+        if(!c.unlocked) return;
+        selectedCard = c.id;
+        cardWrap.querySelectorAll(".plan-card").forEach(x => x.classList.remove("active"));
+        div.classList.add("active");
+        await updateDoc(doc(db,"users", auth.currentUser.uid), { callingCard: selectedCard, updatedAt: serverTimestamp() });
+        currentUserData.callingCard = selectedCard;
+        toast("CARD_EQUIPPED.");
+      };
+      cardWrap.appendChild(div);
+    });
+  }
 }
 
 async function renameEntity(){
-  const val = $("new-username").value.trim();
+  const val = $("new-username")?.value.trim();
   if(!val || val.length < 3) return toast("CALLSIGN 3+ CHARS.");
   await updateDoc(doc(db,"users", auth.currentUser.uid), { username: val, updatedAt: serverTimestamp() });
   currentUserData.username = val;
-  $("header-callsign").textContent = val;
-  $("profileUsername").textContent = val;
+  setText("header-callsign", val);
+  setText("profileUsername", val);
   toast("ENTITY_RENAMED.");
-  $("new-username").value = "";
+  if($("new-username")) $("new-username").value = "";
 }
 
 async function updateTag(){
@@ -775,8 +815,8 @@ async function updateTag(){
   const next = selectedTagCss || currentUserData.tag || "tag-rust";
   await updateDoc(doc(db,"users", uid), { tag: next, updatedAt: serverTimestamp() });
   currentUserData.tag = next;
-  $("user-grave-tag").className = `grave-tag ${next}`;
-  $("tag-text").textContent = (TAGS.find(t => t.css===next)?.label || "CADAVER");
+  setClass("user-grave-tag", `grave-tag ${next}`);
+  setText("tag-text", (TAGS.find(t => t.css===next)?.label || "CADAVER"));
   toast("TAG_UPDATED.");
 }
 
@@ -794,18 +834,18 @@ async function updateAvatar(){
 ========================= */
 function openRelicVault(){
   renderRelicVault();
-  $("relic-vault-modal").classList.remove("hidden");
+  $("relic-vault-modal")?.classList.remove("hidden");
 }
 function closeRelicVault(){
-  $("relic-vault-modal").classList.add("hidden");
+  $("relic-vault-modal")?.classList.add("hidden");
 }
 
 function renderRelicVault(){
   const grid = $("relic-grid");
   if(!grid) return;
 
-  $("vault-vol").textContent = String(Math.round(currentUserData.lifetimeVolume || 0));
-  $("vault-days").textContent = String(currentUserData.daysLoggedCount || 0);
+  setText("vault-vol", String(Math.round(currentUserData.lifetimeVolume || 0)));
+  setText("vault-days", String(currentUserData.daysLoggedCount || 0));
 
   const unlockedMap = computeUnlockedRelics(currentUserData);
   const equipped = currentUserData.equippedRelic || "rusted_plate";
@@ -840,7 +880,7 @@ async function equipRelic(relicId){
   const uid = auth.currentUser.uid;
   await updateDoc(doc(db,"users", uid), { equippedRelic: relicId, updatedAt: serverTimestamp() });
   currentUserData.equippedRelic = relicId;
-  $("equipped-relic-chip").textContent = relicId.toUpperCase();
+  setText("equipped-relic-chip", relicId.toUpperCase());
   toast("RELIC_BOUND.");
 }
 
@@ -869,14 +909,14 @@ function buildManualLogger(){
 }
 
 async function manualLog(){
-  const ex = $("log-ex").value;
-  const w = Number($("log-w").value);
-  const r = Number($("log-r").value);
+  const ex = $("log-ex")?.value;
+  const w = Number($("log-w")?.value);
+  const r = Number($("log-r")?.value);
   if(!ex) return toast("PICK EXERCISE.");
   if(!w || !r) return toast("ENTER LBS + REPS.");
   await submitLog(ex, w, r, { source:"manual" });
-  $("log-w").value = "";
-  $("log-r").value = "";
+  if($("log-w")) $("log-w").value = "";
+  if($("log-r")) $("log-r").value = "";
   toast("CARVING_RECORDED.");
 }
 
@@ -885,6 +925,7 @@ async function manualLog(){
 ========================= */
 function renderPlansIndex(){
   const wrap = $("plan-index");
+  if(!wrap) return;
   wrap.innerHTML = "";
 
   const built = BUILT_IN_PLANS;
@@ -911,6 +952,7 @@ function renderPlansIndex(){
 
 function buildStartDaySelect(){
   const sel = $("start-day-select");
+  if(!sel) return;
   const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
   sel.innerHTML = days.map((d,i)=>`<option value="${i}">${d}</option>`).join("");
   sel.value = String(new Date().getDay());
@@ -931,7 +973,7 @@ async function activateSelectedPlanAuto(){
   const plan = planById(selectedPlanId, currentUserData);
   if(!plan) return toast("PLAN NOT FOUND.");
 
-  const startDay = Number($("start-day-select").value || new Date().getDay());
+  const startDay = Number($("start-day-select")?.value || new Date().getDay());
   const today = new Date().getDay();
   const delta = (today - startDay + 7) % 7;
 
@@ -947,7 +989,7 @@ async function activateSelectedPlanAuto(){
   await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan, updatedAt: serverTimestamp() });
   currentUserData.activePlan = activePlan;
 
-  $("active-split-label").textContent = plan.name;
+  setText("active-split-label", plan.name);
   renderActivePlanStatus();
   renderTodayWorkoutLogger();
   toast("SPLIT_ACTIVATED.");
@@ -956,9 +998,9 @@ async function activateSelectedPlanAuto(){
 async function deactivatePlan(){
   await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: null, updatedAt: serverTimestamp() });
   currentUserData.activePlan = null;
-  $("active-split-label").textContent = "NONE";
-  $("active-day-chip").textContent = "DAY_?";
-  $("active-plan-readout").innerHTML = "";
+  setText("active-split-label","NONE");
+  setText("active-day-chip","DAY_?");
+  setHTML("active-plan-readout","");
   renderTodayWorkoutLogger();
   toast("SPLIT_DEACTIVATED.");
 }
@@ -969,7 +1011,7 @@ async function jumpTodayDay(){
   const plan = planById(ap.planId, currentUserData);
   if(!plan) return toast("PLAN NOT FOUND.");
 
-  const startDay = Number($("start-day-select").value || new Date().getDay());
+  const startDay = Number($("start-day-select")?.value || new Date().getDay());
   const today = new Date().getDay();
   const delta = (today - startDay + 7) % 7;
   const idx = clamp(delta, 0, plan.days.length-1);
@@ -985,21 +1027,22 @@ async function jumpTodayDay(){
 function renderActivePlanStatus(){
   const ap = currentUserData.activePlan;
   const wrap = $("active-plan-readout");
+  if(!wrap) return;
   wrap.innerHTML = "";
 
   if(!ap?.planId){
-    $("active-day-chip").textContent = "DAY_?";
+    setText("active-day-chip","DAY_?");
     return;
   }
 
   const plan = planById(ap.planId, currentUserData);
   if(!plan){
-    $("active-day-chip").textContent = "DAY_?";
+    setText("active-day-chip","DAY_?");
     return;
   }
 
   const idx = clamp(Number(ap.currentDayIndex ?? 0), 0, plan.days.length-1);
-  $("active-day-chip").textContent = `DAY_${idx+1}`;
+  setText("active-day-chip", `DAY_${idx+1}`);
 
   plan.days.forEach((d, i) => {
     const badge = document.createElement("div");
@@ -1021,16 +1064,17 @@ function renderActivePlanStatus(){
 ========================= */
 function renderTodayWorkoutLogger(){
   const box = $("today-workout-list");
+  if(!box) return;
   box.innerHTML = "";
 
   const info = planDayForToday();
   if(!info){
-    $("logger-sub").textContent = "Activate a split to load today.";
+    setText("logger-sub","Activate a split to load today.");
     return;
   }
 
   const day = info.plan.days[info.planIndex];
-  $("logger-sub").textContent = `${day.name} // Log each exercise line.`;
+  setText("logger-sub", `${day.name} // Log each exercise line.`);
 
   day.exercises.forEach((row, exIdx) => {
     const line = document.createElement("div");
@@ -1105,17 +1149,18 @@ function renderTodayWorkoutLogger(){
    SPLIT BUILDER
 ========================= */
 function openBuilder(){
-  $("builder-modal").classList.remove("hidden");
-  $("builder-warn").textContent = "";
-  $("builder-name").value = "";
-  $("builder-days").value = "5";
+  $("builder-modal")?.classList.remove("hidden");
+  setText("builder-warn","");
+  if($("builder-name")) $("builder-name").value = "";
+  if($("builder-days")) $("builder-days").value = "5";
   buildBuilderDays();
 }
-function closeBuilder(){ $("builder-modal").classList.add("hidden"); }
+function closeBuilder(){ $("builder-modal")?.classList.add("hidden"); }
 
 function buildBuilderDays(){
-  const count = Number($("builder-days").value || 5);
+  const count = Number($("builder-days")?.value || 5);
   const wrap = $("builder-days-wrap");
+  if(!wrap) return;
   wrap.innerHTML = "";
 
   for(let i=0;i<count;i++){
@@ -1131,12 +1176,12 @@ function buildBuilderDays(){
 }
 
 async function saveCustomSplit(){
-  const name = $("builder-name").value.trim();
-  const count = Number($("builder-days").value || 5);
-  $("builder-warn").textContent = "";
+  const name = $("builder-name")?.value.trim();
+  const count = Number($("builder-days")?.value || 5);
+  setText("builder-warn","");
 
   if(!name || name.length < 4){
-    $("builder-warn").textContent = "NAME TOO SHORT.";
+    setText("builder-warn","NAME TOO SHORT.");
     return;
   }
 
@@ -1150,7 +1195,7 @@ async function saveCustomSplit(){
       .slice(0, 14);
 
     if(lines.length < 3){
-      $("builder-warn").textContent = `DAY_${i+1} NEEDS 3+ EXERCISES.`;
+      setText("builder-warn",`DAY_${i+1} NEEDS 3+ EXERCISES.`);
       return;
     }
 
@@ -1205,11 +1250,11 @@ async function submitLog(exercise, weight, reps, meta={}){
     updatedAt: serverTimestamp()
   });
   currentUserData.carvingCount = (currentUserData.carvingCount || 0) + 1;
-  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
+  setText("stat-count", String(currentUserData.carvingCount || 0));
 
   const rn = computeRankName(currentUserData.carvingCount);
-  $("user-rank").textContent = rn;
-  $("header-rank").textContent = `// ${rn}`;
+  setText("user-rank", rn);
+  setText("header-rank", `// ${rn}`);
 
   // lifetime volume (Relic Vault trigger)
   await updateDoc(doc(db,"users", uid), {
@@ -1258,7 +1303,7 @@ async function submitLog(exercise, weight, reps, meta={}){
   await updatePRsAndTrophies(exercise, weight, reps);
 
   // live refresh Vault if open
-  if(!$("relic-vault-modal").classList.contains("hidden")){
+  if(!$("relic-vault-modal")?.classList.contains("hidden")){
     renderRelicVault();
   }
 }
@@ -1283,11 +1328,11 @@ async function deleteLog(logId, logData){
   }, { merge:true });
 
   currentUserData.carvingCount = Math.max(0, (currentUserData.carvingCount||0) - 1);
-  $("stat-count").textContent = String(currentUserData.carvingCount || 0);
+  setText("stat-count", String(currentUserData.carvingCount || 0));
 
   const rn = computeRankName(currentUserData.carvingCount);
-  $("user-rank").textContent = rn;
-  $("header-rank").textContent = `// ${rn}`;
+  setText("user-rank", rn);
+  setText("header-rank", `// ${rn}`);
 }
 
 /* =========================
@@ -1325,7 +1370,7 @@ async function updatePRsAndTrophies(exercise, weight, reps){
   renderTrophies();
 
   // PR unlocks affect Relic Vault — refresh if open
-  if(!$("relic-vault-modal").classList.contains("hidden")){
+  if(!$("relic-vault-modal")?.classList.contains("hidden")){
     renderRelicVault();
   }
 }
@@ -1340,7 +1385,7 @@ function loadDailyMassGrave(){
   if(unsubMassGrave) unsubMassGrave();
   unsubMassGrave = onSnapshot(userDailyDoc(uid, dk), (snap) => {
     const total = snap.exists() ? (snap.data().totalVolume || 0) : 0;
-    $("massgrave-value").textContent = String(Math.max(0, Math.round(total)));
+    setText("massgrave-value", String(Math.max(0, Math.round(total))));
   });
 }
 
@@ -1391,6 +1436,7 @@ function loadMyLogs(){
 ========================= */
 function loadPRStream(){
   const wrap = $("prList");
+  if(!wrap) return;
   const prs = currentUserData.prs || {};
   const entries = Object.entries(prs)
     .sort((a,b)=> (b[1].bestE1RM||0) - (a[1].bestE1RM||0))
@@ -1418,9 +1464,10 @@ function loadPRStream(){
 ========================= */
 function renderTrophies(){
   const wrap = $("trophy-list");
+  if(!wrap) return;
   const trophies = currentUserData.trophies || {};
   const got = Object.keys(trophies).filter(k => trophies[k]).length;
-  $("trophy-count").textContent = String(got);
+  setText("trophy-count", String(got));
 
   wrap.innerHTML = "";
   TROPHIES.forEach(t => {
@@ -1439,6 +1486,7 @@ function renderTrophies(){
 ========================= */
 async function loadLeaderboardStream(){
   const wrap = $("leaderboard");
+  if(!wrap) return;
   const qy = query(collection(db,"users"), orderBy("carvingCount","desc"), limit(10));
   onSnapshot(qy, (snap) => {
     wrap.innerHTML = "";
@@ -1458,13 +1506,18 @@ async function loadLeaderboardStream(){
 
 async function loadFeedStream(){
   const wrap = $("feed-content");
+  if(!wrap) return;
   wrap.innerHTML = `<div class="index-row"><span class="dim">FEED SYSTEM READY (hook your posts collection here).</span></div>`;
 }
 
 async function loadFriendsUI(){
-  $("userSearch").oninput = async () => {
+  const inp = $("userSearch");
+  if(!inp) return;
+
+  inp.oninput = async () => {
     const term = $("userSearch").value.trim();
     const out = $("search-results");
+    if(!out) return;
     out.innerHTML = "";
     if(term.length < 2) return;
 
@@ -1516,18 +1569,6 @@ async function purgeMyPosts(){
    STARTUP WIRING (AUTH SCREEN)
 ========================= */
 (function boot(){
-  if($("loginBtn")) $("loginBtn").onclick = doLogin;
-  if($("showRegBtn")) $("showRegBtn").onclick = () => {
-    setScreen("registration-screen");
-    $("reg-status-chip").textContent = "STAGE_1";
-    $("reg-step-1").classList.remove("hidden");
-    $("reg-step-2").classList.add("hidden");
-    $("reg-warn").textContent = "";
-    buildRegPickers("seed");
-  };
-  if($("forgotBtn")) $("forgotBtn").onclick = doForgot;
-
-  if($("nextStepBtn")) $("nextStepBtn").onclick = beginRegistration;
-  if($("finalizeRegBtn")) $("finalizeRegBtn").onclick = finalizeRegistration;
-  if($("returnToLoginBtn")) $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
+  // Wire auth screen buttons immediately so the UI feels alive even before Firebase resolves.
+  try{ hookCoreButtons(); }catch(e){ console.error("boot hook error:", e); }
 })();
