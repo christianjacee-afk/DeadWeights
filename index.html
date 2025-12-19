@@ -80,6 +80,7 @@
       <div class="nav-controls">
         <button class="mini-btn" data-tab="feed-panel">FEED</button>
         <button class="mini-btn" data-tab="plans-panel">PLANS</button>
+        <button class="mini-btn" data-tab="workout-panel">WORKOUT</button>
         <button class="mini-btn" data-tab="friends-panel">FRIENDS</button>
         <button class="mini-btn" data-tab="settings-panel">SETTINGS</button>
         <button id="logoutBtn" class="mini-btn danger">DISCONNECT</button>
@@ -193,7 +194,7 @@
 
                   <div class="hint">
                     <span class="hint-dot"></span>
-                    Once activated, today’s plan shows on the right logger. You can swap exercises beside each line.
+                    Once activated, use WORKOUT to log. You can swap exercises beside each line.
                   </div>
                 </div>
               </div>
@@ -212,6 +213,56 @@
                 <button id="jump-day-btn" class="mini-btn">REALIGN_CYCLE</button>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- WORKOUT (NEW PRIMARY LOGGER DESTINATION) -->
+        <section id="workout-panel" class="hidden">
+          <div class="grave-box">
+            <div class="grave-header">WORKOUT_TERMINAL</div>
+            <div class="grave-body">
+
+              <div class="logger-top">
+                <div class="logger-title">TODAY’S WORK</div>
+                <div class="logger-sub" id="logger-sub">Activate a split to load today.</div>
+              </div>
+
+              <div id="today-workout-list" class="today-workout-list"></div>
+
+              <div class="divider thin"></div>
+
+              <div class="manual-log">
+                <div class="small-label">ADD CUSTOM EXERCISE (SAVED TO YOUR LIBRARY):</div>
+                <div class="row3">
+                  <input id="custom-ex-name" placeholder="EX: SAFETY BAR SQUAT">
+                  <button id="addCustomExBtn" class="mini-btn">ADD</button>
+                  <button id="clearCustomExBtn" class="mini-btn danger">CLEAR</button>
+                </div>
+                <div class="hint" style="margin-top:10px;">
+                  <span class="hint-dot"></span>
+                  Custom exercises appear in today’s dropdowns and in the manual logger.
+                </div>
+              </div>
+
+              <div class="divider thin"></div>
+
+              <div class="manual-log">
+                <div class="small-label">MANUAL CARVING (ANY EXERCISE):</div>
+                <select id="log-category"></select>
+                <select id="log-ex"></select>
+                <div class="row3">
+                  <input id="log-w" type="number" inputmode="decimal" placeholder="LBS">
+                  <input id="log-r" type="number" inputmode="numeric" placeholder="REPS">
+                  <button id="manualLogBtn" class="mini-btn">RECORD</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="grave-box">
+            <div class="grave-header">RECENT_CARVINGS</div>
+            <div id="my-logs" class="grave-body index-container"></div>
           </div>
         </section>
 
@@ -276,33 +327,8 @@
         </section>
       </main>
 
-      <!-- RIGHT: LOGGER + PR INDEX -->
+      <!-- RIGHT: PR INDEX ONLY (LOGGER MOVED TO WORKOUT TAB) -->
       <aside class="col">
-        <div class="grave-box">
-          <div class="grave-header">LOGGING_STATION</div>
-          <div class="grave-body">
-            <div class="logger-top">
-              <div class="logger-title">TODAY’S WORK</div>
-              <div class="logger-sub" id="logger-sub">Activate a split to load today.</div>
-            </div>
-
-            <div id="today-workout-list" class="today-workout-list"></div>
-
-            <div class="divider thin"></div>
-
-            <div class="manual-log">
-              <div class="small-label">MANUAL CARVING (ANY EXERCISE):</div>
-              <select id="log-category"></select>
-              <select id="log-ex"></select>
-              <div class="row3">
-                <input id="log-w" type="number" inputmode="decimal" placeholder="LBS">
-                <input id="log-r" type="number" inputmode="numeric" placeholder="REPS">
-                <button id="manualLogBtn" class="mini-btn">RECORD</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="grave-box">
           <div class="grave-header">PERSONAL_RECORDS</div>
           <div id="prList" class="grave-body index-container"></div>
