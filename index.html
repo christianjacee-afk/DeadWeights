@@ -87,6 +87,9 @@
       </div>
     </header>
 
+    <!-- transition flash -->
+    <div id="page-flash" class="page-flash"></div>
+
     <div class="grave-grid">
       <!-- LEFT: PROFILE + LEADERBOARD -->
       <aside class="col">
@@ -147,7 +150,7 @@
       <!-- CENTER: PANELS -->
       <main class="col-main">
         <!-- FEED -->
-        <section id="feed-panel">
+        <section id="feed-panel" class="panel">
           <div class="grave-box">
             <div class="grave-header">
               <span>BROADCAST_CARVING</span>
@@ -165,11 +168,11 @@
         </section>
 
         <!-- PLANS -->
-        <section id="plans-panel" class="hidden">
+        <section id="plans-panel" class="panel hidden">
           <div class="grave-box">
             <div class="grave-header">
               <span>SPLIT_INDEX</span>
-              <span class="header-chip">3–7 DAYS</span>
+              <span class="header-chip">START ANY DAY</span>
             </div>
             <div class="grave-body">
               <div class="row-split">
@@ -179,10 +182,10 @@
                 </div>
 
                 <div>
-                  <p class="small-label">START DAY:</p>
+                  <p class="small-label">START TODAY AS:</p>
                   <div class="start-controls">
-                    <button class="mini-btn" id="start-auto-btn">AUTO (TODAY)</button>
                     <select id="start-day-select"></select>
+                    <button class="mini-btn" id="start-auto-btn">ACTIVATE</button>
                   </div>
 
                   <div class="divider thin"></div>
@@ -194,7 +197,7 @@
 
                   <div class="hint">
                     <span class="hint-dot"></span>
-                    Once activated, use WORKOUT to log. You can swap exercises beside each line.
+                    After activation, go to WORKOUT to log. “Start today as” lets you pick which split-day is TODAY.
                   </div>
                 </div>
               </div>
@@ -210,14 +213,14 @@
               <div id="active-plan-readout" class="active-plan-readout"></div>
               <div class="btn-row">
                 <button id="deactivate-plan-btn" class="mini-btn danger">SEVER_RITUAL</button>
-                <button id="jump-day-btn" class="mini-btn">REALIGN_CYCLE</button>
+                <button id="jump-day-btn" class="mini-btn">SET_TODAY_TO_SELECTED</button>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- WORKOUT (NEW PRIMARY LOGGER DESTINATION) -->
-        <section id="workout-panel" class="hidden">
+        <!-- WORKOUT -->
+        <section id="workout-panel" class="panel hidden">
           <div class="grave-box">
             <div class="grave-header">WORKOUT_TERMINAL</div>
             <div class="grave-body">
@@ -267,7 +270,23 @@
         </section>
 
         <!-- FRIENDS -->
-        <section id="friends-panel" class="hidden">
+        <section id="friends-panel" class="panel hidden">
+          <div class="grave-box">
+            <div class="grave-header">
+              <span>FRIEND_REQUESTS</span>
+              <span class="header-chip" id="req-chip">0</span>
+            </div>
+            <div class="grave-body">
+              <div class="small-label">INCOMING</div>
+              <div id="incoming-requests" class="index-container" style="max-height:220px;"></div>
+
+              <div class="divider thin"></div>
+
+              <div class="small-label">OUTGOING</div>
+              <div id="outgoing-requests" class="index-container" style="max-height:220px;"></div>
+            </div>
+          </div>
+
           <div class="grave-box">
             <div class="grave-header">SEARCH_ENTITIES</div>
             <div class="grave-body">
@@ -283,7 +302,7 @@
         </section>
 
         <!-- SETTINGS -->
-        <section id="settings-panel" class="hidden">
+        <section id="settings-panel" class="panel hidden">
           <div class="grave-box">
             <div class="grave-header">USER_PARAMETERS</div>
             <div class="grave-body">
@@ -327,7 +346,7 @@
         </section>
       </main>
 
-      <!-- RIGHT: PR INDEX ONLY (LOGGER MOVED TO WORKOUT TAB) -->
+      <!-- RIGHT: PR INDEX -->
       <aside class="col">
         <div class="grave-box">
           <div class="grave-header">PERSONAL_RECORDS</div>
