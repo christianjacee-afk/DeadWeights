@@ -436,7 +436,8 @@ function setScreen(which){
 }
 
 function setTab(tabId){
-  ["feed-panel","plans-panel","friends-panel","settings-panel"].forEach(id => $(id)?.classList.add("hidden"));
+  ["feed-panel","plans-panel","workout-panel","friends-panel","settings-panel"]
+    .forEach(id => $(id)?.classList.add("hidden"));
   $(tabId)?.classList.remove("hidden");
 }
 
@@ -668,6 +669,10 @@ function hookCoreButtons(){
 
   // Logger
   if($("manualLogBtn")) $("manualLogBtn").onclick = manualLog;
+
+  // Custom Exercise Library Buttons (NEW)
+  if($("addCustomExBtn")) $("addCustomExBtn").onclick = addCustomExercise;
+  if($("clearCustomExBtn")) $("clearCustomExBtn").onclick = clearCustomExercises;
 
   // Feed buttons (placeholder until you wire a posts collection)
   if($("postStatusBtn")) $("postStatusBtn").onclick = () => toast("FEED NOT WIRED YET.");
@@ -908,6 +913,42 @@ function buildManualLogger(){
   buildEx();
 }
 
+async function addCustomExercise(){
+  const input = $("custom-ex-name");
+  const name = (input?.value || "").trim();
+  if(!name || name.length < 3) return toast("ENTER 3+ CHARS.");
+
+  const clean = name.replace(/\s+/g, " ").trim();
+  const current = currentUserData.exerciseLibrary || [];
+  const next = Array.from(new Set([...current, clean])).sort((a,b)=>a.localeCompare(b));
+
+  await updateDoc(doc(db,"users", auth.currentUser.uid), {
+    exerciseLibrary: next,
+    updatedAt: serverTimestamp()
+  });
+
+  currentUserData.exerciseLibrary = next;
+
+  if(input) input.value = "";
+  buildManualLogger();
+  renderTodayWorkoutLogger();
+  toast("EXERCISE_ADDED.");
+}
+
+async function clearCustomExercises(){
+  if(!confirm("Clear all custom exercises from your library?")) return;
+
+  await updateDoc(doc(db,"users", auth.currentUser.uid), {
+    exerciseLibrary: [],
+    updatedAt: serverTimestamp()
+  });
+
+  currentUserData.exerciseLibrary = [];
+  buildManualLogger();
+  renderTodayWorkoutLogger();
+  toast("LIBRARY_CLEARED.");
+}
+
 async function manualLog(){
   const ex = $("log-ex")?.value;
   const w = Number($("log-w")?.value);
@@ -992,6 +1033,10 @@ async function activateSelectedPlanAuto(){
   setText("active-split-label", plan.name);
   renderActivePlanStatus();
   renderTodayWorkoutLogger();
+
+  // NEW: go straight to WORKOUT for logging
+  setTab("workout-panel");
+
   toast("SPLIT_ACTIVATED.");
 }
 
@@ -1002,6 +1047,10 @@ async function deactivatePlan(){
   setText("active-day-chip","DAY_?");
   setHTML("active-plan-readout","");
   renderTodayWorkoutLogger();
+
+  // optional: bounce back to plans
+  setTab("plans-panel");
+
   toast("SPLIT_DEACTIVATED.");
 }
 
@@ -1116,6 +1165,7 @@ function renderTodayWorkoutLogger(){
         const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), clean]));
         await updateDoc(doc(db,"users", auth.currentUser.uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
         currentUserData.exerciseLibrary = next;
+        buildManualLogger();
         renderTodayWorkoutLogger();
         return;
       }
