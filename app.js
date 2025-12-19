@@ -468,9 +468,7 @@ async function finalizeRegistration(){
 
   try{
     await setDoc(doc(db,"users", user.uid), payload, { merge:true });
-    // No “stuck after create” — force UI swap right now.
     toast("ENTITY_BOUND. WELCOME TO THE GRAVE.");
-    // onAuthStateChanged will also run and call initApp()
   }catch(e){
     $("reg-warn").textContent = (e?.message || "FINALIZE FAILED.").toUpperCase();
   }
@@ -785,16 +783,6 @@ function buildStartDaySelect(){
   sel.value = String(new Date().getDay());
 }
 
-/* AUTO-ROTATION PLAN MODEL:
-   activePlan = {
-     planId,
-     startDayIndex,
-     currentDayIndex,
-     lastAdvancedDayKey
-   }
-   - Missed days do NOT advance.
-   - The first plan log of a new day advances day index for next time.
-*/
 function planDayForToday(){
   const ap = currentUserData.activePlan;
   if(!ap?.planId) return null;
@@ -814,7 +802,6 @@ async function activateSelectedPlanAuto(){
   const today = new Date().getDay();
   const delta = (today - startDay + 7) % 7;
 
-  // If plan has fewer than 7 days, clamp rotation to plan length.
   const startIdx = clamp(delta, 0, plan.days.length-1);
 
   const activePlan = {
@@ -844,7 +831,6 @@ async function deactivatePlan(){
 }
 
 async function jumpTodayDay(){
-  // manual override for currentDayIndex = startDayIndex based on day-of-week alignment
   const ap = currentUserData.activePlan;
   if(!ap?.planId) return toast("NO ACTIVE SPLIT.");
   const plan = planById(ap.planId, currentUserData);
@@ -898,7 +884,7 @@ function renderActivePlanStatus(){
 }
 
 /* =========================
-   TODAY WORKOUT LOGGER (shows sets/reps + logs per exercise)
+   TODAY WORKOUT LOGGER
 ========================= */
 function renderTodayWorkoutLogger(){
   const box = $("today-workout-list");
@@ -920,7 +906,6 @@ function renderTodayWorkoutLogger(){
     const pool = allExercises();
     const currentName = row.name;
 
-    // allow swap: dropdown of all exercises + special "ADD_NEW"
     const options = [
       ...pool.map(e => `<option value="${esc(e)}" ${e===currentName ? "selected":""}>${esc(e)}</option>`),
       `<option value="__ADD__">+ ADD EXERCISE…</option>`
@@ -951,11 +936,9 @@ function renderTodayWorkoutLogger(){
         if(!name) { sel.value = currentName; return; }
         const clean = name.trim();
         if(clean.length < 3){ sel.value = currentName; return; }
-        // add to library then select it
         const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), clean]));
         await updateDoc(doc(db,"users", auth.currentUser.uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
         currentUserData.exerciseLibrary = next;
-        // rebuild dropdown options
         renderTodayWorkoutLogger();
         return;
       }
@@ -1067,7 +1050,6 @@ async function saveCustomSplit(){
    LOGGING + AUTO ROTATION
 ========================= */
 function userDailyDoc(uid, dayKey){
-  // per-user daily totals
   return doc(db, "users", uid, "dailyTotals", dayKey);
 }
 
@@ -1076,7 +1058,6 @@ async function submitLog(exercise, weight, reps, meta={}){
   const dk = todayKey();
   const volume = Number(weight) * Number(reps);
 
-  // store log
   await addDoc(collection(db,"logs"), {
     uid,
     dayKey: dk,
@@ -1088,7 +1069,6 @@ async function submitLog(exercise, weight, reps, meta={}){
     createdAt: serverTimestamp()
   });
 
-  // increment user carvings
   await updateDoc(doc(db,"users", uid), {
     carvingCount: increment(1),
     updatedAt: serverTimestamp()
@@ -1100,7 +1080,6 @@ async function submitLog(exercise, weight, reps, meta={}){
   $("user-rank").textContent = computeRankName(currentUserData.carvingCount);
   $("header-rank").textContent = `// ${computeRankName(currentUserData.carvingCount)}`;
 
-  // update personal daily massgrave (per user)
   await setDoc(userDailyDoc(uid, dk), {
     uid,
     dayKey: dk,
@@ -1108,7 +1087,6 @@ async function submitLog(exercise, weight, reps, meta={}){
     updatedAt: serverTimestamp()
   }, { merge:true });
 
-  // auto-rotation advance: only once per day, only for plan logs
   if(meta?.source === "plan" && currentUserData.activePlan?.planId){
     const ap = currentUserData.activePlan;
     if(ap.lastAdvancedDayKey !== dk){
@@ -1141,7 +1119,6 @@ async function deleteLog(logId, logData){
   const dk = logData.dayKey || todayKey();
   const vol = Number(logData.volume || (Number(logData.weight)*Number(logData.reps)) || 0);
 
-  // decrement personal daily total
   await setDoc(userDailyDoc(uid, dk), {
     uid,
     dayKey: dk,
@@ -1294,7 +1271,7 @@ function renderTrophies(){
 }
 
 /* =========================
-   FEED / FRIENDS / LEADERBOARD (minimal working versions)
+   FEED / FRIENDS / LEADERBOARD
 ========================= */
 async function loadLeaderboardStream(){
   const wrap = $("leaderboard");
@@ -1318,7 +1295,6 @@ async function loadLeaderboardStream(){
 async function loadFeedStream(){
   const wrap = $("feed-content");
   wrap.innerHTML = `<div class="index-row"><span class="dim">FEED LOADING…</span></div>`;
-  // If you already have a posts system in your Firestore rules, wire it here.
   wrap.innerHTML = `<div class="index-row"><span class="dim">FEED SYSTEM READY (hook your posts collection here).</span></div>`;
 }
 
@@ -1365,10 +1341,9 @@ async function openProfile(uid){
 }
 
 /* =========================
-   STARTUP WIRING FOR AUTH SCREEN (so buttons always work)
+   STARTUP WIRING FOR AUTH SCREEN
 ========================= */
 (function boot(){
-  // Auth screen wiring before auth state resolves
   if($("loginBtn")) $("loginBtn").onclick = doLogin;
   if($("showRegBtn")) $("showRegBtn").onclick = () => {
     setScreen("registration-screen");
