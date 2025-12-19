@@ -24,7 +24,9 @@ import {
   onSnapshot,
   getDocs,
   serverTimestamp,
-  increment
+  increment,
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 /* =========================
@@ -47,13 +49,11 @@ const db = getFirestore(app);
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
-// Safe DOM helpers (prevents one missing element from crashing the whole app)
 const setText = (id, value) => { const el = $(id); if(el) el.textContent = value; };
 const setHTML = (id, value) => { const el = $(id); if(el) el.innerHTML = value; };
 const setClass = (id, className) => { const el = $(id); if(el) el.className = className; };
 const show = (id) => { const el = $(id); if(el) el.classList.remove("hidden"); };
 const hide = (id) => { const el = $(id); if(el) el.classList.add("hidden"); };
-const on = (id, evt, fn) => { const el = $(id); if(el) el.addEventListener(evt, fn); };
 
 const esc = (s="") => String(s)
   .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
@@ -72,12 +72,11 @@ function todayKey(){
 function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
 
 function e1rm(w, r){
-  // Epley
   return Math.round((Number(w) || 0) * (1 + (Number(r) || 0)/30));
 }
 
 /* =========================
-   GAME SYSTEMS (RANKS / TROPHIES / CARDS)
+   GAME SYSTEMS
 ========================= */
 const RANKS = [
   { min: 0, name: "NEWBORN" },
@@ -87,7 +86,6 @@ const RANKS = [
   { min: 150, name: "CRYPT_KING" }
 ];
 
-/* LOWERED TROPHIES for normal gym goers */
 const TROPHIES = [
   { id:"BENCH_185", label:"BENCH 185+ (e1RM)", key:"Bench Press", min:185 },
   { id:"SQUAT_225", label:"SQUAT 225+ (e1RM)", key:"Back Squat", min:225 },
@@ -127,7 +125,7 @@ function cardsForUser(user){
 }
 
 /* =========================
-   RELIC VAULT (Loot Artifacts)
+   RELIC VAULT
 ========================= */
 const RELICS = [
   { id:"rusted_plate", tier:"COMMON", name:"RUSTED_PLATE", reqText:"ACCOUNT_CREATED",
@@ -348,8 +346,14 @@ let selectedAvatar = "skull";
 let selectedCard = "rust_sigils";
 let selectedPlanId = null;
 let manualCategory = "Push";
+
 let unsubMyLogs = null;
 let unsubMassGrave = null;
+let unsubIncomingReq = null;
+let unsubOutgoingReq = null;
+
+let currentModalUid = null;
+let currentModalUsername = null;
 
 /* =========================
    AVATAR FACTORY (SVG)
@@ -426,7 +430,7 @@ function renderAvatarInto(el, style, seed){
 }
 
 /* =========================
-   UI HELPERS
+   UI NAV + TRANSITIONS
 ========================= */
 function setScreen(which){
   $("auth-screen")?.classList.add("hidden");
@@ -435,10 +439,35 @@ function setScreen(which){
   $(which)?.classList.remove("hidden");
 }
 
+function flashTransition(){
+  const f = $("page-flash");
+  if(!f) return;
+  f.classList.add("on");
+  clearTimeout(f._t);
+  f._t = setTimeout(()=>f.classList.remove("on"), 170);
+}
+
 function setTab(tabId){
-  ["feed-panel","plans-panel","workout-panel","friends-panel","settings-panel"]
-    .forEach(id => $(id)?.classList.add("hidden"));
-  $(tabId)?.classList.remove("hidden");
+  const panels = ["feed-panel","plans-panel","workout-panel","friends-panel","settings-panel"];
+  panels.forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    el.classList.add("hidden");
+    el.classList.remove("active");
+  });
+
+  const target = $(tabId);
+  if(target){
+    target.classList.remove("hidden");
+    requestAnimationFrame(()=> target.classList.add("active"));
+  }
+
+  // active nav highlight
+  document.querySelectorAll(".mini-btn[data-tab]").forEach(btn=>{
+    btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+  });
+
+  flashTransition();
 }
 
 function planById(id, user){
@@ -500,23 +529,19 @@ async function finalizeRegistration(){
     avatar: selectedAvatar || "skull",
     callingCard: selectedCard || "rust_sigils",
 
-    // progression
     carvingCount: 0,
     trophies: {},
     prs: {},
 
-    // Relic Vault
     equippedRelic: "rusted_plate",
     lifetimeVolume: 0,
     daysLoggedCount: 0,
     lastLoggedDayKey: null,
 
-    // plans
     activePlan: null,
     customPlans: [],
     exerciseLibrary: [],
 
-    // social placeholders
     friends: [],
 
     createdAt: serverTimestamp(),
@@ -571,11 +596,9 @@ onAuthStateChanged(auth, async (user) => {
    INIT APP
 ========================= */
 function initApp(){
-  // Defensive: never let a missing element brick the entire UI.
   try{
     setText("header-callsign", currentUserData?.username || "UNKNOWN");
     setText("profileUsername", currentUserData?.username || "UNKNOWN");
-
     setText("stat-count", String(currentUserData?.carvingCount || 0));
 
     const rankName = computeRankName(currentUserData?.carvingCount || 0);
@@ -587,8 +610,6 @@ function initApp(){
     setText("tag-text", (TAGS.find(t => t.css===tagCss)?.label || "CADAVER"));
 
     renderAvatarInto($("avatar-frame"), currentUserData?.avatar || "skull", currentUserData?.uid || "seed");
-
-    // relic chip
     setText("equipped-relic-chip", String(currentUserData?.equippedRelic || "rusted_plate").toUpperCase());
 
     const activeLabel = currentUserData?.activePlan?.planId
@@ -596,42 +617,34 @@ function initApp(){
       : "NONE";
     setText("active-split-label", activeLabel);
 
-    // Always attach handlers, even if some render functions fail.
-    hookNavButtons();
     hookCoreButtons();
 
     buildSettingsPickers();
-    buildStartDaySelect();
     buildManualLogger();
 
     renderPlansIndex();
+    buildStartDaySelect(); // now depends on selected plan
     renderActivePlanStatus();
     renderTodayWorkoutLogger();
 
     loadDailyMassGrave();
     loadMyLogs();
-    loadPRStream();
+    loadPRUI();
     loadLeaderboardStream();
     loadFeedStream();
-    loadFriendsUI();
+    setupFriendSystems();   // NEW: requests + friends list
     renderTrophies();
 
+    // default tab
     setTab("feed-panel");
   }catch(e){
     console.error("initApp crash:", e);
-    // Still try to wire core buttons so the user can navigate/logout.
-    try{ hookNavButtons(); hookCoreButtons(); }catch(_){}
+    try{ hookCoreButtons(); }catch(_){}
   }
 }
 
-function hookNavButtons(){
-  document.querySelectorAll(".mini-btn[data-tab]").forEach(btn => {
-    btn.onclick = () => setTab(btn.getAttribute("data-tab"));
-  });
-}
-
 function hookCoreButtons(){
-  // Auth screen
+  // Auth
   if($("loginBtn")) $("loginBtn").onclick = doLogin;
   if($("showRegBtn")) $("showRegBtn").onclick = () => {
     setScreen("registration-screen");
@@ -643,16 +656,23 @@ function hookCoreButtons(){
   };
   if($("forgotBtn")) $("forgotBtn").onclick = doForgot;
 
-  // Registration screen
+  // Registration
   if($("nextStepBtn")) $("nextStepBtn").onclick = beginRegistration;
   if($("finalizeRegBtn")) $("finalizeRegBtn").onclick = finalizeRegistration;
   if($("returnToLoginBtn")) $("returnToLoginBtn").onclick = () => setScreen("auth-screen");
 
-  // App / nav
+  // Nav tabs
+  document.querySelectorAll(".mini-btn[data-tab]").forEach(btn => {
+    btn.onclick = () => setTab(btn.getAttribute("data-tab"));
+  });
+
+  // Logout
   if($("logoutBtn")) $("logoutBtn").onclick = async () => {
     try{
       if(unsubMyLogs) unsubMyLogs();
       if(unsubMassGrave) unsubMassGrave();
+      if(unsubIncomingReq) unsubIncomingReq();
+      if(unsubOutgoingReq) unsubOutgoingReq();
     }catch(_){}
     await signOut(auth);
   };
@@ -663,23 +683,33 @@ function hookCoreButtons(){
   if($("builder-days")) $("builder-days").onchange = buildBuilderDays;
   if($("builder-create-btn")) $("builder-create-btn").onclick = saveCustomSplit;
 
-  if($("start-auto-btn")) $("start-auto-btn").onclick = () => activateSelectedPlanAuto();
+  // START TODAY AS (select) + activate
+  if($("start-day-select")) $("start-day-select").onchange = () => {
+    // visual feedback only
+    flashTransition();
+  };
+
+  if($("start-auto-btn")) $("start-auto-btn").onclick = () => activateSelectedPlanTodayAsSelected();
   if($("deactivate-plan-btn")) $("deactivate-plan-btn").onclick = deactivatePlan;
-  if($("jump-day-btn")) $("jump-day-btn").onclick = jumpTodayDay;
+  if($("jump-day-btn")) $("jump-day-btn").onclick = setTodayToSelectedPlanDay;
 
   // Logger
   if($("manualLogBtn")) $("manualLogBtn").onclick = manualLog;
 
-  // Custom Exercise Library Buttons (NEW)
+  // Custom exercise buttons
   if($("addCustomExBtn")) $("addCustomExBtn").onclick = addCustomExercise;
   if($("clearCustomExBtn")) $("clearCustomExBtn").onclick = clearCustomExercises;
 
-  // Feed buttons (placeholder until you wire a posts collection)
+  // Feed placeholders
   if($("postStatusBtn")) $("postStatusBtn").onclick = () => toast("FEED NOT WIRED YET.");
   if($("refreshFeedBtn")) $("refreshFeedBtn").onclick = () => loadFeedStream();
 
   // Profile modal
   if($("closeProfileBtn")) $("closeProfileBtn").onclick = () => $("profile-modal")?.classList.add("hidden");
+  if($("modal-friend-btn")) $("modal-friend-btn").onclick = async () => {
+    if(!currentModalUid) return;
+    await sendFriendRequest(currentModalUid, currentModalUsername || "UNKNOWN");
+  };
 
   // Settings
   if($("renameBtn")) $("renameBtn").onclick = renameEntity;
@@ -690,7 +720,7 @@ function hookCoreButtons(){
   if($("openRelicVaultBtn")) $("openRelicVaultBtn").onclick = openRelicVault;
   if($("closeRelicVaultBtn")) $("closeRelicVaultBtn").onclick = closeRelicVault;
 
-  // Admin local tools (placeholders)
+  // Admin placeholders
   if($("purgeMyLogsBtn")) $("purgeMyLogsBtn").onclick = purgeMyLogs;
   if($("purgeMyPostsBtn")) $("purgeMyPostsBtn").onclick = purgeMyPosts;
 }
@@ -740,7 +770,6 @@ function buildRegPickers(seed){
    SETTINGS PICKERS
 ========================= */
 function buildSettingsPickers(){
-  // TAG picker
   const tagWrap = $("settings-tag-picker");
   if(tagWrap){
     tagWrap.innerHTML = "";
@@ -757,7 +786,6 @@ function buildSettingsPickers(){
     selectedTagCss = currentUserData.tag || "tag-rust";
   }
 
-  // Avatar picker
   const avWrap = $("settings-avatar-picker");
   if(avWrap){
     avWrap.innerHTML = "";
@@ -776,7 +804,6 @@ function buildSettingsPickers(){
     selectedAvatar = currentUserData.avatar || "skull";
   }
 
-  // Card picker (click-to-equip if unlocked)
   const cardWrap = $("card-picker");
   if(cardWrap){
     const cards = cardsForUser(currentUserData);
@@ -835,7 +862,7 @@ async function updateAvatar(){
 }
 
 /* =========================
-   RELIC VAULT UI
+   RELIC VAULT
 ========================= */
 function openRelicVault(){
   renderRelicVault();
@@ -890,7 +917,7 @@ async function equipRelic(relicId){
 }
 
 /* =========================
-   MANUAL LOGGER
+   MANUAL LOGGER + CUSTOM EXERCISES
 ========================= */
 function buildManualLogger(){
   const catSel = $("log-category");
@@ -928,8 +955,8 @@ async function addCustomExercise(){
   });
 
   currentUserData.exerciseLibrary = next;
-
   if(input) input.value = "";
+
   buildManualLogger();
   renderTodayWorkoutLogger();
   toast("EXERCISE_ADDED.");
@@ -962,7 +989,7 @@ async function manualLog(){
 }
 
 /* =========================
-   PLANS INDEX + ACTIVE PLAN
+   PLANS
 ========================= */
 function renderPlansIndex(){
   const wrap = $("plan-index");
@@ -984,19 +1011,35 @@ function renderPlansIndex(){
       selectedPlanId = p.id;
       wrap.querySelectorAll(".plan-card").forEach(x => x.classList.remove("active"));
       card.classList.add("active");
+      buildStartDaySelect();       // IMPORTANT: update “start today as” options for this plan
+      flashTransition();
     };
     wrap.appendChild(card);
   });
 
   selectedPlanId = selectedPlanId || currentUserData.activePlan?.planId || built[0]?.id;
+  buildStartDaySelect();
 }
 
 function buildStartDaySelect(){
   const sel = $("start-day-select");
   if(!sel) return;
-  const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-  sel.innerHTML = days.map((d,i)=>`<option value="${i}">${d}</option>`).join("");
-  sel.value = String(new Date().getDay());
+
+  const plan = selectedPlanId ? planById(selectedPlanId, currentUserData) : null;
+  if(!plan){
+    sel.innerHTML = `<option value="0">DAY_1</option>`;
+    sel.value = "0";
+    return;
+  }
+
+  sel.innerHTML = plan.days.map((d,i)=>`<option value="${i}">DAY_${i+1} — ${esc(d.name)}</option>`).join("");
+
+  // default: if active plan matches selected, show its current day
+  if(currentUserData.activePlan?.planId === selectedPlanId){
+    sel.value = String(clamp(Number(currentUserData.activePlan.currentDayIndex ?? 0), 0, plan.days.length-1));
+  }else{
+    sel.value = "0";
+  }
 }
 
 function planDayForToday(){
@@ -1005,25 +1048,23 @@ function planDayForToday(){
   const plan = planById(ap.planId, currentUserData);
   if(!plan) return null;
 
-  const idx = clamp(Number(ap.currentDayIndex ?? ap.startDayIndex ?? 0), 0, plan.days.length-1);
+  const idx = clamp(Number(ap.currentDayIndex ?? 0), 0, plan.days.length-1);
   return { plan, planIndex: idx };
 }
 
-async function activateSelectedPlanAuto(){
+async function activateSelectedPlanTodayAsSelected(){
   if(!selectedPlanId) return toast("SELECT A SPLIT.");
   const plan = planById(selectedPlanId, currentUserData);
   if(!plan) return toast("PLAN NOT FOUND.");
 
-  const startDay = Number($("start-day-select")?.value || new Date().getDay());
-  const today = new Date().getDay();
-  const delta = (today - startDay + 7) % 7;
-
-  const startIdx = clamp(delta, 0, plan.days.length-1);
+  const chosenIdx = Number($("start-day-select")?.value || 0);
+  const startIdx = clamp(chosenIdx, 0, plan.days.length-1);
 
   const activePlan = {
     planId: selectedPlanId,
     startDayIndex: startIdx,
     currentDayIndex: startIdx,
+    startedDayKey: todayKey(),
     lastAdvancedDayKey: null
   };
 
@@ -1034,43 +1075,42 @@ async function activateSelectedPlanAuto(){
   renderActivePlanStatus();
   renderTodayWorkoutLogger();
 
-  // NEW: go straight to WORKOUT for logging
+  // take them straight to the logger
   setTab("workout-panel");
-
   toast("SPLIT_ACTIVATED.");
+}
+
+async function setTodayToSelectedPlanDay(){
+  const ap = currentUserData.activePlan;
+  if(!ap?.planId) return toast("NO ACTIVE SPLIT.");
+
+  const plan = planById(ap.planId, currentUserData);
+  if(!plan) return toast("PLAN NOT FOUND.");
+
+  const chosenIdx = Number($("start-day-select")?.value || 0);
+  const idx = clamp(chosenIdx, 0, plan.days.length-1);
+
+  const next = { ...ap, currentDayIndex: idx };
+  await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: next, updatedAt: serverTimestamp() });
+  currentUserData.activePlan = next;
+
+  renderActivePlanStatus();
+  renderTodayWorkoutLogger();
+  toast("TODAY_REALIGNED.");
 }
 
 async function deactivatePlan(){
   await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: null, updatedAt: serverTimestamp() });
   currentUserData.activePlan = null;
+
   setText("active-split-label","NONE");
   setText("active-day-chip","DAY_?");
   setHTML("active-plan-readout","");
   renderTodayWorkoutLogger();
+  buildStartDaySelect();
 
-  // optional: bounce back to plans
   setTab("plans-panel");
-
   toast("SPLIT_DEACTIVATED.");
-}
-
-async function jumpTodayDay(){
-  const ap = currentUserData.activePlan;
-  if(!ap?.planId) return toast("NO ACTIVE SPLIT.");
-  const plan = planById(ap.planId, currentUserData);
-  if(!plan) return toast("PLAN NOT FOUND.");
-
-  const startDay = Number($("start-day-select")?.value || new Date().getDay());
-  const today = new Date().getDay();
-  const delta = (today - startDay + 7) % 7;
-  const idx = clamp(delta, 0, plan.days.length-1);
-
-  const next = { ...ap, currentDayIndex: idx };
-  await updateDoc(doc(db,"users", auth.currentUser.uid), { activePlan: next, updatedAt: serverTimestamp() });
-  currentUserData.activePlan = next;
-  renderActivePlanStatus();
-  renderTodayWorkoutLogger();
-  toast("TODAY_SET.");
 }
 
 function renderActivePlanStatus(){
@@ -1106,6 +1146,12 @@ function renderActivePlanStatus(){
     }
     wrap.appendChild(badge);
   });
+
+  // sync selector to active day if viewing this plan
+  if(selectedPlanId === ap.planId){
+    const sel = $("start-day-select");
+    if(sel) sel.value = String(idx);
+  }
 }
 
 /* =========================
@@ -1162,7 +1208,7 @@ function renderTodayWorkoutLogger(){
         if(!name) { sel.value = currentName; return; }
         const clean = name.trim();
         if(clean.length < 3){ sel.value = currentName; return; }
-        const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), clean]));
+        const next = Array.from(new Set([...(currentUserData.exerciseLibrary || []), clean])).sort((a,b)=>a.localeCompare(b));
         await updateDoc(doc(db,"users", auth.currentUser.uid), { exerciseLibrary: next, updatedAt: serverTimestamp() });
         currentUserData.exerciseLibrary = next;
         buildManualLogger();
@@ -1272,7 +1318,7 @@ async function saveCustomSplit(){
 }
 
 /* =========================
-   LOGGING + AUTO ROTATION + RELIC STATS
+   LOGGING + STATS
 ========================= */
 function userDailyDoc(uid, dayKey){
   return doc(db, "users", uid, "dailyTotals", dayKey);
@@ -1294,7 +1340,6 @@ async function submitLog(exercise, weight, reps, meta={}){
     createdAt: serverTimestamp()
   });
 
-  // carvings
   await updateDoc(doc(db,"users", uid), {
     carvingCount: increment(1),
     updatedAt: serverTimestamp()
@@ -1306,14 +1351,12 @@ async function submitLog(exercise, weight, reps, meta={}){
   setText("user-rank", rn);
   setText("header-rank", `// ${rn}`);
 
-  // lifetime volume (Relic Vault trigger)
   await updateDoc(doc(db,"users", uid), {
     lifetimeVolume: increment(volume),
     updatedAt: serverTimestamp()
   });
   currentUserData.lifetimeVolume = (currentUserData.lifetimeVolume || 0) + volume;
 
-  // distinct days logged (Relic Vault trigger)
   if((currentUserData.lastLoggedDayKey || null) !== dk){
     await updateDoc(doc(db,"users", uid), {
       daysLoggedCount: increment(1),
@@ -1324,7 +1367,6 @@ async function submitLog(exercise, weight, reps, meta={}){
     currentUserData.lastLoggedDayKey = dk;
   }
 
-  // daily total (for UI)
   await setDoc(userDailyDoc(uid, dk), {
     uid,
     dayKey: dk,
@@ -1332,7 +1374,7 @@ async function submitLog(exercise, weight, reps, meta={}){
     updatedAt: serverTimestamp()
   }, { merge:true });
 
-  // auto-advance plan day once per day
+  // auto-advance ONCE per day after first plan log that day
   if(meta?.source === "plan" && currentUserData.activePlan?.planId){
     const ap = currentUserData.activePlan;
     if(ap.lastAdvancedDayKey !== dk){
@@ -1347,12 +1389,12 @@ async function submitLog(exercise, weight, reps, meta={}){
 
       renderActivePlanStatus();
       renderTodayWorkoutLogger();
+      buildStartDaySelect();
     }
   }
 
   await updatePRsAndTrophies(exercise, weight, reps);
 
-  // live refresh Vault if open
   if(!$("relic-vault-modal")?.classList.contains("hidden")){
     renderRelicVault();
   }
@@ -1386,7 +1428,7 @@ async function deleteLog(logId, logData){
 }
 
 /* =========================
-   PRs + TROPHIES
+   PR + TROPHIES
 ========================= */
 async function updatePRsAndTrophies(exercise, weight, reps){
   const uid = auth.currentUser.uid;
@@ -1394,8 +1436,8 @@ async function updatePRsAndTrophies(exercise, weight, reps){
   const trophies = currentUserData.trophies || {};
 
   const est = e1rm(weight, reps);
-
   const prev = prs[exercise] || { bestE1RM: 0, bestWeight: 0, bestReps: 0 };
+
   const improvedE = est > (prev.bestE1RM || 0);
   const improvedW = weight > (prev.bestWeight || 0);
 
@@ -1417,16 +1459,13 @@ async function updatePRsAndTrophies(exercise, weight, reps){
   await updateDoc(doc(db,"users", uid), { prs, trophies, updatedAt: serverTimestamp() });
   currentUserData.prs = prs;
   currentUserData.trophies = trophies;
-  renderTrophies();
 
-  // PR unlocks affect Relic Vault — refresh if open
-  if(!$("relic-vault-modal")?.classList.contains("hidden")){
-    renderRelicVault();
-  }
+  renderTrophies();
+  loadPRUI();
 }
 
 /* =========================
-   DAILY MASSGRAVE (per user)
+   DAILY MASSGRAVE
 ========================= */
 function loadDailyMassGrave(){
   const uid = auth.currentUser.uid;
@@ -1484,7 +1523,7 @@ function loadMyLogs(){
 /* =========================
    PR UI
 ========================= */
-function loadPRStream(){
+function loadPRUI(){
   const wrap = $("prList");
   if(!wrap) return;
   const prs = currentUserData.prs || {};
@@ -1532,11 +1571,248 @@ function renderTrophies(){
 }
 
 /* =========================
-   FEED / FRIENDS / LEADERBOARD (placeholders)
+   FRIEND REQUESTS + FRIENDS LIST (NEW)
+========================= */
+function friendReqDocId(fromUid, toUid){
+  return `${fromUid}_${toUid}`;
+}
+
+async function sendFriendRequest(toUid, toUsername="UNKNOWN"){
+  const uid = auth.currentUser.uid;
+  if(toUid === uid) return toast("CANNOT FRIEND SELF.");
+
+  // already friends?
+  const friends = currentUserData.friends || [];
+  if(friends.includes(toUid)) return toast("ALREADY_FRIENDS.");
+
+  // if they already sent you a request, accept it immediately
+  const reverseId = friendReqDocId(toUid, uid);
+  const reverseSnap = await getDoc(doc(db,"friendRequests", reverseId));
+  if(reverseSnap.exists()){
+    const r = reverseSnap.data();
+    if(r.status === "pending"){
+      await acceptFriendRequest(reverseId, toUid);
+      toast("REQUEST_ACCEPTED.");
+      return;
+    }
+  }
+
+  const reqId = friendReqDocId(uid, toUid);
+  const existing = await getDoc(doc(db,"friendRequests", reqId));
+  if(existing.exists()){
+    const d = existing.data();
+    if(d.status === "pending") return toast("REQUEST_ALREADY_SENT.");
+  }
+
+  await setDoc(doc(db,"friendRequests", reqId), {
+    fromUid: uid,
+    fromUsername: currentUserData.username || "UNKNOWN",
+    toUid,
+    toUsername,
+    status: "pending",
+    createdAt: serverTimestamp()
+  }, { merge:true });
+
+  // update modal button feedback
+  const btn = $("modal-friend-btn");
+  if(btn && currentModalUid === toUid){
+    btn.textContent = "REQUEST_SENT";
+    btn.disabled = true;
+    btn.classList.add("disabled");
+  }
+
+  toast("REQUEST_SENT.");
+}
+
+async function acceptFriendRequest(reqId, otherUid){
+  const uid = auth.currentUser.uid;
+
+  await updateDoc(doc(db,"friendRequests", reqId), {
+    status: "accepted",
+    respondedAt: serverTimestamp()
+  });
+
+  await updateDoc(doc(db,"users", uid), {
+    friends: arrayUnion(otherUid),
+    updatedAt: serverTimestamp()
+  });
+  await updateDoc(doc(db,"users", otherUid), {
+    friends: arrayUnion(uid),
+    updatedAt: serverTimestamp()
+  });
+
+  currentUserData.friends = Array.from(new Set([...(currentUserData.friends||[]), otherUid]));
+  renderFriendsList();
+}
+
+async function declineFriendRequest(reqId){
+  await updateDoc(doc(db,"friendRequests", reqId), {
+    status: "declined",
+    respondedAt: serverTimestamp()
+  });
+  toast("REQUEST_DECLINED.");
+}
+
+function setupFriendSystems(){
+  listenFriendRequests();
+  setupUserSearch();
+  renderFriendsList();
+}
+
+function listenFriendRequests(){
+  const uid = auth.currentUser.uid;
+
+  if(unsubIncomingReq) unsubIncomingReq();
+  if(unsubOutgoingReq) unsubOutgoingReq();
+
+  const incomingWrap = $("incoming-requests");
+  const outgoingWrap = $("outgoing-requests");
+
+  const inQ = query(collection(db,"friendRequests"),
+    where("toUid","==", uid),
+    where("status","==","pending"),
+    orderBy("createdAt","desc"),
+    limit(25)
+  );
+
+  unsubIncomingReq = onSnapshot(inQ, (snap) => {
+    if(!incomingWrap) return;
+    incomingWrap.innerHTML = "";
+
+    const count = snap.size || 0;
+    setText("req-chip", String(count));
+
+    if(snap.empty){
+      incomingWrap.innerHTML = `<div class="index-row"><span class="dim">NO INCOMING REQUESTS.</span></div>`;
+      return;
+    }
+
+    snap.forEach(s => {
+      const r = s.data();
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span>${esc(r.fromUsername || "UNKNOWN")}</span>
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          <button class="mini-btn" data-acc="1">ACCEPT</button>
+          <button class="mini-btn danger" data-dec="1">DECLINE</button>
+        </div>
+      `;
+      row.querySelector('[data-acc="1"]').onclick = () => acceptFriendRequest(s.id, r.fromUid);
+      row.querySelector('[data-dec="1"]').onclick = () => declineFriendRequest(s.id);
+      incomingWrap.appendChild(row);
+    });
+  });
+
+  const outQ = query(collection(db,"friendRequests"),
+    where("fromUid","==", uid),
+    where("status","==","pending"),
+    orderBy("createdAt","desc"),
+    limit(25)
+  );
+
+  unsubOutgoingReq = onSnapshot(outQ, (snap) => {
+    if(!outgoingWrap) return;
+    outgoingWrap.innerHTML = "";
+
+    if(snap.empty){
+      outgoingWrap.innerHTML = `<div class="index-row"><span class="dim">NO OUTGOING REQUESTS.</span></div>`;
+      return;
+    }
+
+    snap.forEach(s => {
+      const r = s.data();
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span>${esc(r.toUsername || "UNKNOWN")}</span>
+        <span class="dim" style="margin-left:auto;">PENDING</span>
+      `;
+      outgoingWrap.appendChild(row);
+    });
+  });
+}
+
+function setupUserSearch(){
+  const inp = $("userSearch");
+  if(!inp) return;
+
+  inp.oninput = async () => {
+    const term = inp.value.trim();
+    const out = $("search-results");
+    if(!out) return;
+    out.innerHTML = "";
+    if(term.length < 2) return;
+
+    const qy = query(
+      collection(db,"users"),
+      where("username", ">=", term),
+      where("username", "<=", term + "\uf8ff"),
+      limit(10)
+    );
+
+    const snap = await getDocs(qy);
+    snap.forEach(s => {
+      const u = s.data();
+      if(u.uid === auth.currentUser.uid) return;
+
+      const row = document.createElement("div");
+      row.className = "index-row";
+      row.innerHTML = `
+        <span style="cursor:pointer; color: rgba(0,255,65,0.85)">${esc(u.username || "UNKNOWN")}</span>
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          <button class="mini-btn" data-view="1">VIEW</button>
+          <button class="mini-btn" data-add="1">REQUEST</button>
+        </div>
+      `;
+      row.querySelector('[data-view="1"]').onclick = () => openProfile(u.uid);
+      row.querySelector('[data-add="1"]').onclick = () => sendFriendRequest(u.uid, u.username || "UNKNOWN");
+      out.appendChild(row);
+    });
+  };
+}
+
+function renderFriendsList(){
+  const wrap = $("friends-list");
+  if(!wrap) return;
+
+  const friends = currentUserData.friends || [];
+  if(!friends.length){
+    wrap.innerHTML = `<div class="index-row"><span class="dim">NO FRIENDS YET.</span></div>`;
+    return;
+  }
+
+  // Show up to 20 (fetch each profile; simple + reliable for now)
+  wrap.innerHTML = `<div class="index-row"><span class="dim">LOADING FRIENDS…</span></div>`;
+
+  (async () => {
+    const rows = [];
+    for(const fid of friends.slice(0, 20)){
+      const snap = await getDoc(doc(db,"users", fid));
+      if(!snap.exists()) continue;
+      const u = snap.data();
+      rows.push(`
+        <div class="index-row">
+          <span style="cursor:pointer; color: rgba(0,255,65,0.85)" data-fuid="${esc(u.uid)}">${esc(u.username || "UNKNOWN")}</span>
+          <span class="dim" style="margin-left:auto;">${esc(computeRankName(u.carvingCount || 0))}</span>
+        </div>
+      `);
+    }
+    wrap.innerHTML = rows.join("") || `<div class="index-row"><span class="dim">NO FRIENDS FOUND.</span></div>`;
+
+    wrap.querySelectorAll("[data-fuid]").forEach(el=>{
+      el.onclick = () => openProfile(el.getAttribute("data-fuid"));
+    });
+  })();
+}
+
+/* =========================
+   FEED / LEADERBOARD (PLACEHOLDERS)
 ========================= */
 async function loadLeaderboardStream(){
   const wrap = $("leaderboard");
   if(!wrap) return;
+
   const qy = query(collection(db,"users"), orderBy("carvingCount","desc"), limit(10));
   onSnapshot(qy, (snap) => {
     wrap.innerHTML = "";
@@ -1560,65 +1836,71 @@ async function loadFeedStream(){
   wrap.innerHTML = `<div class="index-row"><span class="dim">FEED SYSTEM READY (hook your posts collection here).</span></div>`;
 }
 
-async function loadFriendsUI(){
-  const inp = $("userSearch");
-  if(!inp) return;
-
-  inp.oninput = async () => {
-    const term = $("userSearch").value.trim();
-    const out = $("search-results");
-    if(!out) return;
-    out.innerHTML = "";
-    if(term.length < 2) return;
-
-    const qy = query(
-      collection(db,"users"),
-      where("username", ">=", term),
-      where("username", "<=", term + "\uf8ff"),
-      limit(10)
-    );
-    const snap = await getDocs(qy);
-    snap.forEach(s => {
-      const u = s.data();
-      const row = document.createElement("div");
-      row.className = "index-row";
-      row.innerHTML = `
-        <span style="cursor:pointer; color: rgba(0,255,65,0.85)">${esc(u.username)}</span>
-        <span class="dim">VIEW</span>
-      `;
-      row.onclick = () => openProfile(u.uid);
-      out.appendChild(row);
-    });
-  };
-}
-
+/* =========================
+   PROFILE MODAL
+========================= */
 async function openProfile(uid){
   const snap = await getDoc(doc(db,"users", uid));
   if(!snap.exists()) return toast("PROFILE NOT FOUND.");
   const u = snap.data();
 
-  $("modal-name").textContent = u.username || "UNKNOWN";
-  $("modal-rank").textContent = `RANK: ${computeRankName(u.carvingCount || 0)}`;
-  $("modal-stats").textContent = `CARVINGS: ${u.carvingCount || 0}`;
+  currentModalUid = u.uid;
+  currentModalUsername = u.username || "UNKNOWN";
+
+  setText("modal-name", u.username || "UNKNOWN");
+  setText("modal-rank", `RANK: ${computeRankName(u.carvingCount || 0)}`);
+  setText("modal-stats", `CARVINGS: ${u.carvingCount || 0}`);
 
   renderAvatarInto($("modal-avatar"), u.avatar || "skull", u.uid);
-  $("profile-modal").classList.remove("hidden");
+
+  // modal friend button state
+  const btn = $("modal-friend-btn");
+  if(btn){
+    btn.disabled = false;
+    btn.classList.remove("disabled");
+
+    const myUid = auth.currentUser.uid;
+    const already = (currentUserData.friends || []).includes(u.uid);
+
+    if(already){
+      btn.textContent = "FRIENDS";
+      btn.disabled = true;
+      btn.classList.add("disabled");
+    }else if(u.uid === myUid){
+      btn.textContent = "THAT’S YOU";
+      btn.disabled = true;
+      btn.classList.add("disabled");
+    }else{
+      // check if pending request exists either direction
+      const a = await getDoc(doc(db,"friendRequests", friendReqDocId(myUid, u.uid)));
+      const b = await getDoc(doc(db,"friendRequests", friendReqDocId(u.uid, myUid)));
+      const pendingSent = a.exists() && a.data().status === "pending";
+      const pendingIncoming = b.exists() && b.data().status === "pending";
+
+      if(pendingIncoming){
+        btn.textContent = "OPEN FRIENDS TAB";
+      }else if(pendingSent){
+        btn.textContent = "REQUEST_SENT";
+        btn.disabled = true;
+        btn.classList.add("disabled");
+      }else{
+        btn.textContent = "ADD_FRIEND";
+      }
+    }
+  }
+
+  $("profile-modal")?.classList.remove("hidden");
 }
 
 /* =========================
-   ADMIN (LOCAL ONLY)
+   ADMIN PLACEHOLDERS
 ========================= */
-async function purgeMyLogs(){
-  toast("PURGE LOGS NOT IMPLEMENTED YET (needs batch delete).");
-}
-async function purgeMyPosts(){
-  toast("PURGE POSTS NOT IMPLEMENTED YET (feed not wired).");
-}
+async function purgeMyLogs(){ toast("PURGE LOGS NOT IMPLEMENTED YET (needs batch delete)."); }
+async function purgeMyPosts(){ toast("PURGE POSTS NOT IMPLEMENTED YET (feed not wired)."); }
 
 /* =========================
-   STARTUP WIRING (AUTH SCREEN)
+   STARTUP
 ========================= */
 (function boot(){
-  // Wire auth screen buttons immediately so the UI feels alive even before Firebase resolves.
   try{ hookCoreButtons(); }catch(e){ console.error("boot hook error:", e); }
 })();
