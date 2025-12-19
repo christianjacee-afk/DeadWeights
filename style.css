@@ -114,6 +114,21 @@ body.crt{
   letter-spacing: 1px;
 }
 
+/* quick page flash on tab changes */
+.page-flash{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 90;
+  transition: opacity .16s ease;
+  background:
+    radial-gradient(900px 300px at 30% 20%, rgba(0,255,65,0.10), transparent 60%),
+    radial-gradient(900px 300px at 70% 80%, rgba(179,0,0,0.10), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.18));
+}
+.page-flash.on{ opacity: 1; }
+
 .grave-box{
   background: linear-gradient(180deg, rgba(16,16,20,0.95), rgba(12,12,16,0.95));
   border: 1px solid var(--border);
@@ -146,6 +161,17 @@ body.crt{
   padding: 4px 8px;
   border-radius: 999px;
   background: rgba(0,255,65,0.06);
+}
+
+/* panel transitions */
+.panel{
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.panel.active{
+  opacity: 1;
+  transform: translateY(0);
 }
 
 input, textarea, select{
@@ -228,12 +254,22 @@ select{
   border-radius: 999px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  transition: transform .08s, background .2s;
+  transition: transform .08s, background .2s, box-shadow .2s;
 }
 .mini-btn:hover{ background: rgba(0,255,65,0.12); }
 .mini-btn:active{ transform: translateY(1px); }
 .mini-btn.danger{ color: var(--blood); border-color: rgba(179,0,0,0.75); }
 .mini-btn.danger:hover{ background: rgba(179,0,0,0.12); }
+
+.mini-btn.active{
+  background: rgba(0,255,65,0.14);
+  box-shadow: 0 0 0 3px rgba(0,255,65,0.12);
+}
+
+.mini-btn.disabled{
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 .grave-tag{
   height: 96px;
@@ -754,7 +790,6 @@ select{
   filter: contrast(1.1) saturate(0);
 }
 
-/* glitch overlay */
 .relic-art::after{
   content:"";
   position:absolute;
